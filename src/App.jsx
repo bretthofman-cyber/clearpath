@@ -1,9 +1,6 @@
 import { useState, useRef } from "react";
 
-// ─── CONSTANTS ───────────────────────────────────────────────────────────────
-
 const STORAGE_KEY = "clearpath_v1";
-const API_KEY_STORAGE = "clearpath_apikey";
 
 const STAGES = [
   { id: 1, label: "Profile",  icon: "👤", title: "Household Profile",     subtitle: "Let's start with the basics" },
@@ -29,8 +26,6 @@ const EMPTY_DATA = {
   salarySacrifice: "", insuranceInSuper: "yes", targetRetirementSpending: "",
 };
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-
 function currency(val) {
   const n = parseFloat(String(val).replace(/,/g, ""));
   if (isNaN(n)) return "—";
@@ -48,18 +43,9 @@ function saveData(data) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
 }
 
-function loadApiKey() {
-  try { return localStorage.getItem(API_KEY_STORAGE) || ""; } catch { return ""; }
-}
-
-function saveApiKey(key) {
-  try { localStorage.setItem(API_KEY_STORAGE, key); } catch {}
-}
-
 function buildPrompt(data) {
   const couple = data.hasPartner === "yes";
   const hasIP = data.hasInvestmentProperty === "yes";
-
   return `Please analyse this Australian household's financial position and provide structured insights.
 
 HOUSEHOLD PROFILE
@@ -113,8 +99,6 @@ Write one specific, concrete sentence describing the single most important actio
 
 End with this exact disclaimer on its own line: This information is general in nature and is intended for educational and planning purposes only. It does not constitute personal financial advice.`;
 }
-
-// ─── FIELD COMPONENTS ────────────────────────────────────────────────────────
 
 function Field({ label, hint, children }) {
   return (
@@ -219,27 +203,19 @@ function SectionDivider({ label }) {
   );
 }
 
-// ─── STAGE FORMS ─────────────────────────────────────────────────────────────
-
 function Stage1({ data, set }) {
   return (
     <div>
       <TwoCol>
-        <Field label="First name">
-          <Input value={data.firstName} onChange={v => set("firstName", v)} placeholder="e.g. Alex" />
-        </Field>
-        <Field label="Your age">
-          <Input value={data.age} onChange={v => set("age", v)} placeholder="e.g. 34" type="number" />
-        </Field>
+        <Field label="First name"><Input value={data.firstName} onChange={v => set("firstName", v)} placeholder="e.g. Alex" /></Field>
+        <Field label="Your age"><Input value={data.age} onChange={v => set("age", v)} placeholder="e.g. 34" type="number" /></Field>
       </TwoCol>
       <Field label="Do you have a partner?">
         <Toggle value={data.hasPartner} onChange={v => set("hasPartner", v)}
           options={[{ value: "no", label: "Single" }, { value: "yes", label: "Couple" }]} />
       </Field>
       {data.hasPartner === "yes" && (
-        <Field label="Partner's age">
-          <Input value={data.partnerAge} onChange={v => set("partnerAge", v)} placeholder="e.g. 32" type="number" />
-        </Field>
+        <Field label="Partner's age"><Input value={data.partnerAge} onChange={v => set("partnerAge", v)} placeholder="e.g. 32" type="number" /></Field>
       )}
       <TwoCol>
         <Field label="Dependants">
@@ -248,40 +224,27 @@ function Stage1({ data, set }) {
         </Field>
         <Field label="Location">
           <Select value={data.location} onChange={v => set("location", v)}
-            options={[
-              { value: "", label: "Select state…" },
-              ...["NSW","VIC","QLD","WA","SA","TAS","ACT","NT"].map(s => ({ value: s, label: s }))
-            ]} />
+            options={[{ value: "", label: "Select state…" }, ...["NSW","VIC","QLD","WA","SA","TAS","ACT","NT"].map(s => ({ value: s, label: s }))]} />
         </Field>
       </TwoCol>
       <TwoCol>
         <Field label="Employment status">
           <Select value={data.employmentStatus} onChange={v => set("employmentStatus", v)}
             options={[
-              { value: "full-time", label: "Full-time" },
-              { value: "part-time", label: "Part-time" },
-              { value: "self-employed", label: "Self-employed" },
-              { value: "contractor", label: "Contractor" },
+              { value: "full-time", label: "Full-time" }, { value: "part-time", label: "Part-time" },
+              { value: "self-employed", label: "Self-employed" }, { value: "contractor", label: "Contractor" },
               { value: "not-employed", label: "Not employed" },
             ]} />
         </Field>
         <Field label="Home ownership">
           <Select value={data.homeOwnership} onChange={v => set("homeOwnership", v)}
-            options={[
-              { value: "owner", label: "Own home" },
-              { value: "mortgage", label: "Mortgage" },
-              { value: "renting", label: "Renting" },
-            ]} />
+            options={[{ value: "owner", label: "Own home" }, { value: "mortgage", label: "Mortgage" }, { value: "renting", label: "Renting" }]} />
         </Field>
       </TwoCol>
       <SectionDivider label="Retirement horizon" />
       <TwoCol>
-        <Field label="Target retirement age">
-          <Input value={data.retirementAge} onChange={v => set("retirementAge", v)} placeholder="65" type="number" />
-        </Field>
-        <Field label="Life expectancy assumption">
-          <Input value={data.lifeExpectancy} onChange={v => set("lifeExpectancy", v)} placeholder="90" type="number" />
-        </Field>
+        <Field label="Target retirement age"><Input value={data.retirementAge} onChange={v => set("retirementAge", v)} placeholder="65" type="number" /></Field>
+        <Field label="Life expectancy assumption"><Input value={data.lifeExpectancy} onChange={v => set("lifeExpectancy", v)} placeholder="90" type="number" /></Field>
       </TwoCol>
     </div>
   );
@@ -328,28 +291,16 @@ function Stage3({ data, set }) {
   return (
     <div>
       <TwoCol>
-        <Field label="Cash savings">
-          <Input value={data.cashSavings} onChange={v => set("cashSavings", v)} placeholder="15,000" prefix="$" />
-        </Field>
-        <Field label="Offset account balance">
-          <Input value={data.offsetBalance} onChange={v => set("offsetBalance", v)} placeholder="0" prefix="$" />
-        </Field>
+        <Field label="Cash savings"><Input value={data.cashSavings} onChange={v => set("cashSavings", v)} placeholder="15,000" prefix="$" /></Field>
+        <Field label="Offset account balance"><Input value={data.offsetBalance} onChange={v => set("offsetBalance", v)} placeholder="0" prefix="$" /></Field>
       </TwoCol>
       <TwoCol>
-        <Field label="Shares / ETFs">
-          <Input value={data.sharesEtfs} onChange={v => set("sharesEtfs", v)} placeholder="0" prefix="$" />
-        </Field>
-        <Field label="Managed funds">
-          <Input value={data.managedFunds} onChange={v => set("managedFunds", v)} placeholder="0" prefix="$" />
-        </Field>
+        <Field label="Shares / ETFs"><Input value={data.sharesEtfs} onChange={v => set("sharesEtfs", v)} placeholder="0" prefix="$" /></Field>
+        <Field label="Managed funds"><Input value={data.managedFunds} onChange={v => set("managedFunds", v)} placeholder="0" prefix="$" /></Field>
       </TwoCol>
       <TwoCol>
-        <Field label="Cryptocurrency">
-          <Input value={data.crypto} onChange={v => set("crypto", v)} placeholder="0" prefix="$" />
-        </Field>
-        <Field label="Other investments">
-          <Input value={data.otherInvestments} onChange={v => set("otherInvestments", v)} placeholder="0" prefix="$" />
-        </Field>
+        <Field label="Cryptocurrency"><Input value={data.crypto} onChange={v => set("crypto", v)} placeholder="0" prefix="$" /></Field>
+        <Field label="Other investments"><Input value={data.otherInvestments} onChange={v => set("otherInvestments", v)} placeholder="0" prefix="$" /></Field>
       </TwoCol>
       <SectionDivider label="Emergency position" />
       <Field label="Dedicated emergency fund" hint="Separate from everyday savings">
@@ -365,23 +316,14 @@ function Stage4({ data, set }) {
       {(data.homeOwnership === "mortgage" || data.homeOwnership === "owner") && (
         <>
           <TwoCol>
-            <Field label="PPOR estimated value">
-              <Input value={data.ppOrValue} onChange={v => set("ppOrValue", v)} placeholder="850,000" prefix="$" />
-            </Field>
-            <Field label="Mortgage balance">
-              <Input value={data.mortgageBalance} onChange={v => set("mortgageBalance", v)} placeholder="450,000" prefix="$" />
-            </Field>
+            <Field label="PPOR estimated value"><Input value={data.ppOrValue} onChange={v => set("ppOrValue", v)} placeholder="850,000" prefix="$" /></Field>
+            <Field label="Mortgage balance"><Input value={data.mortgageBalance} onChange={v => set("mortgageBalance", v)} placeholder="450,000" prefix="$" /></Field>
           </TwoCol>
           <TwoCol>
-            <Field label="Interest rate">
-              <Input value={data.mortgageRate} onChange={v => set("mortgageRate", v)} placeholder="6.2" prefix="%" />
-            </Field>
+            <Field label="Interest rate"><Input value={data.mortgageRate} onChange={v => set("mortgageRate", v)} placeholder="6.2" prefix="%" /></Field>
             <Field label="Loan type">
               <Select value={data.loanType} onChange={v => set("loanType", v)}
-                options={[
-                  { value: "pi", label: "Principal & Interest" },
-                  { value: "io", label: "Interest Only" },
-                ]} />
+                options={[{ value: "pi", label: "Principal & Interest" }, { value: "io", label: "Interest Only" }]} />
             </Field>
           </TwoCol>
         </>
@@ -394,35 +336,21 @@ function Stage4({ data, set }) {
       {data.hasInvestmentProperty === "yes" && (
         <>
           <TwoCol>
-            <Field label="IP value">
-              <Input value={data.ipValue} onChange={v => set("ipValue", v)} placeholder="650,000" prefix="$" />
-            </Field>
-            <Field label="IP mortgage">
-              <Input value={data.ipMortgage} onChange={v => set("ipMortgage", v)} placeholder="400,000" prefix="$" />
-            </Field>
+            <Field label="IP value"><Input value={data.ipValue} onChange={v => set("ipValue", v)} placeholder="650,000" prefix="$" /></Field>
+            <Field label="IP mortgage"><Input value={data.ipMortgage} onChange={v => set("ipMortgage", v)} placeholder="400,000" prefix="$" /></Field>
           </TwoCol>
           <TwoCol>
-            <Field label="IP interest rate">
-              <Input value={data.ipRate} onChange={v => set("ipRate", v)} placeholder="6.5" prefix="%" />
-            </Field>
-            <Field label="Weekly rent">
-              <Input value={data.ipWeeklyRent} onChange={v => set("ipWeeklyRent", v)} placeholder="550" prefix="$" />
-            </Field>
+            <Field label="IP interest rate"><Input value={data.ipRate} onChange={v => set("ipRate", v)} placeholder="6.5" prefix="%" /></Field>
+            <Field label="Weekly rent"><Input value={data.ipWeeklyRent} onChange={v => set("ipWeeklyRent", v)} placeholder="550" prefix="$" /></Field>
           </TwoCol>
         </>
       )}
       <SectionDivider label="Other debts" />
       <TwoCol>
-        <Field label="Credit card debt">
-          <Input value={data.creditCardDebt} onChange={v => set("creditCardDebt", v)} placeholder="0" prefix="$" />
-        </Field>
-        <Field label="Personal loans">
-          <Input value={data.personalLoanDebt} onChange={v => set("personalLoanDebt", v)} placeholder="0" prefix="$" />
-        </Field>
+        <Field label="Credit card debt"><Input value={data.creditCardDebt} onChange={v => set("creditCardDebt", v)} placeholder="0" prefix="$" /></Field>
+        <Field label="Personal loans"><Input value={data.personalLoanDebt} onChange={v => set("personalLoanDebt", v)} placeholder="0" prefix="$" /></Field>
       </TwoCol>
-      <Field label="HECS / HELP debt">
-        <Input value={data.hecsDebt} onChange={v => set("hecsDebt", v)} placeholder="0" prefix="$" />
-      </Field>
+      <Field label="HECS / HELP debt"><Input value={data.hecsDebt} onChange={v => set("hecsDebt", v)} placeholder="0" prefix="$" /></Field>
     </div>
   );
 }
@@ -431,13 +359,9 @@ function Stage5({ data, set }) {
   return (
     <div>
       <TwoCol>
-        <Field label="Your super balance">
-          <Input value={data.superBalance} onChange={v => set("superBalance", v)} placeholder="68,000" prefix="$" />
-        </Field>
+        <Field label="Your super balance"><Input value={data.superBalance} onChange={v => set("superBalance", v)} placeholder="68,000" prefix="$" /></Field>
         {data.hasPartner === "yes" && (
-          <Field label="Partner's super balance">
-            <Input value={data.partnerSuperBalance} onChange={v => set("partnerSuperBalance", v)} placeholder="55,000" prefix="$" />
-          </Field>
+          <Field label="Partner's super balance"><Input value={data.partnerSuperBalance} onChange={v => set("partnerSuperBalance", v)} placeholder="55,000" prefix="$" /></Field>
         )}
       </TwoCol>
       <TwoCol>
@@ -459,8 +383,6 @@ function Stage5({ data, set }) {
     </div>
   );
 }
-
-// ─── MARKDOWN RENDERER ───────────────────────────────────────────────────────
 
 function renderMarkdown(text) {
   const elements = [];
@@ -486,18 +408,14 @@ function renderMarkdown(text) {
 
   while (i < lines.length) {
     const line = lines[i];
-
     if (line.startsWith("## ") || line.startsWith("### ")) {
       flushList();
-      const headingText = line.replace(/^#{2,3}\s+/, "");
       elements.push(
         <div key={"h-" + i} style={{
-          fontSize: 11, fontWeight: 600, letterSpacing: "0.08em",
-          textTransform: "uppercase", color: "#3d6b5e",
-          margin: "28px 0 12px", paddingBottom: 8,
-          borderBottom: "1px solid #d4e8e0",
+          fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase",
+          color: "#3d6b5e", margin: "28px 0 12px", paddingBottom: 8, borderBottom: "1px solid #d4e8e0",
         }}>
-          {headingText}
+          {line.replace(/^#{2,3}\s+/, "")}
         </div>
       );
     } else if (/^(\d+\.\s+|[-•]\s*)/.test(line)) {
@@ -514,81 +432,36 @@ function renderMarkdown(text) {
     }
     i++;
   }
-
   flushList();
   return elements;
 }
 
-// ─── ANALYSIS SCREEN ─────────────────────────────────────────────────────────
-
-function AnalysisScreen({ data, apiKey }) {
+function AnalysisScreen({ data }) {
   const [status, setStatus] = useState("idle");
   const [response, setResponse] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const responseRef = useRef("");
   const hasGenerated = useRef(false);
 
   async function generate() {
-    if (!apiKey) {
-      setErrorMsg("No API key found. Please restart and enter your key.");
-      setStatus("error");
-      return;
-    }
     setStatus("loading");
     setResponse("");
-    responseRef.current = "";
 
     try {
-      const res = await fetch("/api/anthropic/v1/messages", {
+      const res = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
-          max_tokens: 1500,
+          max_tokens: 2500,
           system: "You are Clearpath, a warm, intelligent Australian financial planning assistant. You provide clear, practical, Australia-specific financial guidance. Never present outputs as personal financial advice. Use plain English. Reference Australian concepts naturally: super, HECS, franking credits, offset accounts, negative gearing, Medicare levy, CGT discount, SG rate, concessional caps, preservation age. Write each section completely before moving to the next. Never repeat or restart a section.",
           messages: [{ role: "user", content: buildPrompt(data) }],
-          stream: true,
         }),
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error?.message || ("API error " + res.status));
-      }
-
-      setStatus("streaming");
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const json = line.slice(6).trim();
-          if (!json || json === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(json);
-            if (
-              parsed.type === "content_block_delta" &&
-              parsed.delta?.type === "text_delta"
-            ) {
-              const text = parsed.delta.text || "";
-              if (text) {
-                responseRef.current += text;
-                setResponse(r => r + text);
-              }
-            }
-          } catch {}
-        }
-      }
+      const result = await res.json();
+      if (result.error) throw new Error(result.error.message || "API error");
+      const text = result.content?.[0]?.text || "";
+      setResponse(text);
       setStatus("done");
     } catch (e) {
       setErrorMsg(e.message);
@@ -606,168 +479,61 @@ function AnalysisScreen({ data, apiKey }) {
       {status === "loading" && (
         <div style={{ textAlign: "center", padding: "48px 0" }}>
           <div style={{
-            width: 44, height: 44, border: "3px solid #e2eae6",
-            borderTopColor: "#3d6b5e", borderRadius: "50%",
-            animation: "spin 0.8s linear infinite", margin: "0 auto 16px",
+            width: 44, height: 44, border: "3px solid #e2eae6", borderTopColor: "#3d6b5e",
+            borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px",
           }} />
           <div style={{ fontSize: 14, color: "#6b8f84" }}>Analysing your financial position…</div>
           <style>{"@keyframes spin { to { transform: rotate(360deg); } }"}</style>
         </div>
       )}
 
-      {(status === "streaming" || status === "done") && (
+      {status === "done" && (
         <div>
           <div style={{
-            background: "#eaf2ef", border: "1px solid #c4ddd6",
-            borderRadius: 12, padding: "14px 18px", marginBottom: 24,
-            display: "flex", alignItems: "center", gap: 12,
+            background: "#eaf2ef", border: "1px solid #c4ddd6", borderRadius: 12,
+            padding: "14px 18px", marginBottom: 24, display: "flex", alignItems: "center", gap: 12,
           }}>
             <div style={{
               width: 34, height: 34, background: "#3d6b5e", borderRadius: "50%",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontFamily: "Instrument Serif, serif", fontSize: 17, color: "white", flexShrink: 0,
             }}>C</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#3d6b5e", marginBottom: 1 }}>
-                Clearpath Analysis
-              </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#3d6b5e", marginBottom: 1 }}>Clearpath Analysis</div>
               <div style={{ fontSize: 11, color: "#8a9e98" }}>
                 {data.firstName ? ("Personalised for " + data.firstName) : "Your financial picture"} · General information only
               </div>
             </div>
-            {status === "streaming" && (
-              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                {[0, 1, 2].map(function(i) {
-                  return (
-                    <div key={i} style={{
-                      width: 6, height: 6, borderRadius: "50%", background: "#3d6b5e",
-                      animation: "bounce 1.2s " + (i * 0.2) + "s infinite ease-in-out",
-                    }} />
-                  );
-                })}
-              </div>
-            )}
           </div>
-
           <div>{renderMarkdown(response)}</div>
-
-          {status === "done" && (
-            <div style={{ marginTop: 28, display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={generate} style={{
-                padding: "10px 20px", border: "1.5px solid #d4ddd9", borderRadius: 10,
-                background: "white", fontSize: 13, color: "#2d3a35",
-                cursor: "pointer", fontFamily: "inherit",
-              }}>
-                Regenerate
-              </button>
-              <button onClick={() => window.print()} style={{
-                padding: "10px 20px", border: "none", borderRadius: 10,
-                background: "#3d6b5e", color: "white", fontSize: 13,
-                cursor: "pointer", fontFamily: "inherit",
-              }}>
-                Print / Save PDF
-              </button>
-            </div>
-          )}
+          <div style={{ marginTop: 28, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={generate} style={{
+              padding: "10px 20px", border: "1.5px solid #d4ddd9", borderRadius: 10,
+              background: "white", fontSize: 13, color: "#2d3a35", cursor: "pointer", fontFamily: "inherit",
+            }}>Regenerate</button>
+            <button onClick={() => window.print()} style={{
+              padding: "10px 20px", border: "none", borderRadius: 10,
+              background: "#3d6b5e", color: "white", fontSize: 13, cursor: "pointer", fontFamily: "inherit",
+            }}>Print / Save PDF</button>
+          </div>
         </div>
       )}
 
       {status === "error" && (
-        <div style={{
-          background: "#fdf4f0", border: "1px solid #f0d0c4",
-          borderRadius: 12, padding: "20px 24px",
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#9a3922", marginBottom: 6 }}>
-            Could not generate analysis
-          </div>
+        <div style={{ background: "#fdf4f0", border: "1px solid #f0d0c4", borderRadius: 12, padding: "20px 24px" }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#9a3922", marginBottom: 6 }}>Could not generate analysis</div>
           <div style={{ fontSize: 13, color: "#7a4030", marginBottom: 16 }}>{errorMsg}</div>
           <button onClick={generate} style={{
             padding: "9px 18px", border: "1.5px solid #e0a090", borderRadius: 8,
-            background: "white", fontSize: 13, color: "#9a3922",
-            cursor: "pointer", fontFamily: "inherit",
-          }}>
-            Try again
-          </button>
+            background: "white", fontSize: 13, color: "#9a3922", cursor: "pointer", fontFamily: "inherit",
+          }}>Try again</button>
         </div>
       )}
     </div>
   );
 }
 
-// ─── API KEY GATE ─────────────────────────────────────────────────────────────
-
-function ApiKeyGate({ onSave }) {
-  const [key, setKey] = useState("");
-  const [error, setError] = useState("");
-
-  function submit() {
-    const trimmed = key.trim();
-    if (!trimmed.startsWith("sk-ant-")) {
-      setError("That doesn't look like a valid Anthropic API key. It should start with sk-ant-");
-      return;
-    }
-    saveApiKey(trimmed);
-    onSave(trimmed);
-  }
-
-  return (
-    <div style={{
-      minHeight: "100vh", background: "#f4f7f5",
-      display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
-    }}>
-      <div style={{
-        background: "white", borderRadius: 20, padding: 40, maxWidth: 440, width: "100%",
-        boxShadow: "0 4px 32px rgba(0,0,0,0.07)", border: "1px solid #e2eae6",
-      }}>
-        <div style={{
-          width: 48, height: 48, background: "#3d6b5e", borderRadius: 14,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontFamily: "Instrument Serif, serif", fontSize: 26, color: "white", marginBottom: 20,
-        }}>C</div>
-        <div style={{ fontFamily: "Instrument Serif, serif", fontSize: 26, marginBottom: 8, color: "#0f1a16" }}>
-          Welcome to Clearpath
-        </div>
-        <div style={{ fontSize: 13, color: "#6b7a74", lineHeight: 1.6, marginBottom: 28 }}>
-          To power your AI financial analysis, enter your Anthropic API key below.
-          It is stored only on this device and never sent anywhere except directly to Anthropic.
-        </div>
-        <Field label="Anthropic API key" hint="Starts with sk-ant- · Get yours at console.anthropic.com">
-          <input
-            type="password"
-            value={key}
-            onChange={e => { setKey(e.target.value); setError(""); }}
-            placeholder="sk-ant-api03-…"
-            onKeyDown={e => e.key === "Enter" && submit()}
-            style={{
-              width: "100%", padding: "11px 14px", border: "1.5px solid #d4ddd9",
-              borderRadius: 10, fontSize: 14, color: "#0f1a16", background: "#f9faf9",
-              outline: "none", fontFamily: "inherit",
-            }}
-            onFocus={e => e.target.style.borderColor = "#3d6b5e"}
-            onBlur={e => e.target.style.borderColor = "#d4ddd9"}
-          />
-        </Field>
-        {error && <div style={{ fontSize: 12, color: "#9a3922", marginBottom: 12 }}>{error}</div>}
-        <button onClick={submit} style={{
-          width: "100%", padding: 13, background: "#3d6b5e", color: "white",
-          border: "none", borderRadius: 12, fontSize: 14, fontWeight: 500,
-          cursor: "pointer", fontFamily: "inherit",
-        }}>
-          Continue →
-        </button>
-        <div style={{ fontSize: 11, color: "#a0aba6", marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
-          Your key is stored locally on this device only.
-          This app provides general information, not personal financial advice.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── MAIN APP ─────────────────────────────────────────────────────────────────
-
 export default function ClearpathMVP() {
-  const [apiKey, setApiKey] = useState(() => loadApiKey());
   const [data, setData] = useState(() => loadData());
   const [stage, setStage] = useState(1);
   const scrollRef = useRef(null);
@@ -789,95 +555,50 @@ export default function ClearpathMVP() {
   function back() { goTo(Math.max(stage - 1, 1)); }
 
   const progress = ((stage - 1) / 5) * 100;
-
-  if (!apiKey) return <ApiKeyGate onSave={setApiKey} />;
-
   const currentStage = STAGES[stage - 1];
 
-  const totalAssets = [
-    data.cashSavings, data.offsetBalance, data.sharesEtfs, data.managedFunds,
-    data.crypto, data.otherInvestments, data.superBalance, data.ppOrValue, data.ipValue,
-  ].reduce((sum, v) => sum + (parseFloat(String(v).replace(/,/g, "")) || 0), 0);
-
-  const totalDebt = [
-    data.mortgageBalance, data.ipMortgage, data.creditCardDebt,
-    data.personalLoanDebt, data.hecsDebt,
-  ].reduce((sum, v) => sum + (parseFloat(String(v).replace(/,/g, "")) || 0), 0);
-
+  const totalAssets = [data.cashSavings, data.offsetBalance, data.sharesEtfs, data.managedFunds,
+    data.crypto, data.otherInvestments, data.superBalance, data.ppOrValue, data.ipValue]
+    .reduce((sum, v) => sum + (parseFloat(String(v).replace(/,/g, "")) || 0), 0);
+  const totalDebt = [data.mortgageBalance, data.ipMortgage, data.creditCardDebt, data.personalLoanDebt, data.hecsDebt]
+    .reduce((sum, v) => sum + (parseFloat(String(v).replace(/,/g, "")) || 0), 0);
   const netWorth = totalAssets - totalDebt;
   const monthlyLiquid = parseFloat(String(data.cashSavings).replace(/,/g, "")) || 0;
   const monthlyExp = parseFloat(String(data.monthlyExpenses).replace(/,/g, "")) || 1;
   const runway = monthlyLiquid > 0 && monthlyExp > 0 ? (monthlyLiquid / monthlyExp).toFixed(1) : "—";
 
   return (
-    <div style={{
-      minHeight: "100vh", background: "#f4f7f5",
-      fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column",
-    }}>
+    <div style={{ minHeight: "100vh", background: "#f4f7f5", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
       <style>{"@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap'); @keyframes bounce { 0%,80%,100% { transform: translateY(0); opacity: .5; } 40% { transform: translateY(-5px); opacity: 1; } } @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } * { box-sizing: border-box; } input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }"}</style>
 
-      <header style={{
-        background: "white", borderBottom: "1px solid #e2eae6",
-        padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between",
-        position: "sticky", top: 0, zIndex: 100,
-      }}>
+      <header style={{ background: "white", borderBottom: "1px solid #e2eae6", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
         <div>
           <div style={{ fontFamily: "Instrument Serif, serif", fontSize: 20, color: "#0f1a16" }}>
             Clear<span style={{ color: "#3d6b5e" }}>path</span>
           </div>
-          <div style={{ fontSize: 10, color: "#8a9e98", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            Australian Financial Planner
-          </div>
+          <div style={{ fontSize: 10, color: "#8a9e98", letterSpacing: "0.08em", textTransform: "uppercase" }}>Australian Financial Planner</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          {data.firstName && (
-            <div style={{ fontSize: 12, color: "#6b8f84" }}>Hi, {data.firstName} 👋</div>
-          )}
+          {data.firstName && <div style={{ fontSize: 12, color: "#6b8f84" }}>Hi, {data.firstName} 👋</div>}
           <button
-            onClick={() => {
-              if (window.confirm("Clear all saved data?")) {
-                localStorage.removeItem(STORAGE_KEY);
-                setData({ ...EMPTY_DATA });
-                setStage(1);
-              }
-            }}
-            style={{
-              fontSize: 11, color: "#a0aba6", background: "none", border: "1px solid #e2eae6",
-              borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            Clear data
-          </button>
+            onClick={() => { if (window.confirm("Clear all saved data?")) { localStorage.removeItem(STORAGE_KEY); setData({ ...EMPTY_DATA }); setStage(1); } }}
+            style={{ fontSize: 11, color: "#a0aba6", background: "none", border: "1px solid #e2eae6", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}
+          >Clear data</button>
         </div>
       </header>
 
       <div style={{ background: "white", borderBottom: "1px solid #e2eae6", padding: "0 28px 14px" }}>
         <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
           {STAGES.map(s => (
-            <button
-              key={s.id}
-              onClick={() => s.id < stage ? goTo(s.id) : null}
-              style={{
-                flex: 1, padding: "6px 0", border: "none",
-                background: s.id === stage ? "#3d6b5e" : s.id < stage ? "#c4ddd6" : "#e8f0ee",
-                borderRadius: 6, cursor: s.id < stage ? "pointer" : "default",
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 2, transition: "all 0.2s",
-              }}
-            >
+            <button key={s.id} onClick={() => s.id < stage ? goTo(s.id) : null}
+              style={{ flex: 1, padding: "6px 0", border: "none", background: s.id === stage ? "#3d6b5e" : s.id < stage ? "#c4ddd6" : "#e8f0ee", borderRadius: 6, cursor: s.id < stage ? "pointer" : "default", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, transition: "all 0.2s" }}>
               <div style={{ fontSize: 13 }}>{s.icon}</div>
-              <div style={{
-                fontSize: 9, fontWeight: 600, letterSpacing: "0.05em",
-                color: s.id === stage ? "white" : s.id < stage ? "#2d6558" : "#8ab5aa",
-                textTransform: "uppercase",
-              }}>{s.label}</div>
+              <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.05em", color: s.id === stage ? "white" : s.id < stage ? "#2d6558" : "#8ab5aa", textTransform: "uppercase" }}>{s.label}</div>
             </button>
           ))}
         </div>
         <div style={{ height: 3, background: "#e8f0ee", borderRadius: 2, overflow: "hidden" }}>
-          <div style={{
-            height: "100%", width: progress + "%", background: "#3d6b5e",
-            borderRadius: 2, transition: "width 0.4s ease",
-          }} />
+          <div style={{ height: "100%", width: progress + "%", background: "#3d6b5e", borderRadius: 2, transition: "width 0.4s ease" }} />
         </div>
       </div>
 
@@ -890,12 +611,8 @@ export default function ClearpathMVP() {
             { label: "Emergency Runway", value: runway === "—" ? "—" : (runway + " mo") },
           ].map((item, i) => (
             <div key={i} style={{ flexShrink: 0 }}>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                {item.label}
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: "white", marginTop: 1 }}>
-                {item.value}
-              </div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{item.label}</div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: "white", marginTop: 1 }}>{item.value}</div>
             </div>
           ))}
         </div>
@@ -904,44 +621,26 @@ export default function ClearpathMVP() {
       <div style={{ flex: 1, display: "flex", justifyContent: "center", padding: "32px 20px 100px" }}>
         <div style={{ width: "100%", maxWidth: 620 }}>
           <div style={{ marginBottom: 28, animation: "fadeIn 0.3s ease" }}>
-            <div style={{ fontSize: 11, color: "#8a9e98", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>
-              Step {stage} of 6
-            </div>
-            <div style={{ fontFamily: "Instrument Serif, serif", fontSize: 28, color: "#0f1a16", marginBottom: 4 }}>
-              {currentStage.title}
-            </div>
+            <div style={{ fontSize: 11, color: "#8a9e98", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>Step {stage} of 6</div>
+            <div style={{ fontFamily: "Instrument Serif, serif", fontSize: 28, color: "#0f1a16", marginBottom: 4 }}>{currentStage.title}</div>
             <div style={{ fontSize: 14, color: "#6b8f84" }}>{currentStage.subtitle}</div>
           </div>
 
-          <div ref={scrollRef} style={{
-            background: "white", borderRadius: 18, border: "1px solid #e2eae6",
-            padding: "28px", animation: "fadeIn 0.25s ease",
-            boxShadow: "0 2px 16px rgba(0,0,0,0.04)",
-          }}>
+          <div ref={scrollRef} style={{ background: "white", borderRadius: 18, border: "1px solid #e2eae6", padding: "28px", animation: "fadeIn 0.25s ease", boxShadow: "0 2px 16px rgba(0,0,0,0.04)" }}>
             {stage === 1 && <Stage1 data={data} set={set} />}
             {stage === 2 && <Stage2 data={data} set={set} />}
             {stage === 3 && <Stage3 data={data} set={set} />}
             {stage === 4 && <Stage4 data={data} set={set} />}
             {stage === 5 && <Stage5 data={data} set={set} />}
-            {stage === 6 && <AnalysisScreen data={data} apiKey={apiKey} />}
+            {stage === 6 && <AnalysisScreen data={data} />}
           </div>
 
           {stage < 6 && (
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
               {stage > 1 ? (
-                <button onClick={back} style={{
-                  padding: "12px 24px", border: "1.5px solid #d4ddd9", borderRadius: 12,
-                  background: "white", fontSize: 14, color: "#4a6660", cursor: "pointer", fontFamily: "inherit",
-                }}>
-                  ← Back
-                </button>
+                <button onClick={back} style={{ padding: "12px 24px", border: "1.5px solid #d4ddd9", borderRadius: 12, background: "white", fontSize: 14, color: "#4a6660", cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
               ) : <div />}
-              <button onClick={next} style={{
-                padding: "12px 28px", border: "none", borderRadius: 12,
-                background: "#3d6b5e", color: "white", fontSize: 14, fontWeight: 500,
-                cursor: "pointer", fontFamily: "inherit",
-                boxShadow: "0 2px 12px rgba(61,107,94,0.3)",
-              }}>
+              <button onClick={next} style={{ padding: "12px 28px", border: "none", borderRadius: 12, background: "#3d6b5e", color: "white", fontSize: 14, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 12px rgba(61,107,94,0.3)" }}>
                 {stage === 5 ? "Generate My Plan →" : "Continue →"}
               </button>
             </div>
@@ -949,21 +648,13 @@ export default function ClearpathMVP() {
 
           {stage === 6 && (
             <div style={{ marginTop: 20 }}>
-              <button onClick={back} style={{
-                padding: "12px 24px", border: "1.5px solid #d4ddd9", borderRadius: 12,
-                background: "white", fontSize: 14, color: "#4a6660", cursor: "pointer", fontFamily: "inherit",
-              }}>
-                ← Edit my details
-              </button>
+              <button onClick={back} style={{ padding: "12px 24px", border: "1.5px solid #d4ddd9", borderRadius: 12, background: "white", fontSize: 14, color: "#4a6660", cursor: "pointer", fontFamily: "inherit" }}>← Edit my details</button>
             </div>
           )}
         </div>
       </div>
 
-      <footer style={{
-        background: "white", borderTop: "1px solid #e2eae6",
-        padding: "16px 28px", textAlign: "center", marginTop: "auto",
-      }}>
+      <footer style={{ background: "white", borderTop: "1px solid #e2eae6", padding: "16px 28px", textAlign: "center", marginTop: "auto" }}>
         <div style={{ fontSize: 11, color: "#a0aba6", lineHeight: 1.6, maxWidth: 620, margin: "0 auto" }}>
           <strong style={{ color: "#6b7a74" }}>General information only.</strong> Clearpath is an educational planning tool and does not provide personal financial advice. All projections and analysis are illustrative estimates based on the information you enter. Before making financial decisions, consider seeking advice from a licensed Australian financial adviser (AFSL holder). Past performance is not a reliable indicator of future performance.
         </div>
