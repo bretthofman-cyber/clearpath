@@ -1,32 +1,7 @@
 import { useState, useRef } from "react";
+import { DEFAULT_SCENARIOS, getActiveAssumptions, runEngine } from "./engine.js";
 
 const STORAGE_KEY = "clearpath_v1";
-
-// ─── DEFAULT SCENARIO ASSUMPTIONS (from workbook + reputable AU sources) ─────
-
-const DEFAULT_SCENARIOS = {
-  base: {
-    returnRate: 6.5,
-    inflation: 2.5,
-    propertyGrowth: 4.5,
-    rentalGrowth: 3.0,
-    safeWithdrawal: 4.0,
-  },
-  conservative: {
-    returnRate: 5.5,
-    inflation: 3.0,
-    propertyGrowth: 3.5,
-    rentalGrowth: 2.5,
-    safeWithdrawal: 4.0,
-  },
-  aggressive: {
-    returnRate: 7.5,
-    inflation: 2.0,
-    propertyGrowth: 5.5,
-    rentalGrowth: 3.5,
-    safeWithdrawal: 4.0,
-  },
-};
 
 const ASSUMPTION_RATIONALE = {
   returnRate: {
@@ -121,15 +96,7 @@ function saveData(data) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
 }
 
-function getActiveAssumptions(data) {
-  const scenario = data.activeScenario || "base";
-  if (data.useCustomAssumptions && data.customAssumptions?.[scenario]) {
-    return data.customAssumptions[scenario];
-  }
-  return DEFAULT_SCENARIOS[scenario];
-}
-
-function buildPrompt(data) {
+function buildPrompt(data, engine) {
   const couple = data.hasPartner === "yes";
   const hasIP = data.hasInvestmentProperty === "yes";
   const assumptions = getActiveAssumptions(data);
@@ -138,6 +105,33 @@ function buildPrompt(data) {
   const goals = (data.goals || []).join(", ") || "Not specified";
   const lifestyle = { basic: "Basic / frugal", comfortable: "Comfortable", generous: "Generous / lifestyle-rich" }[data.retirementLifestyle] || "Comfortable";
   const risk = { conservative: "Conservative", balanced: "Balanced", growth: "Growth-oriented" }[data.riskTolerance] || "Balanced";
+
+  const m = engine?.metrics;
+  const mort = engine?.mortgage;
+  const dd = engine?.drawdown;
+
+  const mortgageLine = !mort
+    ? "No mortgage recorded"
+    : mort.type === "io"
+    ? "Mortgage: interest-only (principal does not reduce)"
+    : `Mortgage debt-free year: ${mort.debtFreeYear} (${mort.yearsToPayoff} yrs remaining, ${currency(mort.monthlyPayment)}/month repayment)`;
+
+  const fundedLine = !dd || !parseFloat(data.targetRetirementSpending)
+    ? "Retirement spending target not entered"
+    : m.lastsToLifeExpectancy
+    ? `Super funded to age ${data.lifeExpectancy} — full life expectancy covered`
+    : `Super depletes at age ${m.depletionAge} (${m.depletionAge - (parseFloat(data.retirementAge) || 65)} years into retirement)`;
+
+  const engineSection = engine ? `
+PRE-CALCULATED PROJECTIONS (engine-verified at ${scenarioLabel} scenario assumptions — quote these exact figures in your analysis, do not re-estimate)
+Projected super at retirement (age ${data.retirementAge}): ${currency(m.projectedSuper)}
+Super required for target retirement spending: ${currency(m.requiredSuper)}
+Super ${m.onTrack ? `surplus: +${currency(m.superSurplus)}` : `shortfall: −${currency(Math.abs(m.superSurplus))}`}
+Annual retirement spending in future dollars: ${currency(dd.futureSpending)}/year
+${fundedLine}
+Net worth at retirement: ${currency(m.retirementNetWorth)}
+${mortgageLine}
+` : "";
 
   return `Please analyse this Australian household's financial position and provide structured insights.
 
@@ -177,8 +171,8 @@ Super balance: ${currency(data.superBalance)}${couple ? ` | Partner super: ${cur
 Employer SG rate: ${data.employerSgRate}% | Salary sacrifice: ${currency(data.salarySacrifice)}/year
 Insurance in super: ${data.insuranceInSuper}
 Target retirement spending: ${currency(data.targetRetirementSpending)}/year
-
-Use the active scenario assumptions above in all projections. Acknowledge the scenario clearly in your analysis.
+${engineSection}
+Use the active scenario assumptions above in all projections. Acknowledge the scenario clearly in your analysis. Reference the pre-calculated projections above — do not invent different numbers.
 
 Please structure your response with these exact section headings and write each section completely before moving to the next. Do not repeat or restart any section.
 
@@ -195,7 +189,7 @@ List 4 specific concerns using numbered points (1. 2. 3. 4.).
 List 5 prioritised actions using numbered points (1. 2. 3. 4. 5.). Be specific with dollar amounts where possible.
 
 ## Retirement Outlook
-Write 3-4 sentences assessing retirement readiness under the ${scenarioLabel} scenario, referencing the ${assumptions.returnRate}% return and ${assumptions.inflation}% inflation assumptions.
+Write 3-4 sentences assessing retirement readiness under the ${scenarioLabel} scenario, referencing the ${assumptions.returnRate}% return and ${assumptions.inflation}% inflation assumptions. Quote the pre-calculated super projection and funded-to-age figures.
 
 ## One Thing to Do This Month
 Write one specific, concrete sentence describing the single most important action.
@@ -867,11 +861,123 @@ function ScenarioToggle({ data, set, onRegenerate }) {
   );
 }
 
+function MetricsRow({ engine, data }) {
+  const { metrics, drawdown, mortgage } = engine;
+  const retirementAge = parseFloat(data.retirementAge) || 65;
+  const lifeExpectancy = parseFloat(data.lifeExpectancy) || 90;
+  const hasSpendingTarget = parseFloat(String(data.targetRetirementSpending).replace(/,/g, "")) > 0;
+
+  // Card 1 — Projected super
+  const superOk = metrics.onTrack;
+  const superSub = hasSpendingTarget
+    ? (superOk
+        ? `+${currency(metrics.superSurplus)} surplus`
+        : `−${currency(Math.abs(metrics.superSurplus))} short`)
+    : "Enter spending target";
+
+  // Card 2 — Debt-free date
+  let debtValue, debtSub, debtOk;
+  if (!mortgage || !parseFloat(String(data.mortgageBalance).replace(/,/g, ""))) {
+    debtValue = "No mortgage"; debtSub = null; debtOk = true;
+  } else if (mortgage.type === "io") {
+    debtValue = "Interest only"; debtSub = "Principal never reduces"; debtOk = false;
+  } else {
+    debtValue = String(mortgage.debtFreeYear);
+    debtSub = `${mortgage.yearsToPayoff} yrs · ${currency(mortgage.monthlyPayment)}/mo`;
+    debtOk = true;
+  }
+
+  // Card 3 — Funded to age
+  let fundedValue, fundedSub, fundedOk;
+  if (!hasSpendingTarget) {
+    fundedValue = "—"; fundedSub = "Enter spending target"; fundedOk = null;
+  } else if (metrics.lastsToLifeExpectancy) {
+    fundedValue = `Age ${lifeExpectancy}`; fundedSub = "Full life expectancy"; fundedOk = true;
+  } else if (metrics.depletionAge) {
+    fundedValue = `Age ${metrics.depletionAge}`;
+    fundedSub = `${metrics.depletionAge - retirementAge} yrs into retirement`;
+    fundedOk = false;
+  } else {
+    fundedValue = "—"; fundedSub = null; fundedOk = null;
+  }
+
+  // Card 4 — Net worth at retirement
+  const nwOk = metrics.retirementNetWorth > 0;
+
+  const cards = [
+    {
+      label: "Projected Super",
+      sub2: `at age ${retirementAge}`,
+      value: currency(metrics.projectedSuper),
+      sub: superSub,
+      ok: hasSpendingTarget ? superOk : null,
+    },
+    {
+      label: "Debt Free",
+      sub2: mortgage?.type === "pi" ? "mortgage payoff" : null,
+      value: debtValue,
+      sub: debtSub,
+      ok: debtOk,
+    },
+    {
+      label: "Funded to Age",
+      sub2: hasSpendingTarget ? `${currency(drawdown.futureSpending)}/yr in retirement` : null,
+      value: fundedValue,
+      sub: fundedSub,
+      ok: fundedOk,
+    },
+    {
+      label: "Net Worth at Retirement",
+      sub2: `at age ${retirementAge}`,
+      value: currency(metrics.retirementNetWorth),
+      sub: null,
+      ok: nwOk,
+    },
+  ];
+
+  const subColor = (ok) => ok === true ? "#3d6b5e" : ok === false ? "#9a3922" : "#8a9e98";
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+      {cards.map((card, i) => (
+        <div key={i} style={{
+          background: "#f9faf9", border: "1.5px solid #e2eae6",
+          borderRadius: 12, padding: "14px 16px",
+        }}>
+          <div style={{
+            fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+            textTransform: "uppercase", color: "#8a9e98", marginBottom: 2,
+          }}>
+            {card.label}
+          </div>
+          {card.sub2 && (
+            <div style={{ fontSize: 10, color: "#b0bab6", marginBottom: 6 }}>{card.sub2}</div>
+          )}
+          <div style={{
+            fontSize: 19, fontWeight: 500, color: "#0f1a16",
+            fontFamily: "Instrument Serif, serif",
+            marginBottom: card.sub ? 4 : 0,
+          }}>
+            {card.value}
+          </div>
+          {card.sub && (
+            <div style={{ fontSize: 11, color: subColor(card.ok), fontWeight: 500 }}>
+              {card.sub}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AnalysisScreen({ data, set }) {
   const [status, setStatus] = useState("idle");
   const [response, setResponse] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const hasGenerated = useRef(false);
+
+  const engine = runEngine(data);
 
   async function generate() {
     setStatus("loading");
@@ -883,8 +989,8 @@ function AnalysisScreen({ data, set }) {
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
           max_tokens: 2500,
-          system: "You are Clearpath, a warm, intelligent Australian financial planning assistant. You provide clear, practical, Australia-specific financial guidance. Never present outputs as personal financial advice. Use plain English. Reference Australian concepts naturally: super, HECS, franking credits, offset accounts, negative gearing, Medicare levy, CGT discount, SG rate, concessional caps, preservation age. Write each section completely before moving to the next. Never repeat or restart a section. Always acknowledge the active planning scenario in your analysis.",
-          messages: [{ role: "user", content: buildPrompt(data) }],
+          system: "You are Clearpath, a warm, intelligent Australian financial planning assistant. You provide clear, practical, Australia-specific financial guidance. Never present outputs as personal financial advice. Use plain English. Reference Australian concepts naturally: super, HECS, franking credits, offset accounts, negative gearing, Medicare levy, CGT discount, SG rate, concessional caps, preservation age. Write each section completely before moving to the next. Never repeat or restart a section. Always acknowledge the active planning scenario in your analysis. Use the pre-calculated projection figures from the prompt exactly as provided — do not re-estimate or contradict them.",
+          messages: [{ role: "user", content: buildPrompt(data, engine) }],
         }),
       });
       const result = await res.json();
@@ -910,6 +1016,7 @@ function AnalysisScreen({ data, set }) {
   return (
     <div>
       <ScenarioToggle data={data} set={handleScenarioChange} onRegenerate={generate} />
+      <MetricsRow engine={engine} data={data} />
 
       {status === "loading" && (
         <div style={{ textAlign: "center", padding: "48px 0" }}>
