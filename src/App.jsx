@@ -1085,7 +1085,7 @@ export default function ClearpathMVP() {
                 <button onClick={back} style={{ padding: "12px 24px", border: "1.5px solid #d4ddd9", borderRadius: 12, background: "white", fontSize: 14, color: "#4a6660", cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
               ) : <div />}
               <button onClick={next} style={{ padding: "12px 28px", border: "none", borderRadius: 12, background: "#3d6b5e", color: "white", fontSize: 14, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 12px rgba(61,107,94,0.3)" }}>
-                {stage === 6 ? "Generate My Plan →" : "Continue →"}
+                {stage === 6 ? "Generate My Analysis →" : "Continue →"}
               </button>
             </div>
           )}
