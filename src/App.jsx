@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { DEFAULT_SCENARIOS, getActiveAssumptions, runEngine } from "./engine.js";
+import { DEFAULT_SCENARIOS, getActiveAssumptions, runEngine, propertyAnnualCashflow } from "./engine.js";
 
 const STORAGE_KEY = "clearpath_v1";
 
@@ -57,6 +57,7 @@ const EMPTY_DATA = {
   // Stage 6
   retirementLifestyle: "comfortable",
   goals: [],
+  investmentProperties: [],
   riskTolerance: "balanced",
   activeScenario: "base",
   useCustomAssumptions: false,
@@ -80,9 +81,23 @@ function loadData() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...EMPTY_DATA };
     const parsed = JSON.parse(raw);
+    // Migrate legacy single-IP fields to investmentProperties array
+    let investmentProperties = parsed.investmentProperties || [];
+    if (investmentProperties.length === 0 && parsed.hasInvestmentProperty === "yes" && parsed.ipValue) {
+      investmentProperties = [{
+        id: "ip_legacy", label: "Investment Property 1", status: "existing",
+        purchaseYear: String(new Date().getFullYear()),
+        value: parsed.ipValue || "", mortgageBalance: parsed.ipMortgage || "",
+        mortgageRate: parsed.ipRate || "", loanType: "pi",
+        weeklyRent: parsed.ipWeeklyRent || "", vacancyRate: "4", managementFee: "8",
+        councilRates: "", insurance: "", bodyCorpAdmin: "", bodyCorpCapital: "",
+        maintenance: "", depreciation: "",
+      }];
+    }
     return {
       ...EMPTY_DATA,
       ...parsed,
+      investmentProperties,
       customAssumptions: {
         base: { ...DEFAULT_SCENARIOS.base, ...(parsed.customAssumptions?.base || {}) },
         conservative: { ...DEFAULT_SCENARIOS.conservative, ...(parsed.customAssumptions?.conservative || {}) },
@@ -92,13 +107,26 @@ function loadData() {
   } catch { return { ...EMPTY_DATA }; }
 }
 
+function newProperty(label) {
+  return {
+    id: `ip_${Date.now()}`,
+    label: label || "Investment Property",
+    status: "existing",
+    purchaseYear: String(new Date().getFullYear() + 2),
+    value: "", mortgageBalance: "", mortgageRate: "", loanType: "pi",
+    weeklyRent: "", vacancyRate: "4", managementFee: "8",
+    councilRates: "", insurance: "", bodyCorpAdmin: "", bodyCorpCapital: "",
+    maintenance: "", depreciation: "",
+  };
+}
+
 function saveData(data) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
 }
 
 function buildPrompt(data, engine) {
   const couple = data.hasPartner === "yes";
-  const hasIP = data.hasInvestmentProperty === "yes";
+  const ips = data.investmentProperties || [];
   const assumptions = getActiveAssumptions(data);
   const scenario = data.activeScenario || "base";
   const scenarioLabel = { base: "Base", conservative: "Conservative", aggressive: "Aggressive" }[scenario];
@@ -163,7 +191,21 @@ Emergency fund: ${currency(data.emergencyFund)}
 
 PROPERTY & DEBT
 PPOR value: ${currency(data.ppOrValue)} | Mortgage: ${currency(data.mortgageBalance)} @ ${data.mortgageRate}% (${data.loanType === "pi" ? "P&I" : "Interest Only"})
-${hasIP ? `Investment property: ${currency(data.ipValue)} | IP mortgage: ${currency(data.ipMortgage)} @ ${data.ipRate}% | Weekly rent: ${currency(data.ipWeeklyRent)}` : "No investment property"}
+${ips.length === 0 ? "No investment properties" : ips.map(ip => {
+  const cf = engine?.propertyCashflows?.find(c => c.id === ip.id);
+  const val = parseFloat(String(ip.value).replace(/,/g, "")) || 0;
+  const mort = parseFloat(String(ip.mortgageBalance).replace(/,/g, "")) || 0;
+  const equity = val - mort;
+  const lines = [
+    `${ip.label} (${ip.status === "planned" ? `planned purchase ${ip.purchaseYear}` : "existing"})`,
+    `  Value: ${currency(ip.value)} | Mortgage: ${currency(ip.mortgageBalance)} @ ${ip.mortgageRate}% ${ip.loanType === "io" ? "IO" : "P&I"} | Equity: ${currency(equity)}`,
+  ];
+  if (cf && ip.weeklyRent) {
+    lines.push(`  Gross rent: ${currency(cf.grossRent)}/yr | Net cashflow: ${currency(cf.netCashflow)}/yr | ${cf.isNegativelyGeared ? "Negatively geared" : "Positively geared"}`);
+    if (cf.depreciation > 0) lines.push(`  Depreciation: ${currency(cf.depreciation)}/yr | Taxable income from IP: ${currency(cf.taxableIncome)}/yr`);
+  }
+  return lines.join("\n");
+}).join("\n")}
 Credit card debt: ${currency(data.creditCardDebt)} | Personal loan: ${currency(data.personalLoanDebt)} | HECS: ${currency(data.hecsDebt)}
 
 SUPERANNUATION
@@ -398,6 +440,147 @@ function Stage3({ data, set }) {
   );
 }
 
+// ─── PROPERTY PORTFOLIO COMPONENTS ──────────────────────────────────────────
+
+function PropertyCard({ ip, onChange, onClone, onRemove }) {
+  const [expanded, setExpanded] = useState(false);
+  const ipVal  = parseFloat(String(ip.value).replace(/,/g, "")) || 0;
+  const ipMort = parseFloat(String(ip.mortgageBalance).replace(/,/g, "")) || 0;
+  const equity = ipVal - ipMort;
+
+  function upd(field, val) { onChange({ ...ip, [field]: val }); }
+
+  return (
+    <div style={{ border: "1.5px solid #d4ddd9", borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
+      <div style={{ padding: "12px 16px", background: "#f9faf9", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <span style={{
+              fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 20, flexShrink: 0,
+              background: ip.status === "existing" ? "#eaf2ef" : "#eaf0f7",
+              color: ip.status === "existing" ? "#3d6b5e" : "#3a5a8a",
+            }}>
+              {ip.status === "existing" ? "Existing" : `Planned ${ip.purchaseYear}`}
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 500, color: "#0f1a16", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ip.label}</span>
+          </div>
+          {(ip.value || ip.weeklyRent) && (
+            <div style={{ fontSize: 12, color: "#8a9e98", display: "flex", gap: 16, flexWrap: "wrap" }}>
+              {ip.value      && <span>Value {currency(ip.value)}</span>}
+              {ipMort > 0    && <span>Equity {currency(equity)}</span>}
+              {ip.weeklyRent && <span>${ip.weeklyRent}/wk</span>}
+            </div>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          <button onClick={onClone} style={{ fontSize: 11, color: "#6b8f84", background: "none", border: "1px solid #d4ddd9", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>Clone</button>
+          <button onClick={onRemove} style={{ fontSize: 11, color: "#9a3922", background: "none", border: "1px solid #f0d0c4", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
+          <button onClick={() => setExpanded(e => !e)} style={{ fontSize: 11, color: "#3d6b5e", background: "#eaf2ef", border: "1px solid #c4ddd6", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+            {expanded ? "Collapse ▲" : "Edit ▼"}
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div style={{ padding: "20px 16px", background: "white", borderTop: "1px solid #e2eae6" }}>
+          <TwoCol>
+            <Field label="Property label">
+              <Input value={ip.label} onChange={v => upd("label", v)} placeholder="e.g. Sydney IP" />
+            </Field>
+            <Field label="Status">
+              <Toggle value={ip.status} onChange={v => upd("status", v)}
+                options={[{ value: "existing", label: "Existing" }, { value: "planned", label: "Planned" }]} />
+            </Field>
+          </TwoCol>
+          {ip.status === "planned" && (
+            <Field label="Target purchase year">
+              <Input value={ip.purchaseYear} onChange={v => upd("purchaseYear", v)} placeholder="2028" type="number" />
+            </Field>
+          )}
+          <SectionDivider label="Property details" />
+          <TwoCol>
+            <Field label="Estimated value"><Input value={ip.value} onChange={v => upd("value", v)} placeholder="750,000" prefix="$" /></Field>
+            <Field label="Mortgage balance"><Input value={ip.mortgageBalance} onChange={v => upd("mortgageBalance", v)} placeholder="450,000" prefix="$" /></Field>
+          </TwoCol>
+          <TwoCol>
+            <Field label="Interest rate"><Input value={ip.mortgageRate} onChange={v => upd("mortgageRate", v)} placeholder="6.5" suffix="%" /></Field>
+            <Field label="Loan type">
+              <Select value={ip.loanType} onChange={v => upd("loanType", v)}
+                options={[{ value: "pi", label: "Principal & Interest" }, { value: "io", label: "Interest Only" }]} />
+            </Field>
+          </TwoCol>
+          <SectionDivider label="Rental income" />
+          <TwoCol>
+            <Field label="Weekly rent"><Input value={ip.weeklyRent} onChange={v => upd("weeklyRent", v)} placeholder="550" prefix="$" /></Field>
+            <Field label="Vacancy rate" hint="Default 4%"><Input value={ip.vacancyRate} onChange={v => upd("vacancyRate", v)} placeholder="4" suffix="%" /></Field>
+          </TwoCol>
+          <Field label="Management fee" hint="% of gross rent — default 8%">
+            <Input value={ip.managementFee} onChange={v => upd("managementFee", v)} placeholder="8" suffix="%" />
+          </Field>
+          <SectionDivider label="Annual expenses" />
+          <TwoCol>
+            <Field label="Council rates"><Input value={ip.councilRates} onChange={v => upd("councilRates", v)} placeholder="2,000" prefix="$" /></Field>
+            <Field label="Landlord insurance"><Input value={ip.insurance} onChange={v => upd("insurance", v)} placeholder="1,500" prefix="$" /></Field>
+          </TwoCol>
+          <TwoCol>
+            <Field label="Body corp — admin" hint="Operating fund levy">
+              <Input value={ip.bodyCorpAdmin} onChange={v => upd("bodyCorpAdmin", v)} placeholder="0" prefix="$" />
+            </Field>
+            <Field label="Body corp — capital" hint="Sinking fund levy">
+              <Input value={ip.bodyCorpCapital} onChange={v => upd("bodyCorpCapital", v)} placeholder="0" prefix="$" />
+            </Field>
+          </TwoCol>
+          <Field label="Maintenance reserve" hint="Annual allowance for repairs">
+            <Input value={ip.maintenance} onChange={v => upd("maintenance", v)} placeholder="1,000" prefix="$" />
+          </Field>
+          <SectionDivider label="Tax deductions" />
+          <Field label="Annual depreciation" hint="Building allowance + plant & equipment. A quantity surveyor can assess this.">
+            <Input value={ip.depreciation} onChange={v => upd("depreciation", v)} placeholder="0" prefix="$" />
+          </Field>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PropertyPortfolio({ ips, onChange }) {
+  function addProperty() {
+    onChange([...ips, newProperty(`Investment Property ${ips.length + 1}`)]);
+  }
+  function updateAt(i, updated) { onChange(ips.map((ip, idx) => idx === i ? updated : ip)); }
+  function cloneAt(i) {
+    const clone = { ...ips[i], id: `ip_${Date.now()}`, label: `${ips[i].label} (copy)`, status: "planned" };
+    onChange([...ips, clone]);
+  }
+  function removeAt(i) { onChange(ips.filter((_, idx) => idx !== i)); }
+
+  return (
+    <div>
+      {ips.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "24px", background: "#f9faf9", border: "1.5px dashed #d4ddd9", borderRadius: 12, marginBottom: 12 }}>
+          <div style={{ fontSize: 13, color: "#8a9e98", marginBottom: 12 }}>No investment properties added yet</div>
+          <button onClick={addProperty} style={{ padding: "10px 20px", border: "none", borderRadius: 10, background: "#3d6b5e", color: "white", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+            + Add Investment Property
+          </button>
+        </div>
+      ) : (
+        <>
+          {ips.map((ip, i) => (
+            <PropertyCard key={ip.id} ip={ip}
+              onChange={updated => updateAt(i, updated)}
+              onClone={() => cloneAt(i)}
+              onRemove={() => removeAt(i)}
+            />
+          ))}
+          <button onClick={addProperty} style={{ width: "100%", padding: "10px", border: "1.5px dashed #c4ddd6", borderRadius: 10, background: "#f9faf9", fontSize: 13, color: "#3d6b5e", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            + Add another property
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Stage4({ data, set }) {
   return (
     <div>
@@ -416,23 +599,11 @@ function Stage4({ data, set }) {
           </TwoCol>
         </>
       )}
-      <SectionDivider label="Investment property" />
-      <Field label="Do you own an investment property?">
-        <Toggle value={data.hasInvestmentProperty} onChange={v => set("hasInvestmentProperty", v)}
-          options={[{ value: "no", label: "No" }, { value: "yes", label: "Yes" }]} />
-      </Field>
-      {data.hasInvestmentProperty === "yes" && (
-        <>
-          <TwoCol>
-            <Field label="IP value"><Input value={data.ipValue} onChange={v => set("ipValue", v)} placeholder="650,000" prefix="$" /></Field>
-            <Field label="IP mortgage"><Input value={data.ipMortgage} onChange={v => set("ipMortgage", v)} placeholder="400,000" prefix="$" /></Field>
-          </TwoCol>
-          <TwoCol>
-            <Field label="IP interest rate"><Input value={data.ipRate} onChange={v => set("ipRate", v)} placeholder="6.5" suffix="%" /></Field>
-            <Field label="Weekly rent"><Input value={data.ipWeeklyRent} onChange={v => set("ipWeeklyRent", v)} placeholder="550" prefix="$" /></Field>
-          </TwoCol>
-        </>
-      )}
+      <SectionDivider label="Investment properties" />
+      <PropertyPortfolio
+        ips={data.investmentProperties || []}
+        onChange={newIPs => set("investmentProperties", newIPs)}
+      />
       <SectionDivider label="Other debts" />
       <TwoCol>
         <Field label="Credit card debt"><Input value={data.creditCardDebt} onChange={v => set("creditCardDebt", v)} placeholder="0" prefix="$" /></Field>
@@ -1024,7 +1195,7 @@ function AnalysisScreen({ data, set }) {
             width: 44, height: 44, border: "3px solid #e2eae6", borderTopColor: "#3d6b5e",
             borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px",
           }} />
-          <div style={{ fontSize: 14, color: "#6b8f84" }}>Analysing your financial position…</div>
+          <div style={{ fontSize: 14, color: "#6b8f84" }}>Running your projections…</div>
           <style>{"@keyframes spin { to { transform: rotate(360deg); } }"}</style>
         </div>
       )}
@@ -1101,10 +1272,13 @@ export default function ClearpathMVP() {
   const progress = ((stage - 1) / 6) * 100;
   const currentStage = STAGES[stage - 1];
 
+  const allIPs = data.investmentProperties || [];
   const totalAssets = [data.cashSavings, data.offsetBalance, data.sharesEtfs, data.managedFunds,
-    data.crypto, data.otherInvestments, data.superBalance, data.ppOrValue, data.ipValue]
+    data.crypto, data.otherInvestments, data.superBalance, data.ppOrValue,
+    ...allIPs.map(ip => ip.value)]
     .reduce((sum, v) => sum + (parseFloat(String(v).replace(/,/g, "")) || 0), 0);
-  const totalDebt = [data.mortgageBalance, data.ipMortgage, data.creditCardDebt, data.personalLoanDebt, data.hecsDebt]
+  const totalDebt = [data.mortgageBalance, data.creditCardDebt, data.personalLoanDebt, data.hecsDebt,
+    ...allIPs.map(ip => ip.mortgageBalance)]
     .reduce((sum, v) => sum + (parseFloat(String(v).replace(/,/g, "")) || 0), 0);
   const netWorth = totalAssets - totalDebt;
   const monthlyLiquid = parseFloat(String(data.cashSavings).replace(/,/g, "")) || 0;
