@@ -38,7 +38,7 @@ const STAGES = [
 
 const EMPTY_DATA = {
   // Stage 1
-  firstName: "", age: "", partnerAge: "", hasPartner: "no",
+  firstName: "", age: "", partnerAge: "", partnerRetirementAge: "", hasPartner: "no",
   dependants: "0", location: "", employmentStatus: "full-time",
   retirementAge: "65", lifeExpectancy: "90", homeOwnership: "owner",
   // Stage 2
@@ -169,7 +169,7 @@ Planning assumptions: Investment return ${assumptions.returnRate}% p.a. | Inflat
 HOUSEHOLD PROFILE
 Name: ${data.firstName || "User"} | Age: ${data.age} | ${couple ? `Partner age: ${data.partnerAge} | ` : ""}${couple ? "Couple" : "Single"} | Dependants: ${data.dependants}
 Location: ${data.location} | Employment: ${data.employmentStatus}
-Target retirement age: ${data.retirementAge} | Life expectancy: ${data.lifeExpectancy}
+Target retirement age: ${data.retirementAge}${couple && data.partnerRetirementAge ? ` | Partner retirement age: ${data.partnerRetirementAge}` : ""} | Life expectancy: ${data.lifeExpectancy}
 Home ownership: ${data.homeOwnership}
 
 GOALS & PREFERENCES
@@ -373,9 +373,18 @@ function Stage1({ data, set }) {
       </TwoCol>
       <SectionDivider label="Retirement horizon" />
       <TwoCol>
-        <Field label="Target retirement age"><Input value={data.retirementAge} onChange={v => set("retirementAge", v)} placeholder="65" type="number" /></Field>
-        <Field label="Life expectancy assumption"><Input value={data.lifeExpectancy} onChange={v => set("lifeExpectancy", v)} placeholder="90" type="number" /></Field>
+        <Field label={data.hasPartner === "yes" ? "Your target retirement age" : "Target retirement age"}>
+          <Input value={data.retirementAge} onChange={v => set("retirementAge", v)} placeholder="65" type="number" />
+        </Field>
+        {data.hasPartner === "yes" ? (
+          <Field label="Partner's target retirement age">
+            <Input value={data.partnerRetirementAge} onChange={v => set("partnerRetirementAge", v)} placeholder="63" type="number" />
+          </Field>
+        ) : <div />}
       </TwoCol>
+      <Field label="Life expectancy assumption">
+        <Input value={data.lifeExpectancy} onChange={v => set("lifeExpectancy", v)} placeholder="90" type="number" />
+      </Field>
     </div>
   );
 }
