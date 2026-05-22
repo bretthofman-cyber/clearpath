@@ -1157,6 +1157,27 @@ function MetricsRow({ engine, data }) {
   );
 }
 
+// ─── RETIREMENT GAUGE ────────────────────────────────────────────────────────
+
+function RetirementGauge({ successRate, color }) {
+  const cx = 90, cy = 80, r = 62;
+  const strokeW = 13;
+  const arcLen = Math.PI * r;
+  const filled = (Math.min(100, Math.max(0, successRate)) / 100) * arcLen;
+  const bgPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
+  return (
+    <svg viewBox="0 0 180 88" width="150" style={{ display: "block", flexShrink: 0 }}>
+      <path d={bgPath} fill="none" stroke="#e2eae6" strokeWidth={strokeW} strokeLinecap="round" />
+      <path d={bgPath} fill="none" stroke={color} strokeWidth={strokeW} strokeLinecap="round"
+        strokeDasharray={`${filled.toFixed(1)} ${arcLen.toFixed(1)}`} />
+      <text x={cx} y={cy - 12} textAnchor="middle" fontFamily="Instrument Serif, serif"
+        fontSize="30" fill={color}>{successRate}%</text>
+    </svg>
+  );
+}
+
+// ─── MONTE CARLO CARD ─────────────────────────────────────────────────────────
+
 function MonteCarloCard({ data, engine }) {
   const mc = engine?.monteCarlo;
   const hasTarget = parseFloat(String(data.targetRetirementSpending).replace(/,/g, "")) > 0;
@@ -1188,14 +1209,12 @@ function MonteCarloCard({ data, engine }) {
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8a9e98", marginBottom: 10 }}>
         Retirement Probability
       </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
-        <span style={{ fontFamily: "Instrument Serif, serif", fontSize: 44, color, lineHeight: 1 }}>{successRate}%</span>
-        <span style={{ fontSize: 12, fontWeight: 600, color, background: `${color}20`, padding: "3px 10px", borderRadius: 20 }}>{label}</span>
-      </div>
-      <div style={{ fontSize: 12, color: "#6b8f84", marginBottom: 12, lineHeight: 1.5 }}>{desc}</div>
-
-      <div style={{ height: 6, background: "#e2eae6", borderRadius: 3, overflow: "hidden", marginBottom: 14 }}>
-        <div style={{ height: "100%", width: `${successRate}%`, background: color, borderRadius: 3, transition: "width 0.6s ease" }} />
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 14 }}>
+        <RetirementGauge successRate={successRate} color={color} />
+        <div style={{ paddingTop: 6, flex: 1 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color, background: `${color}20`, padding: "3px 10px", borderRadius: 20, display: "inline-block", marginBottom: 8 }}>{label}</span>
+          <div style={{ fontSize: 12, color: "#6b8f84", lineHeight: 1.5 }}>{desc}</div>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
@@ -1218,6 +1237,189 @@ function MonteCarloCard({ data, engine }) {
     </div>
   );
 }
+
+// ─── NET WORTH CHART ──────────────────────────────────────────────────────────
+
+function NetWorthChart({ engine, data }) {
+  const trajectory = engine?.trajectory;
+  if (!trajectory || trajectory.length < 2) return null;
+
+  const retirementAge = parseInt(data.retirementAge) || 65;
+  const lifeExp       = parseInt(data.lifeExpectancy) || 90;
+  const W = 600, H = 200;
+  const mg = { top: 20, right: 20, bottom: 28, left: 70 };
+  const cW = W - mg.left - mg.right;
+  const cH = H - mg.top - mg.bottom;
+
+  const nws    = trajectory.map(t => t.netWorth);
+  const minAge = trajectory[0].age;
+  const maxAge = trajectory[trajectory.length - 1].age;
+  const rawMin = Math.min(0, ...nws);
+  const rawMax = Math.max(...nws);
+  const range  = rawMax - rawMin || 1;
+
+  const xS = age => mg.left + ((age - minAge) / (maxAge - minAge)) * cW;
+  const yS = nw  => mg.top  + cH - ((nw - rawMin) / range) * cH;
+
+  const linePath = trajectory.map((t, i) =>
+    `${i === 0 ? "M" : "L"} ${xS(t.age).toFixed(1)} ${yS(t.netWorth).toFixed(1)}`
+  ).join(" ");
+
+  const areaPath =
+    `M ${xS(minAge).toFixed(1)} ${yS(0).toFixed(1)} ` +
+    trajectory.map(t => `L ${xS(t.age).toFixed(1)} ${yS(t.netWorth).toFixed(1)}`).join(" ") +
+    ` L ${xS(maxAge).toFixed(1)} ${yS(0).toFixed(1)} Z`;
+
+  const fmt = n => {
+    const abs = Math.abs(n);
+    if (abs >= 1e6) return `$${(n / 1e6).toFixed(1)}m`;
+    if (abs >= 1e3) return `$${Math.round(n / 1e3)}k`;
+    return "$0";
+  };
+
+  const yTicks = [0, 1, 2, 3, 4].map(i => ({
+    nw: rawMin + (range / 4) * i,
+    y:  yS(rawMin + (range / 4) * i),
+  }));
+
+  const retX     = xS(retirementAge);
+  const retPoint = trajectory.find(t => t.age === retirementAge);
+  const endPoint = trajectory[trajectory.length - 1];
+
+  return (
+    <div style={{ background: "#f9faf9", border: "1.5px solid #e2eae6", borderRadius: 12, padding: "16px 16px 12px", marginBottom: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8a9e98", marginBottom: 12 }}>
+        Net Worth Trajectory
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block", overflow: "visible" }}>
+        <defs>
+          <linearGradient id="nwGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#3d6b5e" stopOpacity="0.20" />
+            <stop offset="100%" stopColor="#3d6b5e" stopOpacity="0.02" />
+          </linearGradient>
+          <clipPath id="nwClip">
+            <rect x={mg.left} y={mg.top - 5} width={cW} height={cH + 10} />
+          </clipPath>
+        </defs>
+
+        {yTicks.map(({ nw, y }, i) => (
+          <g key={i}>
+            <line x1={mg.left} x2={W - mg.right} y1={y} y2={y}
+              stroke={i === 0 ? "#c4ddd6" : "#eaeeed"} strokeWidth={i === 0 ? 1.5 : 1} />
+            <text x={mg.left - 6} y={y + 3.5} textAnchor="end" fontSize="9.5" fill="#b0bab6">{fmt(nw)}</text>
+          </g>
+        ))}
+
+        <line x1={retX} x2={retX} y1={mg.top} y2={mg.top + cH}
+          stroke="#3d6b5e" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.4" />
+        <text x={retX + 5} y={mg.top + 12} fontSize="9" fill="#3d6b5e" opacity="0.65">
+          Retire {retirementAge}
+        </text>
+
+        <g clipPath="url(#nwClip)">
+          <path d={areaPath} fill="url(#nwGrad)" />
+          <path d={linePath} fill="none" stroke="#3d6b5e" strokeWidth="2.5"
+            strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+
+        <circle cx={xS(minAge)} cy={yS(trajectory[0].netWorth)} r="3.5"
+          fill="white" stroke="#3d6b5e" strokeWidth="2" />
+        {retPoint && (
+          <circle cx={retX} cy={yS(retPoint.netWorth)} r="4"
+            fill="#3d6b5e" stroke="white" strokeWidth="2" />
+        )}
+        <circle cx={xS(maxAge)} cy={yS(endPoint.netWorth)} r="3.5"
+          fill="white" stroke="#3d6b5e" strokeWidth="2" />
+
+        {[minAge, retirementAge, maxAge].map((age, i) => (
+          <text key={i} x={xS(age)} y={H - 4} textAnchor="middle" fontSize="9.5" fill="#b0bab6">
+            Age {age}
+          </text>
+        ))}
+      </svg>
+      <div style={{ display: "flex", gap: 24, fontSize: 11, color: "#8a9e98", marginTop: 6, flexWrap: "wrap" }}>
+        <span>Today: <strong style={{ color: "#0f1a16", fontFamily: "Instrument Serif, serif", fontSize: 13 }}>{currency(trajectory[0].netWorth)}</strong></span>
+        {retPoint && (
+          <span>At retirement: <strong style={{ color: "#0f1a16", fontFamily: "Instrument Serif, serif", fontSize: 13 }}>{currency(retPoint.netWorth)}</strong></span>
+        )}
+        <span>Age {lifeExp}: <strong style={{ color: "#0f1a16", fontFamily: "Instrument Serif, serif", fontSize: 13 }}>{currency(endPoint.netWorth)}</strong></span>
+      </div>
+    </div>
+  );
+}
+
+// ─── SCENARIO COMPARISON ROW ──────────────────────────────────────────────────
+
+function ScenarioComparisonRow({ data }) {
+  const SCENS = [
+    { key: "conservative", label: "Conservative", color: "#7a6840", bg: "#f8f4ec", bdr: "#e4d8bc" },
+    { key: "base",         label: "Base",         color: "#3d6b5e", bg: "#eaf2ef", bdr: "#c4ddd6" },
+    { key: "aggressive",   label: "Aggressive",   color: "#2a5480", bg: "#eaf0f8", bdr: "#b8cde0" },
+  ];
+  const engines = SCENS.map(({ key }) =>
+    runEngine({ ...data, activeScenario: key, useCustomAssumptions: false })
+  );
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8a9e98", marginBottom: 10 }}>
+        Scenario Comparison
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+        {SCENS.map(({ key, label, color, bg, bdr }, idx) => {
+          const eng = engines[idx];
+          const mc  = eng.monteCarlo;
+          const isActive = data.activeScenario === key && !data.useCustomAssumptions;
+          return (
+            <div key={key} style={{
+              background: isActive ? bg : "#f9faf9",
+              border: `1.5px solid ${isActive ? bdr : "#e2eae6"}`,
+              borderRadius: 12, padding: "14px 14px", position: "relative",
+            }}>
+              {isActive && (
+                <div style={{
+                  position: "absolute", top: 10, right: 10,
+                  fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+                  color, background: `${color}18`, padding: "2px 7px", borderRadius: 10,
+                }}>Active</div>
+              )}
+              <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 12 }}>{label}</div>
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 9, color: "#a0aba6", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Super at retirement</div>
+                <div style={{ fontSize: 17, fontFamily: "Instrument Serif, serif", color: "#0f1a16" }}>
+                  {currency(eng.metrics.projectedSuper)}
+                </div>
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 9, color: "#a0aba6", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Net worth at retirement</div>
+                <div style={{ fontSize: 17, fontFamily: "Instrument Serif, serif", color: "#0f1a16" }}>
+                  {currency(eng.metrics.retirementNetWorth)}
+                </div>
+              </div>
+              {mc ? (
+                <div>
+                  <div style={{ fontSize: 9, color: "#a0aba6", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Probability of success</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 22, fontFamily: "Instrument Serif, serif", color, lineHeight: 1 }}>{mc.successRate}%</span>
+                    <div style={{ flex: 1, height: 5, background: "#e2eae6", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${mc.successRate}%`, background: color, borderRadius: 3 }} />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: 10, color: "#b0bab6", fontStyle: "italic" }}>Add retirement spending target for simulation</div>
+              )}
+              <div style={{ fontSize: 9, color: "#c0c8c4", marginTop: 10, borderTop: "1px solid #eaeeed", paddingTop: 8 }}>
+                {eng.assumptions.returnRate}% returns · {eng.assumptions.inflation}% inflation
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── ANALYSIS SCREEN ─────────────────────────────────────────────────────────
 
 function AnalysisScreen({ data, set }) {
   const [status, setStatus] = useState("idle");
@@ -1272,6 +1474,8 @@ function AnalysisScreen({ data, set }) {
       <ScenarioToggle data={data} set={handleScenarioChange} onRegenerate={generate} />
       <MetricsRow engine={engine} data={data} />
       <MonteCarloCard data={data} engine={engine} />
+      <NetWorthChart engine={engine} data={data} />
+      <ScenarioComparisonRow data={data} />
 
       {status === "loading" && (
         <div style={{ textAlign: "center", padding: "48px 0" }}>
