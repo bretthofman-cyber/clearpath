@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { DEFAULT_SCENARIOS, getActiveAssumptions, runEngine, propertyAnnualCashflow } from "./engine.js";
+import { DEFAULT_SCENARIOS, getActiveAssumptions, runEngine, propertyAnnualCashflow, runMonteCarlo } from "./engine.js";
 
 const STORAGE_KEY = "clearpath_v1";
 
@@ -150,6 +150,11 @@ function buildPrompt(data, engine) {
     ? `Super funded to age ${data.lifeExpectancy} — full life expectancy covered`
     : `Super depletes at age ${m.depletionAge} (${m.depletionAge - (parseFloat(data.retirementAge) || 65)} years into retirement)`;
 
+  const mc = engine?.monteCarlo;
+  const mcLine = mc
+    ? `Monte Carlo probability of funding retirement to age ${data.lifeExpectancy}: ${mc.successRate}% (${mc.successRate >= 85 ? "Strong" : mc.successRate >= 70 ? "Watch zone" : "Needs attention"}) — super at retirement range ${currency(mc.retirementBalance.p10)}–${currency(mc.retirementBalance.p90)}, median ${currency(mc.retirementBalance.p50)} (${mc.iterations} simulations, ${Math.round(mc.stdDev * 100)}% annual volatility)`
+    : "Monte Carlo: retirement spending target not entered";
+
   const engineSection = engine ? `
 PRE-CALCULATED PROJECTIONS (engine-verified at ${scenarioLabel} scenario assumptions — quote these exact figures in your analysis, do not re-estimate)
 Projected super at retirement (age ${data.retirementAge}): ${currency(m.projectedSuper)}
@@ -157,6 +162,7 @@ Super required for target retirement spending: ${currency(m.requiredSuper)}
 Super ${m.onTrack ? `surplus: +${currency(m.superSurplus)}` : `shortfall: −${currency(Math.abs(m.superSurplus))}`}
 Annual retirement spending in future dollars: ${currency(dd.futureSpending)}/year
 ${fundedLine}
+${mcLine}
 Net worth at retirement: ${currency(m.retirementNetWorth)}
 ${mortgageLine}
 ` : "";
@@ -1151,6 +1157,68 @@ function MetricsRow({ engine, data }) {
   );
 }
 
+function MonteCarloCard({ data, engine }) {
+  const mc = engine?.monteCarlo;
+  const hasTarget = parseFloat(String(data.targetRetirementSpending).replace(/,/g, "")) > 0;
+
+  if (!hasTarget) return (
+    <div style={{ background: "#f4f7f5", border: "1px solid #e2eae6", borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8a9e98", marginBottom: 6 }}>Retirement Probability</div>
+      <div style={{ fontSize: 13, color: "#a0aba6" }}>Enter a target retirement spending in Stage 5 to see Monte Carlo simulation</div>
+    </div>
+  );
+
+  if (!mc) return null;
+
+  const { successRate, retirementBalance, iterations, stdDev } = mc;
+  const isStrong  = successRate >= 85;
+  const isWatch   = successRate >= 70 && successRate < 85;
+  const color = isStrong ? "#3d6b5e" : isWatch ? "#b8913a" : "#9a3922";
+  const bg    = isStrong ? "#eaf2ef" : isWatch ? "#f5eddb" : "#fdf4f0";
+  const bdr   = isStrong ? "#c4ddd6" : isWatch ? "#e0cfa0" : "#f0d0c4";
+  const label = isStrong ? "Strong" : isWatch ? "Watch zone" : "Needs attention";
+  const desc  = isStrong
+    ? `High confidence your plan funds retirement to age ${data.lifeExpectancy || 90}`
+    : isWatch
+    ? "Some cashflow pressure in retirement — review your contributions and spending target"
+    : "High risk of running short in retirement — consider increasing contributions or adjusting targets";
+
+  return (
+    <div style={{ background: bg, border: `1.5px solid ${bdr}`, borderRadius: 12, padding: "16px 18px", marginBottom: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8a9e98", marginBottom: 10 }}>
+        Retirement Probability
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
+        <span style={{ fontFamily: "Instrument Serif, serif", fontSize: 44, color, lineHeight: 1 }}>{successRate}%</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color, background: `${color}20`, padding: "3px 10px", borderRadius: 20 }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 12, color: "#6b8f84", marginBottom: 12, lineHeight: 1.5 }}>{desc}</div>
+
+      <div style={{ height: 6, background: "#e2eae6", borderRadius: 3, overflow: "hidden", marginBottom: 14 }}>
+        <div style={{ height: "100%", width: `${successRate}%`, background: color, borderRadius: 3, transition: "width 0.6s ease" }} />
+      </div>
+
+      <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div>
+          <div style={{ fontSize: 10, color: "#a0aba6", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Super at retirement — range</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: "#2d3a35" }}>
+            {currency(retirementBalance.p10)} — {currency(retirementBalance.p90)}
+          </div>
+          <div style={{ fontSize: 10, color: "#b0bab6" }}>10th to 90th percentile</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: "#a0aba6", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Median outcome</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: "#2d3a35" }}>{currency(retirementBalance.p50)}</div>
+        </div>
+        <div style={{ marginLeft: "auto", textAlign: "right" }}>
+          <div style={{ fontSize: 10, color: "#b0bab6" }}>{iterations.toLocaleString()} simulations</div>
+          <div style={{ fontSize: 10, color: "#b0bab6" }}>{Math.round(stdDev * 100)}% annual volatility</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AnalysisScreen({ data, set }) {
   const [status, setStatus] = useState("idle");
   const [response, setResponse] = useState("");
@@ -1197,6 +1265,7 @@ function AnalysisScreen({ data, set }) {
     <div>
       <ScenarioToggle data={data} set={handleScenarioChange} onRegenerate={generate} />
       <MetricsRow engine={engine} data={data} />
+      <MonteCarloCard data={data} engine={engine} />
 
       {status === "loading" && (
         <div style={{ textAlign: "center", padding: "48px 0" }}>

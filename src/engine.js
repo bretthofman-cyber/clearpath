@@ -316,15 +316,100 @@ export function netWorthTrajectory(data, assumptions) {
   return trajectory;
 }
 
+// ─── 5. MONTE CARLO SIMULATION ────────────────────────────────────────────────
+// Volatility by scenario (annual std dev of returns)
+const SCENARIO_VOLATILITY = { base: 0.10, conservative: 0.08, aggressive: 0.14 };
+
+function normalRandom(mean, sd) {
+  // Box-Muller transform
+  let u, v;
+  do { u = Math.random(); } while (u === 0);
+  do { v = Math.random(); } while (v === 0);
+  return mean + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+export function runMonteCarlo(data, assumptions, iterations = 1000) {
+  const currentAge    = p(data.age);
+  const retirementAge = p(data.retirementAge) || 65;
+  const lifeExp       = p(data.lifeExpectancy) || 90;
+  const yearsToRetire = Math.max(retirementAge - currentAge, 0);
+  const yearsInRetire = Math.max(lifeExp - retirementAge, 0);
+
+  const meanReturn     = assumptions.returnRate / 100;
+  const inf            = assumptions.inflation / 100;
+  const scenario       = data.activeScenario || "base";
+  const stdDev         = SCENARIO_VOLATILITY[scenario] ?? 0.10;
+
+  const superBal       = p(data.superBalance) + (data.hasPartner === "yes" ? p(data.partnerSuperBalance) : 0);
+  const grossIncome    = p(data.grossIncome)  + (data.hasPartner === "yes" ? p(data.partnerIncome) : 0);
+  const sgRate         = (p(data.employerSgRate) || 12) / 100;
+  const annualContribs = grossIncome * sgRate + p(data.salarySacrifice);
+  const targetSpending = p(data.targetRetirementSpending);
+
+  if (!targetSpending || yearsToRetire <= 0) return null;
+
+  const futureSpending = targetSpending * Math.pow(1 + inf, yearsToRetire);
+
+  let successes = 0;
+  const retirementBals = [];
+  const finalBals      = [];
+
+  for (let i = 0; i < iterations; i++) {
+    // Accumulation phase
+    let bal = superBal;
+    for (let y = 0; y < yearsToRetire; y++) {
+      const r = normalRandom(meanReturn, stdDev);
+      bal = bal * (1 + Math.max(r, -0.5)) + annualContribs; // floor at -50% loss
+    }
+    retirementBals.push(bal);
+
+    // Drawdown phase
+    let drawBal  = bal;
+    let depleted = false;
+    for (let y = 0; y < yearsInRetire; y++) {
+      const r          = normalRandom(meanReturn, stdDev);
+      const withdrawal = futureSpending * Math.pow(1 + inf, y);
+      drawBal = drawBal * (1 + Math.max(r, -0.5)) - withdrawal;
+      if (drawBal <= 0) { depleted = true; break; }
+    }
+    if (!depleted) successes++;
+    finalBals.push(depleted ? 0 : drawBal);
+  }
+
+  retirementBals.sort((a, b) => a - b);
+  finalBals.sort((a, b) => a - b);
+
+  const pct = (arr, pc) => Math.round(arr[Math.floor(arr.length * pc / 100)] ?? 0);
+
+  return {
+    successRate: Math.round((successes / iterations) * 100),
+    iterations,
+    stdDev,
+    retirementBalance: {
+      p10: pct(retirementBals, 10),
+      p25: pct(retirementBals, 25),
+      p50: pct(retirementBals, 50),
+      p75: pct(retirementBals, 75),
+      p90: pct(retirementBals, 90),
+    },
+    finalBalance: {
+      p10: pct(finalBals, 10),
+      p25: pct(finalBals, 25),
+      p50: pct(finalBals, 50),
+    },
+  };
+}
+
 // ─── MAIN ENTRY POINT ─────────────────────────────────────────────────────────
 
 export function runEngine(data) {
   const assumptions = getActiveAssumptions(data);
 
-  const superResult = projectSuper(data, assumptions);
-  const drawdown    = retirementDrawdown(data, assumptions, superResult.projectedBalance);
-  const mortgage    = debtFreeDate(data);
-  const trajectory  = netWorthTrajectory(data, assumptions);
+  const superResult  = projectSuper(data, assumptions);
+  const drawdown     = retirementDrawdown(data, assumptions, superResult.projectedBalance);
+  const mortgage     = debtFreeDate(data);
+  const trajectory   = netWorthTrajectory(data, assumptions);
+  const monteCarlo   = runMonteCarlo(data, assumptions);
 
   const retirementAge = p(data.retirementAge) || 65;
   const atRetirement  = trajectory.find(t => t.age === retirementAge);
@@ -343,6 +428,7 @@ export function runEngine(data) {
     drawdown,
     mortgage,
     trajectory,
+    monteCarlo,
     propertyCashflows,
     metrics: {
       retirementNetWorth:    atRetirement?.netWorth  ?? 0,
