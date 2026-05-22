@@ -1241,8 +1241,14 @@ function AnalysisScreen({ data, set }) {
           messages: [{ role: "user", content: buildPrompt(data, engine) }],
         }),
       });
-      const result = await res.json();
-      if (result.error) throw new Error(result.error.message || "API error");
+      const rawText = await res.text();
+      let result;
+      try {
+        result = JSON.parse(rawText);
+      } catch {
+        throw new Error(`Server returned ${res.status}: ${rawText.slice(0, 200)}`);
+      }
+      if (result.error) throw new Error(result.error.message || result.error || "API error");
       const text = result.content?.[0]?.text || "";
       setResponse(text);
       setStatus("done");
