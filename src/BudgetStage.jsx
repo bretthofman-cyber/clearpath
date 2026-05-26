@@ -147,10 +147,10 @@ export function buildCashflowCalendar(items, netMonthlyIncome, startingCash = 0)
   });
 }
 
-function newItem(categoryKey, label) {
+function newItem(categoryKey, label, amount = "", frequency = "monthly", month = null) {
   return {
     id: `item_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    categoryKey, label, amount: "", frequency: "monthly", month: null,
+    categoryKey, label, amount, frequency, month,
   };
 }
 
@@ -431,23 +431,38 @@ function BudgetItem({ item, onUpdate, onRemove }) {
   );
 }
 
-// ─── ADD ITEM PICKER ─────────────────────────────────────────────────────────
+// ─── ADD ITEM PICKER (two-step: name → amount + frequency + month) ────────────
 
 function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
-  const [custom, setCustom] = useState("");
-  const inputRef = useRef(null);
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+  const [custom, setCustom]         = useState("");
+  const [pickedLabel, setPickedLabel] = useState("");
+  const [amount, setAmount]         = useState("");
+  const [frequency, setFrequency]   = useState("monthly");
+  const [month, setMonth]           = useState(null);
+  const customRef = useRef(null);
+  const amountRef = useRef(null);
+  const isMobile  = typeof window !== "undefined" && window.innerWidth < 640;
   const suggestions = BUDGET_SUGGESTIONS[categoryKey] || [];
+  const isAnnual  = frequency === "annual";
+  const inDetail  = pickedLabel !== "";
 
-  // Only auto-focus the text input on desktop (mobile keyboard popup is jarring)
+  // Desktop only: focus the custom name input when on step 1
   useEffect(() => {
-    if (!isMobile) {
-      const t = setTimeout(() => inputRef.current?.focus(), 60);
+    if (!isMobile && !inDetail) {
+      const t = setTimeout(() => customRef.current?.focus(), 60);
       return () => clearTimeout(t);
     }
-  }, [isMobile]);
+  }, [isMobile, inDetail]);
 
-  // Lock body scroll while bottom sheet is open on mobile
+  // Desktop only: focus the amount input when on step 2
+  useEffect(() => {
+    if (!isMobile && inDetail) {
+      const t = setTimeout(() => amountRef.current?.focus(), 80);
+      return () => clearTimeout(t);
+    }
+  }, [isMobile, inDetail]);
+
+  // Lock body scroll while sheet is open on mobile
   useEffect(() => {
     if (!isMobile) return;
     const prev = document.body.style.overflow;
@@ -455,9 +470,18 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
     return () => { document.body.style.overflow = prev; };
   }, [isMobile]);
 
-  function handleAdd(label) {
-    if (label.trim()) onAdd(label.trim());
+  function pickLabel(label) {
+    if (!label.trim()) return;
+    setPickedLabel(label.trim());
+    setCustom(""); setAmount(""); setFrequency("monthly"); setMonth(null);
   }
+
+  function commit() {
+    if (!pickedLabel) return;
+    onAdd(pickedLabel, amount, frequency, isAnnual ? month : null);
+  }
+
+  // ── Shared sub-elements ────────────────────────────────────────────────────
 
   const chipStyle = {
     padding: "9px 14px", border: "1.5px solid #c4ddd6", borderRadius: 20,
@@ -465,77 +489,173 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
     cursor: "pointer", fontFamily: "inherit", lineHeight: 1.4, textAlign: "left",
   };
 
-  const chips = suggestions.map(s => (
-    <button key={s} onClick={() => handleAdd(s)} style={chipStyle}
-      onMouseEnter={e => { e.currentTarget.style.background = "#eaf2ef"; e.currentTarget.style.borderColor = "#3d6b5e"; }}
-      onMouseLeave={e => { e.currentTarget.style.background = "white"; e.currentTarget.style.borderColor = "#c4ddd6"; }}
-    >{s}</button>
-  ));
+  const labelChips = (
+    <>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {suggestions.map(s => (
+          <button key={s} onClick={() => pickLabel(s)} style={chipStyle}
+            onMouseEnter={e => { e.currentTarget.style.background = "#eaf2ef"; e.currentTarget.style.borderColor = "#3d6b5e"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "white"; e.currentTarget.style.borderColor = "#c4ddd6"; }}
+          >{s}</button>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center" }}>
+        <input
+          ref={customRef}
+          value={custom}
+          onChange={e => setCustom(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && custom.trim()) pickLabel(custom); }}
+          placeholder="Custom item name…"
+          style={{
+            flex: 1, padding: "11px 14px", border: "1.5px solid #d4ddd9",
+            borderRadius: 10, fontSize: 16, color: "#0f1a16", background: "white",
+            outline: "none", fontFamily: "inherit",
+          }}
+          onFocus={e => e.target.style.borderColor = "#3d6b5e"}
+          onBlur={e => e.target.style.borderColor = "#d4ddd9"}
+        />
+        {custom.trim() && (
+          <button onClick={() => pickLabel(custom)} style={{
+            padding: "11px 16px", border: "none", borderRadius: 10,
+            background: "#3d6b5e", color: "white", fontSize: 14,
+            cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+          }}>Next →</button>
+        )}
+      </div>
+    </>
+  );
 
-  const customRow = (
-    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <input
-        ref={inputRef}
-        value={custom}
-        onChange={e => setCustom(e.target.value)}
-        onKeyDown={e => { if (e.key === "Enter" && custom.trim()) handleAdd(custom); }}
-        placeholder="Custom item name…"
-        style={{
-          flex: 1, padding: "11px 14px", border: "1.5px solid #d4ddd9",
-          borderRadius: 10, fontSize: 16, color: "#0f1a16", background: "white",
-          outline: "none", fontFamily: "inherit",
-        }}
-        onFocus={e => e.target.style.borderColor = "#3d6b5e"}
-        onBlur={e => e.target.style.borderColor = "#d4ddd9"}
-      />
-      {custom.trim() && (
-        <button onClick={() => handleAdd(custom)} style={{
-          padding: "11px 16px", border: "none", borderRadius: 10,
-          background: "#3d6b5e", color: "white", fontSize: 14,
-          cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
-        }}>Add</button>
+  const detailFields = (
+    <>
+      {/* Amount */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 500, color: "#2d3a35", marginBottom: 6 }}>Amount</div>
+        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+          <span style={{ position: "absolute", left: 14, fontSize: 14, color: "#6b8f84", fontWeight: 500, pointerEvents: "none" }}>$</span>
+          <input
+            ref={amountRef}
+            type="number"
+            inputMode="decimal"
+            value={amount}
+            onChange={e => setAmount(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") commit(); }}
+            placeholder="0"
+            style={{
+              width: "100%", padding: "13px 14px 13px 30px",
+              border: "1.5px solid #d4ddd9", borderRadius: 10,
+              fontSize: 16, color: "#0f1a16", background: "#f9faf9",
+              outline: "none", fontFamily: "inherit",
+            }}
+            onFocus={e => e.target.style.borderColor = "#3d6b5e"}
+            onBlur={e => e.target.style.borderColor = "#d4ddd9"}
+          />
+        </div>
+      </div>
+
+      {/* Frequency */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 500, color: "#2d3a35", marginBottom: 6 }}>Frequency</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {[{ val: "monthly", label: "Monthly" }, { val: "annual", label: "Annual / one-off" }].map(({ val, label }) => (
+            <button key={val} onClick={() => { setFrequency(val); if (val === "monthly") setMonth(null); }} style={{
+              flex: 1, padding: "11px 0", border: "1.5px solid",
+              borderColor: frequency === val ? "#3d6b5e" : "#d4ddd9", borderRadius: 10,
+              fontSize: 13, fontWeight: frequency === val ? 600 : 400,
+              color: frequency === val ? "#3d6b5e" : "#6b7a74",
+              background: frequency === val ? "#eaf2ef" : "#f9faf9",
+              cursor: "pointer", fontFamily: "inherit",
+            }}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Month grid — only when annual */}
+      {isAnnual && (
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 500, color: "#2d3a35", marginBottom: 4 }}>
+            Month due
+            <span style={{ fontSize: 11, fontWeight: 400, color: "#8a9e98", marginLeft: 6 }}>
+              optional — enables cashflow calendar
+            </span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+            {MONTH_SHORT.map((m, i) => (
+              <button key={i} onClick={() => setMonth(month === i + 1 ? null : i + 1)} style={{
+                padding: "10px 0", border: "1.5px solid",
+                borderColor: month === i + 1 ? "#3d6b5e" : "#d4ddd9",
+                borderRadius: 8, fontSize: 13, fontWeight: month === i + 1 ? 600 : 400,
+                color: month === i + 1 ? "white" : "#6b7a74",
+                background: month === i + 1 ? "#3d6b5e" : "#f9faf9",
+                cursor: "pointer", fontFamily: "inherit",
+              }}>{m}</button>
+            ))}
+          </div>
+        </div>
       )}
+    </>
+  );
+
+  const addBtn = (
+    <button onClick={commit} style={{
+      width: "100%", padding: "14px", border: "none", borderRadius: 12,
+      background: "#3d6b5e", color: "white", fontSize: 15, fontWeight: 600,
+      cursor: "pointer", fontFamily: "inherit",
+    }}>
+      Add {pickedLabel.length > 22 ? pickedLabel.slice(0, 22) + "…" : `"${pickedLabel}"`}
+    </button>
+  );
+
+  const backBtn = (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+      <button onClick={() => setPickedLabel("")} style={{
+        background: "#f4f7f5", border: "none", borderRadius: 20,
+        padding: "6px 12px", fontSize: 12, color: "#6b8f84",
+        cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
+      }}>← Back</button>
+      <div style={{ fontSize: 15, fontWeight: 600, color: "#0f1a16", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pickedLabel}</div>
     </div>
   );
 
-  // ── MOBILE: bottom sheet drawer ─────────────────────────────────────────────
+  // ── MOBILE: bottom sheet ────────────────────────────────────────────────────
   if (isMobile) {
     return (
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 300 }}>
-        {/* Scrim */}
-        <div onClick={onCancel} style={{
-          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(15,26,22,0.5)",
-        }} />
-        {/* Sheet */}
+        <div onClick={onCancel} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(15,26,22,0.5)" }} />
         <div style={{
           position: "absolute", left: 0, right: 0, bottom: 0,
           background: "white", borderRadius: "20px 20px 0 0",
-          maxHeight: "80vh", display: "flex", flexDirection: "column",
+          maxHeight: "88vh", display: "flex", flexDirection: "column",
           boxShadow: "0 -8px 32px rgba(0,0,0,0.15)",
         }}>
-          {/* Drag handle */}
+          {/* Handle */}
           <div style={{ padding: "12px 0 0", display: "flex", justifyContent: "center", flexShrink: 0 }}>
             <div style={{ width: 40, height: 4, borderRadius: 2, background: "#d4ddd9" }} />
           </div>
           {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px 4px", flexShrink: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "#0f1a16" }}>Add to {catLabel}</div>
-            <button onClick={onCancel} style={{
-              background: "#f4f7f5", border: "none", borderRadius: 20,
-              width: 32, height: 32, fontSize: 18, color: "#6b8f84",
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            }}>×</button>
+            {inDetail ? backBtn : (
+              <>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "#0f1a16" }}>Add to {catLabel}</div>
+                <button onClick={onCancel} style={{
+                  background: "#f4f7f5", border: "none", borderRadius: 20,
+                  width: 32, height: 32, fontSize: 18, color: "#6b8f84",
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                }}>×</button>
+              </>
+            )}
           </div>
-          {/* Scrollable chips */}
+          {/* Scrollable body */}
           <div style={{ overflowY: "auto", flex: 1, padding: "12px 20px 0" }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {chips}
-            </div>
+            {inDetail ? detailFields : labelChips}
           </div>
-          {/* Custom input — sticky at bottom */}
+          {/* Sticky footer */}
           <div style={{ padding: "14px 20px 32px", borderTop: "1px solid #f0f4f2", background: "white", flexShrink: 0 }}>
-            {customRow}
+            {inDetail ? addBtn : (
+              <button onClick={onCancel} style={{
+                width: "100%", padding: "12px", border: "1.5px solid #d4ddd9", borderRadius: 10,
+                background: "none", color: "#8a9e98", fontSize: 14, cursor: "pointer", fontFamily: "inherit",
+              }}>Cancel</button>
+            )}
           </div>
         </div>
       </div>
@@ -544,21 +664,30 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
 
   // ── DESKTOP: inline ─────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: "12px 14px", background: "#edf2f0", borderTop: "2px solid #c4ddd6" }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: "#6b8f84", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
-        Select or type an item
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-        {chips}
-      </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <div style={{ flex: 1 }}>{customRow}</div>
-        <button onClick={onCancel} style={{
-          padding: "11px 14px", border: "1.5px solid #d4ddd9", borderRadius: 10,
-          background: "white", color: "#8a9e98", fontSize: 13,
-          cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
-        }}>Cancel</button>
-      </div>
+    <div style={{ padding: "14px", background: "#edf2f0", borderTop: "2px solid #c4ddd6" }}>
+      {inDetail ? (
+        <>
+          {backBtn}
+          {detailFields}
+          {addBtn}
+          <button onClick={onCancel} style={{
+            width: "100%", marginTop: 8, padding: "10px", border: "1.5px solid #d4ddd9",
+            borderRadius: 10, background: "none", color: "#8a9e98", fontSize: 13,
+            cursor: "pointer", fontFamily: "inherit",
+          }}>Cancel</button>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize: 10, fontWeight: 600, color: "#6b8f84", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
+            Select or type an item
+          </div>
+          {labelChips}
+          <button onClick={onCancel} style={{
+            marginTop: 10, padding: "8px 14px", border: "1.5px solid #d4ddd9", borderRadius: 10,
+            background: "white", color: "#8a9e98", fontSize: 13, cursor: "pointer", fontFamily: "inherit",
+          }}>Cancel</button>
+        </>
+      )}
     </div>
   );
 }
@@ -571,8 +700,8 @@ function BudgetCategory({ cat, items, onAddItem, onUpdateItem, onRemoveItem }) {
   const [expanded,   setExpanded]   = useState(items.length > 0);
   const [showPicker, setShowPicker] = useState(false);
 
-  function handleAdd(label) {
-    onAddItem(cat.key, label);
+  function handleAdd(label, amount, frequency, month) {
+    onAddItem(cat.key, label, amount, frequency, month);
     setShowPicker(false);
   }
 
@@ -635,8 +764,9 @@ export default function Stage2({ data, setMany }) {
   const n      = v => parseFloat(String(v || "").replace(/,/g, "")) || 0;
   const bTotal = budgetTotal(items);
 
-  function addItem(categoryKey, label) {
-    setMany({ budgetItems: [...items, newItem(categoryKey, label)] });
+  function addItem(categoryKey, label, amount = "", frequency = "monthly", month = null) {
+    const newItems = [...items, newItem(categoryKey, label, amount, frequency, month)];
+    setMany({ budgetItems: newItems, monthlyExpenses: String(Math.round(budgetTotal(newItems))) });
   }
 
   function updateItem(id, changes) {
