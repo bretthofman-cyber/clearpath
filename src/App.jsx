@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { DEFAULT_SCENARIOS, getActiveAssumptions, runEngine, propertyAnnualCashflow, runMonteCarlo } from "./engine.js";
 import { currency, Field, Input, Select, Toggle, TwoCol, SectionDivider } from "./ui.jsx";
-import Stage2, { BUDGET_CATS, budgetTotal } from "./BudgetStage.jsx";
+import Stage2, { BUDGET_CATS, budgetTotal, itemMonthly } from "./BudgetStage.jsx";
 
 const STORAGE_KEY = "clearpath_v1";
 
@@ -47,8 +47,7 @@ const EMPTY_DATA = {
   // Stage 2
   grossIncome: "", partnerIncome: "", bonusIncome: "", otherIncome: "",
   monthlyExpenses: "", annualIrregular: "", savingsPerMonth: "",
-  budget: { housing: "", utilities: "", groceries: "", transport: "", insurance: "",
-            health: "", entertainment: "", children: "", personal: "", other: "" },
+  budgetItems: [],
   // Stage 3
   cashSavings: "", offsetBalance: "", sharesEtfs: "", managedFunds: "",
   crypto: "", otherInvestments: "", emergencyFund: "",
@@ -93,11 +92,27 @@ function loadData() {
         maintenance: "", depreciation: "",
       }];
     }
+    // Migrate legacy budget flat object to budgetItems array
+    let budgetItems = parsed.budgetItems || [];
+    if (budgetItems.length === 0 && parsed.budget) {
+      BUDGET_CATS.forEach(cat => {
+        const val = parseFloat(String(parsed.budget[cat.key] || "").replace(/,/g, "")) || 0;
+        if (val > 0) {
+          budgetItems.push({
+            id: `migrated_${cat.key}`,
+            categoryKey: cat.key,
+            label: cat.label,
+            amount: String(val),
+            frequency: "monthly",
+          });
+        }
+      });
+    }
     return {
       ...EMPTY_DATA,
       ...parsed,
       investmentProperties,
-      budget: { ...EMPTY_DATA.budget, ...(parsed.budget || {}) },
+      budgetItems,
       customAssumptions: {
         base: { ...DEFAULT_SCENARIOS.base, ...(parsed.customAssumptions?.base || {}) },
         conservative: { ...DEFAULT_SCENARIOS.conservative, ...(parsed.customAssumptions?.conservative || {}) },
@@ -188,13 +203,17 @@ INCOME & CASHFLOW
 Gross income: ${currency(data.grossIncome)}${couple ? ` | Partner income: ${currency(data.partnerIncome)}` : ""}
 Bonus/other income: ${currency(data.bonusIncome)} | Other: ${currency(data.otherIncome)}
 ${(() => {
-  const bt = budgetTotal(data.budget);
+  const items = data.budgetItems || [];
+  const bt = budgetTotal(items);
   if (bt > 0) {
-    const lines = BUDGET_CATS
-      .filter(c => parseFloat(String(data.budget?.[c.key] || "").replace(/,/g, "")) > 0)
-      .map(c => `  ${c.label}: ${currency(data.budget[c.key])}/month`)
-      .join("\n");
-    return `Monthly budget breakdown:\n${lines}\n  Total: ${currency(bt)}/month`;
+    const lines = items.map(item => {
+      const mo = itemMonthly(item);
+      const annualNote = item.frequency === "annual"
+        ? ` (${currency(parseFloat(String(item.amount || "").replace(/,/g, "")) || 0)}/year)`
+        : "";
+      return `  ${item.label}: ${currency(mo)}/month${annualNote}`;
+    }).join("\n");
+    return `Monthly budget breakdown:\n${lines}\n  Total: ${currency(bt)}/month (${currency(bt * 12)}/year)`;
   }
   return `Monthly expenses: ${currency(data.monthlyExpenses)}`;
 })()}
