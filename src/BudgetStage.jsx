@@ -373,73 +373,98 @@ const FREQ_CYCLE = { monthly: "quarterly", quarterly: "annual", annual: "monthly
 const FREQ_LABEL = { monthly: "Mo", quarterly: "Qtr", annual: "Yr" };
 
 function BudgetItem({ item, onUpdate, onRemove }) {
-  const monthly    = itemMonthly(item);
-  const freq       = item.frequency || "monthly";
+  const monthly      = itemMonthly(item);
+  const freq         = item.frequency || "monthly";
   const isNonMonthly = freq !== "monthly";
-  const nextFreq   = FREQ_CYCLE[freq] || "monthly";
+  const nextFreq     = FREQ_CYCLE[freq] || "monthly";
+
+  const removeBtn = (
+    <button
+      onClick={() => onRemove(item.id)}
+      style={{
+        flexShrink: 0, width: 22, height: 22, border: "none",
+        background: "none", color: "#c8d0cc", cursor: "pointer",
+        fontSize: 17, lineHeight: "22px", textAlign: "center",
+        borderRadius: 4, padding: 0,
+      }}
+      onMouseEnter={e => e.currentTarget.style.color = "#9a3922"}
+      onMouseLeave={e => e.currentTarget.style.color = "#c8d0cc"}
+    >×</button>
+  );
+
+  const freqBtn = (
+    <button
+      onClick={() => onUpdate(item.id, { frequency: nextFreq, month: nextFreq === "monthly" ? null : item.month })}
+      title={`Frequency: ${freq} — click to cycle Mo → Qtr → Yr`}
+      style={{
+        flexShrink: 0, padding: "6px 9px", border: "1.5px solid",
+        borderColor: isNonMonthly ? "#3d6b5e" : "#d4ddd9", borderRadius: 7,
+        fontSize: 11, fontWeight: 600,
+        color: isNonMonthly ? "#3d6b5e" : "#a0aba6",
+        background: isNonMonthly ? "#eaf2ef" : "#f9faf9",
+        cursor: "pointer", fontFamily: "inherit",
+      }}
+    >{FREQ_LABEL[freq]}</button>
+  );
+
+  // ── Non-monthly (Qtr / Yr): two-row layout so label always has full width ──
+  if (isNonMonthly) {
+    return (
+      <div style={{ padding: "8px 14px", borderBottom: "1px solid #f0f4f2", background: "white" }}>
+        {/* Row 1: label + /mo equivalent + remove */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <div style={{ flex: 1, fontSize: 13, color: "#2d3a35", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {item.label}
+          </div>
+          {monthly > 0 && (
+            <div style={{ fontSize: 10, color: "#b0bab6", whiteSpace: "nowrap", flexShrink: 0 }}>
+              {currency(monthly)}/mo
+            </div>
+          )}
+          {removeBtn}
+        </div>
+        {/* Row 2: amount + cycle button + month select */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ flex: 1 }}>
+            <Input value={item.amount} onChange={v => onUpdate(item.id, { amount: v })} placeholder="0" prefix="$" />
+          </div>
+          {freqBtn}
+          <select
+            value={item.month || ""}
+            onChange={e => onUpdate(item.id, { month: e.target.value ? parseInt(e.target.value) : null })}
+            title={freq === "quarterly" ? "First payment month (repeats every 3 months)" : "Month this falls due"}
+            style={{
+              flexShrink: 0, padding: "6px 5px", width: 54,
+              border: `1.5px solid ${item.month ? "#3d6b5e" : "#d4ddd9"}`,
+              borderRadius: 7, fontSize: 12,
+              color: item.month ? "#3d6b5e" : "#a0aba6",
+              background: item.month ? "#eaf2ef" : "#f9faf9",
+              outline: "none", fontFamily: "inherit", cursor: "pointer",
+              appearance: "none", textAlign: "center",
+            }}
+          >
+            <option value="">{freq === "quarterly" ? "Start" : "Mo?"}</option>
+            {MONTH_SHORT.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+          </select>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Monthly: compact single-row layout ────────────────────────────────────
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 8,
-      padding: "7px 14px", borderBottom: "1px solid #f0f4f2",
-      background: "white",
+      padding: "7px 14px", borderBottom: "1px solid #f0f4f2", background: "white",
     }}>
       <div style={{ flex: 1, fontSize: 13, color: "#2d3a35", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {item.label}
       </div>
-      {isNonMonthly && monthly > 0 && (
-        <div style={{ fontSize: 10, color: "#b0bab6", whiteSpace: "nowrap", flexShrink: 0 }}>
-          {currency(monthly)}/mo
-        </div>
-      )}
       <div style={{ width: 100, flexShrink: 0 }}>
         <Input value={item.amount} onChange={v => onUpdate(item.id, { amount: v })} placeholder="0" prefix="$" />
       </div>
-      {/* Mo / Qtr / Yr cycle button */}
-      <button
-        onClick={() => onUpdate(item.id, { frequency: nextFreq, month: nextFreq === "monthly" ? null : item.month })}
-        title={`Frequency: ${freq} — click to cycle Mo → Qtr → Yr`}
-        style={{
-          flexShrink: 0, padding: "4px 8px", border: "1.5px solid",
-          borderColor: isNonMonthly ? "#3d6b5e" : "#d4ddd9", borderRadius: 6,
-          fontSize: 11, fontWeight: 600,
-          color: isNonMonthly ? "#3d6b5e" : "#a0aba6",
-          background: isNonMonthly ? "#eaf2ef" : "#f9faf9",
-          cursor: "pointer", fontFamily: "inherit",
-        }}
-      >{FREQ_LABEL[freq]}</button>
-      {/* Month picker — for annual (exact month due) or quarterly (start month) */}
-      {isNonMonthly && (
-        <select
-          value={item.month || ""}
-          onChange={e => onUpdate(item.id, { month: e.target.value ? parseInt(e.target.value) : null })}
-          title={freq === "quarterly" ? "Which month does the first payment fall?" : "Which month does this fall due?"}
-          style={{
-            flexShrink: 0, padding: "4px 5px", width: 52,
-            border: `1.5px solid ${item.month ? "#3d6b5e" : "#d4ddd9"}`,
-            borderRadius: 6, fontSize: 11,
-            color: item.month ? "#3d6b5e" : "#a0aba6",
-            background: item.month ? "#eaf2ef" : "#f9faf9",
-            outline: "none", fontFamily: "inherit", cursor: "pointer",
-            appearance: "none", textAlign: "center",
-          }}
-        >
-          <option value="">Mo?</option>
-          {MONTH_SHORT.map((m, i) => (
-            <option key={i + 1} value={i + 1}>{m}</option>
-          ))}
-        </select>
-      )}
-      <button
-        onClick={() => onRemove(item.id)}
-        style={{
-          flexShrink: 0, width: 22, height: 22, border: "none",
-          background: "none", color: "#c8d0cc", cursor: "pointer",
-          fontSize: 17, lineHeight: "22px", textAlign: "center",
-          borderRadius: 4, padding: 0,
-        }}
-        onMouseEnter={e => e.currentTarget.style.color = "#9a3922"}
-        onMouseLeave={e => e.currentTarget.style.color = "#c8d0cc"}
-      >×</button>
+      {freqBtn}
+      {removeBtn}
     </div>
   );
 }
