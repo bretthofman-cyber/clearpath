@@ -1,6 +1,6 @@
 // ─── CLEARPATH — STAGE 3: ASSETS & SAVINGS (ITEM-LEVEL) ──────────────────────
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { currency, Field, Input, SectionDivider } from "./ui.jsx";
 
 // ─── CATEGORIES ──────────────────────────────────────────────────────────────
@@ -108,67 +108,123 @@ function AssetItem({ item, onUpdate, onRemove }) {
 
 // ─── ADD ASSET PICKER ─────────────────────────────────────────────────────────
 
-function AddAssetPicker({ categoryKey, onAdd, onCancel }) {
+function AddAssetPicker({ categoryKey, catLabel, onAdd, onCancel }) {
   const [custom, setCustom] = useState("");
+  const inputRef = useRef(null);
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
   const suggestions = ASSET_SUGGESTIONS[categoryKey] || [];
+
+  useEffect(() => {
+    if (!isMobile) {
+      const t = setTimeout(() => inputRef.current?.focus(), 60);
+      return () => clearTimeout(t);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [isMobile]);
 
   function handleAdd(label) {
     if (label.trim()) onAdd(label.trim());
   }
 
+  const chipStyle = {
+    padding: "9px 14px", border: "1.5px solid #c4ddd6", borderRadius: 20,
+    background: "white", fontSize: 13, color: "#3d6b5e", minHeight: 40,
+    cursor: "pointer", fontFamily: "inherit", lineHeight: 1.4, textAlign: "left",
+  };
+
+  const chips = suggestions.map(s => (
+    <button key={s} onClick={() => handleAdd(s)} style={chipStyle}
+      onMouseEnter={e => { e.currentTarget.style.background = "#eaf2ef"; e.currentTarget.style.borderColor = "#3d6b5e"; }}
+      onMouseLeave={e => { e.currentTarget.style.background = "white"; e.currentTarget.style.borderColor = "#c4ddd6"; }}
+    >{s}</button>
+  ));
+
+  const customRow = (
+    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <input
+        ref={inputRef}
+        value={custom}
+        onChange={e => setCustom(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter" && custom.trim()) handleAdd(custom); }}
+        placeholder="Custom asset name…"
+        style={{
+          flex: 1, padding: "11px 14px", border: "1.5px solid #d4ddd9",
+          borderRadius: 10, fontSize: 16, color: "#0f1a16", background: "white",
+          outline: "none", fontFamily: "inherit",
+        }}
+        onFocus={e => e.target.style.borderColor = "#3d6b5e"}
+        onBlur={e => e.target.style.borderColor = "#d4ddd9"}
+      />
+      {custom.trim() && (
+        <button onClick={() => handleAdd(custom)} style={{
+          padding: "11px 16px", border: "none", borderRadius: 10,
+          background: "#3d6b5e", color: "white", fontSize: 14,
+          cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+        }}>Add</button>
+      )}
+    </div>
+  );
+
+  // ── MOBILE: bottom sheet drawer ─────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 300 }}>
+        <div onClick={onCancel} style={{
+          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(15,26,22,0.5)",
+        }} />
+        <div style={{
+          position: "absolute", left: 0, right: 0, bottom: 0,
+          background: "white", borderRadius: "20px 20px 0 0",
+          maxHeight: "80vh", display: "flex", flexDirection: "column",
+          boxShadow: "0 -8px 32px rgba(0,0,0,0.15)",
+        }}>
+          <div style={{ padding: "12px 0 0", display: "flex", justifyContent: "center", flexShrink: 0 }}>
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: "#d4ddd9" }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px 4px", flexShrink: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "#0f1a16" }}>Add to {catLabel}</div>
+            <button onClick={onCancel} style={{
+              background: "#f4f7f5", border: "none", borderRadius: 20,
+              width: 32, height: 32, fontSize: 18, color: "#6b8f84",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            }}>×</button>
+          </div>
+          <div style={{ overflowY: "auto", flex: 1, padding: "12px 20px 0" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {chips}
+            </div>
+          </div>
+          <div style={{ padding: "14px 20px 32px", borderTop: "1px solid #f0f4f2", background: "white", flexShrink: 0 }}>
+            {customRow}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── DESKTOP: inline ─────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: "12px 14px", background: "#f4f7f5", borderTop: "1px solid #e2eae6" }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: "#8a9e98", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
+    <div style={{ padding: "12px 14px", background: "#edf2f0", borderTop: "2px solid #c4ddd6" }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: "#6b8f84", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
         Select or type an asset
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-        {suggestions.map(s => (
-          <button
-            key={s}
-            onClick={() => handleAdd(s)}
-            style={{
-              padding: "5px 11px", border: "1.5px solid #c4ddd6", borderRadius: 20,
-              background: "white", fontSize: 12, color: "#3d6b5e",
-              cursor: "pointer", fontFamily: "inherit", lineHeight: 1.4,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#eaf2ef"; e.currentTarget.style.borderColor = "#3d6b5e"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "white"; e.currentTarget.style.borderColor = "#c4ddd6"; }}
-          >{s}</button>
-        ))}
+        {chips}
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <input
-          value={custom}
-          onChange={e => setCustom(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter" && custom.trim()) handleAdd(custom); }}
-          placeholder="Custom asset name…"
-          autoFocus
-          style={{
-            flex: 1, padding: "8px 12px", border: "1.5px solid #d4ddd9",
-            borderRadius: 8, fontSize: 13, color: "#0f1a16", background: "white",
-            outline: "none", fontFamily: "inherit",
-          }}
-          onFocus={e => e.target.style.borderColor = "#3d6b5e"}
-          onBlur={e => e.target.style.borderColor = "#d4ddd9"}
-        />
-        {custom.trim() && (
-          <button
-            onClick={() => handleAdd(custom)}
-            style={{
-              padding: "8px 14px", border: "none", borderRadius: 8,
-              background: "#3d6b5e", color: "white", fontSize: 12,
-              cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
-            }}
-          >Add</button>
-        )}
-        <button
-          onClick={onCancel}
-          style={{
-            padding: "8px 12px", border: "1.5px solid #d4ddd9", borderRadius: 8,
-            background: "white", color: "#8a9e98", fontSize: 12,
-            cursor: "pointer", fontFamily: "inherit",
-          }}
-        >Cancel</button>
+        <div style={{ flex: 1 }}>{customRow}</div>
+        <button onClick={onCancel} style={{
+          padding: "11px 14px", border: "1.5px solid #d4ddd9", borderRadius: 10,
+          background: "white", color: "#8a9e98", fontSize: 13,
+          cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+        }}>Cancel</button>
       </div>
     </div>
   );
@@ -215,7 +271,7 @@ function AssetCategory({ cat, items, onAddItem, onUpdateItem, onRemoveItem }) {
             <AssetItem key={item.id} item={item} onUpdate={onUpdateItem} onRemove={onRemoveItem} />
           ))}
           {showPicker ? (
-            <AddAssetPicker categoryKey={cat.key} onAdd={handleAdd} onCancel={() => setShowPicker(false)} />
+            <AddAssetPicker categoryKey={cat.key} catLabel={cat.label} onAdd={handleAdd} onCancel={() => setShowPicker(false)} />
           ) : (
             <div style={{ padding: "8px 14px", background: "#fafcfa" }}>
               <button

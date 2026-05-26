@@ -32,7 +32,7 @@ export function Input({ value, onChange, placeholder, type = "text", prefix, suf
           width: "100%",
           padding: prefix ? "11px 14px 11px 26px" : suffix ? "11px 36px 11px 14px" : "11px 14px",
           border: "1.5px solid #d4ddd9", borderRadius: 10,
-          fontSize: 14, color: "#0f1a16", background: "#f9faf9",
+          fontSize: 16, color: "#0f1a16", background: "#f9faf9",
           outline: "none", fontFamily: "inherit", transition: "border-color 0.15s",
         }}
         onFocus={e => e.target.style.borderColor = "#3d6b5e"}
