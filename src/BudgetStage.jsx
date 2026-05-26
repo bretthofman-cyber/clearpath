@@ -431,38 +431,25 @@ function BudgetItem({ item, onUpdate, onRemove }) {
   );
 }
 
-// ─── ADD ITEM PICKER (two-step: name → amount + frequency + month) ────────────
+// ─── ADD ITEM PICKER (multi-select: tap chips, fill amounts, add all at once) ──
 
 function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
-  const [custom, setCustom]         = useState("");
-  const [pickedLabel, setPickedLabel] = useState("");
-  const [amount, setAmount]         = useState("");
-  const [frequency, setFrequency]   = useState("monthly");
-  const [month, setMonth]           = useState(null);
+  const [queue,  setQueue]  = useState([]); // [{id, label, amount, frequency, month}]
+  const [custom, setCustom] = useState("");
   const customRef = useRef(null);
-  const amountRef = useRef(null);
   const isMobile  = typeof window !== "undefined" && window.innerWidth < 640;
-  const suggestions = BUDGET_SUGGESTIONS[categoryKey] || [];
-  const isAnnual  = frequency === "annual";
-  const inDetail  = pickedLabel !== "";
+  const suggestions    = BUDGET_SUGGESTIONS[categoryKey] || [];
+  const selectedLabels = new Set(queue.map(q => q.label));
 
-  // Desktop only: focus the custom name input when on step 1
+  // Desktop: focus custom input on open
   useEffect(() => {
-    if (!isMobile && !inDetail) {
+    if (!isMobile) {
       const t = setTimeout(() => customRef.current?.focus(), 60);
       return () => clearTimeout(t);
     }
-  }, [isMobile, inDetail]);
+  }, [isMobile]);
 
-  // Desktop only: focus the amount input when on step 2
-  useEffect(() => {
-    if (!isMobile && inDetail) {
-      const t = setTimeout(() => amountRef.current?.focus(), 80);
-      return () => clearTimeout(t);
-    }
-  }, [isMobile, inDetail]);
-
-  // Lock body scroll while sheet is open on mobile
+  // Lock body scroll on mobile while sheet is open
   useEffect(() => {
     if (!isMobile) return;
     const prev = document.body.style.overflow;
@@ -470,161 +457,206 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
     return () => { document.body.style.overflow = prev; };
   }, [isMobile]);
 
-  function pickLabel(label) {
-    if (!label.trim()) return;
-    setPickedLabel(label.trim());
-    setCustom(""); setAmount(""); setFrequency("monthly"); setMonth(null);
+  function toggleChip(label) {
+    if (selectedLabels.has(label)) {
+      setQueue(q => q.filter(i => i.label !== label));
+    } else {
+      setQueue(q => [...q, {
+        id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+        label, amount: "", frequency: "monthly", month: null,
+      }]);
+    }
+  }
+
+  function addCustom() {
+    const label = custom.trim();
+    if (!label || selectedLabels.has(label)) return;
+    setQueue(q => [...q, {
+      id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      label, amount: "", frequency: "monthly", month: null,
+    }]);
+    setCustom("");
+  }
+
+  function updateQueueItem(id, changes) {
+    setQueue(q => q.map(i => i.id === id ? { ...i, ...changes } : i));
+  }
+
+  function removeQueueItem(id) {
+    setQueue(q => q.filter(i => i.id !== id));
   }
 
   function commit() {
-    if (!pickedLabel) return;
-    onAdd(pickedLabel, amount, frequency, isAnnual ? month : null);
+    if (queue.length === 0) return;
+    onAdd(queue.map(({ label, amount, frequency, month }) => ({
+      label, amount, frequency, month: frequency === "annual" ? month : null,
+    })));
   }
 
-  // ── Shared sub-elements ────────────────────────────────────────────────────
+  // ── Shared content ─────────────────────────────────────────────────────────
 
-  const chipStyle = {
-    padding: "9px 14px", border: "1.5px solid #c4ddd6", borderRadius: 20,
-    background: "white", fontSize: 13, color: "#3d6b5e", minHeight: 40,
-    cursor: "pointer", fontFamily: "inherit", lineHeight: 1.4, textAlign: "left",
-  };
-
-  const labelChips = (
-    <>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {suggestions.map(s => (
-          <button key={s} onClick={() => pickLabel(s)} style={chipStyle}
-            onMouseEnter={e => { e.currentTarget.style.background = "#eaf2ef"; e.currentTarget.style.borderColor = "#3d6b5e"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "white"; e.currentTarget.style.borderColor = "#c4ddd6"; }}
-          >{s}</button>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center" }}>
-        <input
-          ref={customRef}
-          value={custom}
-          onChange={e => setCustom(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter" && custom.trim()) pickLabel(custom); }}
-          placeholder="Custom item name…"
-          style={{
-            flex: 1, padding: "11px 14px", border: "1.5px solid #d4ddd9",
-            borderRadius: 10, fontSize: 16, color: "#0f1a16", background: "white",
-            outline: "none", fontFamily: "inherit",
-          }}
-          onFocus={e => e.target.style.borderColor = "#3d6b5e"}
-          onBlur={e => e.target.style.borderColor = "#d4ddd9"}
-        />
-        {custom.trim() && (
-          <button onClick={() => pickLabel(custom)} style={{
-            padding: "11px 16px", border: "none", borderRadius: 10,
-            background: "#3d6b5e", color: "white", fontSize: 14,
-            cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
-          }}>Next →</button>
-        )}
-      </div>
-    </>
+  const chipGrid = (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+      {suggestions.map(s => {
+        const sel = selectedLabels.has(s);
+        return (
+          <button key={s} onClick={() => toggleChip(s)} style={{
+            padding: "9px 14px", border: "1.5px solid",
+            borderColor: sel ? "#3d6b5e" : "#c4ddd6", borderRadius: 20,
+            fontSize: 13, color: sel ? "white" : "#3d6b5e",
+            background: sel ? "#3d6b5e" : "white",
+            minHeight: 40, cursor: "pointer", fontFamily: "inherit",
+            lineHeight: 1.4, display: "flex", alignItems: "center", gap: 5,
+          }}>
+            {sel && <span style={{ fontSize: 11, lineHeight: 1 }}>✓</span>}
+            {s}
+          </button>
+        );
+      })}
+    </div>
   );
 
-  const detailFields = (
-    <>
-      {/* Amount */}
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: "#2d3a35", marginBottom: 6 }}>Amount</div>
-        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-          <span style={{ position: "absolute", left: 14, fontSize: 14, color: "#6b8f84", fontWeight: 500, pointerEvents: "none" }}>$</span>
-          <input
-            ref={amountRef}
-            type="number"
-            inputMode="decimal"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") commit(); }}
-            placeholder="0"
-            style={{
-              width: "100%", padding: "13px 14px 13px 30px",
-              border: "1.5px solid #d4ddd9", borderRadius: 10,
-              fontSize: 16, color: "#0f1a16", background: "#f9faf9",
-              outline: "none", fontFamily: "inherit",
-            }}
-            onFocus={e => e.target.style.borderColor = "#3d6b5e"}
-            onBlur={e => e.target.style.borderColor = "#d4ddd9"}
-          />
-        </div>
-      </div>
-
-      {/* Frequency */}
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: "#2d3a35", marginBottom: 6 }}>Frequency</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {[{ val: "monthly", label: "Monthly" }, { val: "annual", label: "Annual / one-off" }].map(({ val, label }) => (
-            <button key={val} onClick={() => { setFrequency(val); if (val === "monthly") setMonth(null); }} style={{
-              flex: 1, padding: "11px 0", border: "1.5px solid",
-              borderColor: frequency === val ? "#3d6b5e" : "#d4ddd9", borderRadius: 10,
-              fontSize: 13, fontWeight: frequency === val ? 600 : 400,
-              color: frequency === val ? "#3d6b5e" : "#6b7a74",
-              background: frequency === val ? "#eaf2ef" : "#f9faf9",
-              cursor: "pointer", fontFamily: "inherit",
-            }}>{label}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* Month grid — only when annual */}
-      {isAnnual && (
-        <div style={{ marginBottom: 6 }}>
-          <div style={{ fontSize: 12, fontWeight: 500, color: "#2d3a35", marginBottom: 4 }}>
-            Month due
-            <span style={{ fontSize: 11, fontWeight: 400, color: "#8a9e98", marginLeft: 6 }}>
-              optional — enables cashflow calendar
-            </span>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
-            {MONTH_SHORT.map((m, i) => (
-              <button key={i} onClick={() => setMonth(month === i + 1 ? null : i + 1)} style={{
-                padding: "10px 0", border: "1.5px solid",
-                borderColor: month === i + 1 ? "#3d6b5e" : "#d4ddd9",
-                borderRadius: 8, fontSize: 13, fontWeight: month === i + 1 ? 600 : 400,
-                color: month === i + 1 ? "white" : "#6b7a74",
-                background: month === i + 1 ? "#3d6b5e" : "#f9faf9",
-                cursor: "pointer", fontFamily: "inherit",
-              }}>{m}</button>
-            ))}
-          </div>
-        </div>
+  const customRow = (
+    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14 }}>
+      <input
+        ref={customRef}
+        value={custom}
+        onChange={e => setCustom(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter" && custom.trim()) addCustom(); }}
+        placeholder="Custom item name…"
+        style={{
+          flex: 1, padding: "11px 14px", border: "1.5px solid #d4ddd9",
+          borderRadius: 10, fontSize: 16, color: "#0f1a16", background: "white",
+          outline: "none", fontFamily: "inherit",
+        }}
+        onFocus={e => e.target.style.borderColor = "#3d6b5e"}
+        onBlur={e => e.target.style.borderColor = "#d4ddd9"}
+      />
+      {custom.trim() && (
+        <button onClick={addCustom} style={{
+          padding: "11px 16px", border: "none", borderRadius: 10,
+          background: "#3d6b5e", color: "white", fontSize: 14,
+          cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+        }}>+ Add</button>
       )}
-    </>
+    </div>
+  );
+
+  const queueSection = queue.length > 0 && (
+    <div>
+      {/* Divider with count */}
+      <div style={{
+        fontSize: 10, fontWeight: 600, color: "#8a9e98", textTransform: "uppercase",
+        letterSpacing: "0.08em", margin: "4px 0 12px",
+        display: "flex", alignItems: "center", gap: 8,
+      }}>
+        <div style={{ flex: 1, height: 1, background: "#e2eae6" }} />
+        Selected {queue.length}
+        <div style={{ flex: 1, height: 1, background: "#e2eae6" }} />
+      </div>
+
+      {queue.map(item => (
+        <div key={item.id} style={{
+          background: "#f4f7f5", border: "1px solid #e2eae6",
+          borderRadius: 10, padding: "10px 12px", marginBottom: 8,
+        }}>
+          {/* Label + remove */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#0f1a16", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {item.label}
+            </div>
+            <button
+              onClick={() => removeQueueItem(item.id)}
+              style={{ border: "none", background: "none", color: "#c8d0cc", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 0 0 8px", flexShrink: 0 }}
+              onMouseEnter={e => e.currentTarget.style.color = "#9a3922"}
+              onMouseLeave={e => e.currentTarget.style.color = "#c8d0cc"}
+            >×</button>
+          </div>
+          {/* Amount + Mo/Yr + month select */}
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {/* Amount input */}
+            <div style={{ position: "relative", flex: 1 }}>
+              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "#6b8f84", pointerEvents: "none" }}>$</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={item.amount}
+                onChange={e => updateQueueItem(item.id, { amount: e.target.value })}
+                placeholder="0"
+                style={{
+                  width: "100%", padding: "9px 10px 9px 24px",
+                  border: "1.5px solid #d4ddd9", borderRadius: 8,
+                  fontSize: 16, color: "#0f1a16", background: "white",
+                  outline: "none", fontFamily: "inherit", boxSizing: "border-box",
+                }}
+                onFocus={e => e.target.style.borderColor = "#3d6b5e"}
+                onBlur={e => e.target.style.borderColor = "#d4ddd9"}
+              />
+            </div>
+            {/* Mo / Yr */}
+            {["monthly", "annual"].map(val => (
+              <button key={val} onClick={() => updateQueueItem(item.id, { frequency: val, month: val === "monthly" ? null : item.month })} style={{
+                padding: "9px 10px", border: "1.5px solid",
+                borderColor: item.frequency === val ? "#3d6b5e" : "#d4ddd9",
+                borderRadius: 8, fontSize: 12, fontWeight: item.frequency === val ? 600 : 400,
+                color: item.frequency === val ? "#3d6b5e" : "#a0aba6",
+                background: item.frequency === val ? "#eaf2ef" : "white",
+                cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
+              }}>{val === "monthly" ? "Mo" : "Yr"}</button>
+            ))}
+            {/* Month select — compact dropdown, only when annual */}
+            {item.frequency === "annual" && (
+              <select
+                value={item.month || ""}
+                onChange={e => updateQueueItem(item.id, { month: e.target.value ? parseInt(e.target.value) : null })}
+                style={{
+                  flexShrink: 0, padding: "9px 6px", width: 58,
+                  border: `1.5px solid ${item.month ? "#3d6b5e" : "#d4ddd9"}`,
+                  borderRadius: 8, fontSize: 12,
+                  color: item.month ? "#3d6b5e" : "#a0aba6",
+                  background: item.month ? "#eaf2ef" : "white",
+                  outline: "none", fontFamily: "inherit", cursor: "pointer",
+                  appearance: "none", textAlign: "center",
+                }}
+              >
+                <option value="">Mo?</option>
+                {MONTH_SHORT.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+              </select>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 
   const addBtn = (
-    <button onClick={commit} style={{
-      width: "100%", padding: "14px", border: "none", borderRadius: 12,
-      background: "#3d6b5e", color: "white", fontSize: 15, fontWeight: 600,
-      cursor: "pointer", fontFamily: "inherit",
-    }}>
-      Add {pickedLabel.length > 22 ? pickedLabel.slice(0, 22) + "…" : `"${pickedLabel}"`}
+    <button
+      onClick={commit}
+      disabled={queue.length === 0}
+      style={{
+        width: "100%", padding: "14px", border: "none", borderRadius: 12,
+        background: queue.length > 0 ? "#3d6b5e" : "#c8d0cc",
+        color: "white", fontSize: 15, fontWeight: 600,
+        cursor: queue.length > 0 ? "pointer" : "default", fontFamily: "inherit",
+      }}
+    >
+      {queue.length === 0
+        ? "Select items above"
+        : `Add ${queue.length} item${queue.length !== 1 ? "s" : ""} to ${catLabel}`}
     </button>
   );
 
-  const backBtn = (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-      <button onClick={() => setPickedLabel("")} style={{
-        background: "#f4f7f5", border: "none", borderRadius: 20,
-        padding: "6px 12px", fontSize: 12, color: "#6b8f84",
-        cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
-      }}>← Back</button>
-      <div style={{ fontSize: 15, fontWeight: 600, color: "#0f1a16", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pickedLabel}</div>
-    </div>
-  );
+  const bodyContent = <>{chipGrid}{customRow}{queueSection}</>;
 
   // ── MOBILE: bottom sheet ────────────────────────────────────────────────────
   if (isMobile) {
     return (
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 300 }}>
-        <div onClick={onCancel} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(15,26,22,0.5)" }} />
+        <div onClick={onCancel} style={{ position: "absolute", inset: 0, background: "rgba(15,26,22,0.5)" }} />
         <div style={{
           position: "absolute", left: 0, right: 0, bottom: 0,
           background: "white", borderRadius: "20px 20px 0 0",
-          maxHeight: "88vh", display: "flex", flexDirection: "column",
+          maxHeight: "90vh", display: "flex", flexDirection: "column",
           boxShadow: "0 -8px 32px rgba(0,0,0,0.15)",
         }}>
           {/* Handle */}
@@ -633,29 +665,20 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
           </div>
           {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px 4px", flexShrink: 0 }}>
-            {inDetail ? backBtn : (
-              <>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "#0f1a16" }}>Add to {catLabel}</div>
-                <button onClick={onCancel} style={{
-                  background: "#f4f7f5", border: "none", borderRadius: 20,
-                  width: 32, height: 32, fontSize: 18, color: "#6b8f84",
-                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                }}>×</button>
-              </>
-            )}
+            <div style={{ fontSize: 16, fontWeight: 600, color: "#0f1a16" }}>Add to {catLabel}</div>
+            <button onClick={onCancel} style={{
+              background: "#f4f7f5", border: "none", borderRadius: 20,
+              width: 32, height: 32, fontSize: 18, color: "#6b8f84",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            }}>×</button>
           </div>
           {/* Scrollable body */}
           <div style={{ overflowY: "auto", flex: 1, padding: "12px 20px 0" }}>
-            {inDetail ? detailFields : labelChips}
+            {bodyContent}
           </div>
           {/* Sticky footer */}
           <div style={{ padding: "14px 20px 32px", borderTop: "1px solid #f0f4f2", background: "white", flexShrink: 0 }}>
-            {inDetail ? addBtn : (
-              <button onClick={onCancel} style={{
-                width: "100%", padding: "12px", border: "1.5px solid #d4ddd9", borderRadius: 10,
-                background: "none", color: "#8a9e98", fontSize: 14, cursor: "pointer", fontFamily: "inherit",
-              }}>Cancel</button>
-            )}
+            {addBtn}
           </div>
         </div>
       </div>
@@ -665,43 +688,31 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
   // ── DESKTOP: inline ─────────────────────────────────────────────────────────
   return (
     <div style={{ padding: "14px", background: "#edf2f0", borderTop: "2px solid #c4ddd6" }}>
-      {inDetail ? (
-        <>
-          {backBtn}
-          {detailFields}
-          {addBtn}
-          <button onClick={onCancel} style={{
-            width: "100%", marginTop: 8, padding: "10px", border: "1.5px solid #d4ddd9",
-            borderRadius: 10, background: "none", color: "#8a9e98", fontSize: 13,
-            cursor: "pointer", fontFamily: "inherit",
-          }}>Cancel</button>
-        </>
-      ) : (
-        <>
-          <div style={{ fontSize: 10, fontWeight: 600, color: "#6b8f84", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
-            Select or type an item
-          </div>
-          {labelChips}
-          <button onClick={onCancel} style={{
-            marginTop: 10, padding: "8px 14px", border: "1.5px solid #d4ddd9", borderRadius: 10,
-            background: "white", color: "#8a9e98", fontSize: 13, cursor: "pointer", fontFamily: "inherit",
-          }}>Cancel</button>
-        </>
-      )}
+      <div style={{ fontSize: 10, fontWeight: 600, color: "#6b8f84", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
+        Select one or more items
+      </div>
+      {bodyContent}
+      {addBtn}
+      <button onClick={onCancel} style={{
+        marginTop: 8, width: "100%", padding: "9px", border: "1.5px solid #d4ddd9",
+        borderRadius: 10, background: "white", color: "#8a9e98",
+        fontSize: 13, cursor: "pointer", fontFamily: "inherit",
+      }}>Cancel</button>
     </div>
   );
 }
 
 // ─── BUDGET CATEGORY ─────────────────────────────────────────────────────────
 
-function BudgetCategory({ cat, items, onAddItem, onUpdateItem, onRemoveItem }) {
+function BudgetCategory({ cat, items, onAddItems, onUpdateItem, onRemoveItem }) {
   const catTotal  = items.reduce((s, item) => s + itemMonthly(item), 0);
   const hasAnnual = items.some(i => i.frequency === "annual");
   const [expanded,   setExpanded]   = useState(items.length > 0);
   const [showPicker, setShowPicker] = useState(false);
 
-  function handleAdd(label, amount, frequency, month) {
-    onAddItem(cat.key, label, amount, frequency, month);
+  function handleAdd(itemsToAdd) {
+    // itemsToAdd: [{label, amount, frequency, month}]
+    onAddItems(cat.key, itemsToAdd);
     setShowPicker(false);
   }
 
@@ -764,9 +775,13 @@ export default function Stage2({ data, setMany }) {
   const n      = v => parseFloat(String(v || "").replace(/,/g, "")) || 0;
   const bTotal = budgetTotal(items);
 
-  function addItem(categoryKey, label, amount = "", frequency = "monthly", month = null) {
-    const newItems = [...items, newItem(categoryKey, label, amount, frequency, month)];
-    setMany({ budgetItems: newItems, monthlyExpenses: String(Math.round(budgetTotal(newItems))) });
+  function addItems(categoryKey, newItemsList) {
+    // newItemsList: [{label, amount, frequency, month}]
+    const toAdd = newItemsList.map(({ label, amount, frequency, month }) =>
+      newItem(categoryKey, label, amount, frequency, month)
+    );
+    const updated = [...items, ...toAdd];
+    setMany({ budgetItems: updated, monthlyExpenses: String(Math.round(budgetTotal(updated))) });
   }
 
   function updateItem(id, changes) {
@@ -815,7 +830,7 @@ export default function Stage2({ data, setMany }) {
             key={cat.key}
             cat={cat}
             items={items.filter(i => i.categoryKey === cat.key)}
-            onAddItem={addItem}
+            onAddItems={addItems}
             onUpdateItem={updateItem}
             onRemoveItem={removeItem}
           />
