@@ -177,12 +177,12 @@ function newItem(categoryKey, label, amount = "", frequency = "monthly", month =
 
 function CashflowSummary({ netMonthly, expenses, savings, surplus }) {
   const isPos = surplus >= 0;
-  const color = isPos ? "#3d6b5e" : "#9a3922";
-  const bg    = isPos ? "#eaf2ef" : "#fdf4f0";
-  const bdr   = isPos ? "#c4ddd6" : "#f0d0c4";
+  const color = isPos ? "#2E4A3D" : "#9a3922";
+  const bg    = isPos ? "#EAF0EC" : "#fdf4f0";
+  const bdr   = isPos ? "#D8D2C4" : "#f0d0c4";
   return (
     <div style={{ background: bg, border: `1.5px solid ${bdr}`, borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8a9e98", marginBottom: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 10 }}>
         Monthly Cashflow
       </div>
       {[
@@ -191,21 +191,21 @@ function CashflowSummary({ netMonthly, expenses, savings, surplus }) {
         { label: "Planned savings",       val: savings,    sign: "−" },
       ].map(({ label, val, sign }, i) => (
         <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-          <span style={{ fontSize: 12, color: "#6b8f84" }}>{label}</span>
-          <span style={{ fontSize: 12, fontWeight: 500, color: sign === "+" ? "#3d6b5e" : "#4a6660" }}>
+          <span style={{ fontSize: 12, color: "#6B6655" }}>{label}</span>
+          <span style={{ fontSize: 12, fontWeight: 500, color: sign === "+" ? "#2E4A3D" : "#6B6655" }}>
             {sign} {currency(val)}
           </span>
         </div>
       ))}
       <div style={{ borderTop: `1px solid ${bdr}`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#2d3a35" }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#21241E" }}>
           {isPos ? "Monthly surplus" : "Monthly shortfall"}
         </span>
-        <span style={{ fontFamily: "Instrument Serif, serif", fontSize: 22, color }}>
+        <span style={{ fontFamily: "Spectral, serif", fontSize: 22, color }}>
           {isPos ? "" : "−"}{currency(Math.abs(surplus))}
         </span>
       </div>
-      <div style={{ fontSize: 10, color: "#b0bab6", marginTop: 6 }}>
+      <div style={{ fontSize: 10, color: "#9DB0A1", marginTop: 6 }}>
         ★ Income estimate based on FY2026-27 marginal rates. Salary sacrifice deducted where entered.
       </div>
     </div>
@@ -225,23 +225,23 @@ export function CashflowCalendar({ items, netMonthly, startingCash = 0, compact 
     if (!hasSpikes) {
       return (
         <div style={{
-          background: "#f9faf9", border: "1.5px dashed #c4ddd6", borderRadius: 10,
+          background: "#FBFAF6", border: "1.5px dashed #D8D2C4", borderRadius: 10,
           padding: "12px 16px", marginBottom: 14,
           display: "flex", alignItems: "center", gap: 12,
         }}>
           <span style={{ fontSize: 18, flexShrink: 0 }}>📅</span>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: "#2d3a35", marginBottom: 2 }}>Unlock cashflow calendar</div>
-            <div style={{ fontSize: 11, color: "#8a9e98" }}>
-              Set <strong style={{ color: "#3d6b5e" }}>Yr</strong> or <strong style={{ color: "#3d6b5e" }}>Qtr</strong> on any expense and pick a month — see exactly which months run tight.
+            <div style={{ fontSize: 12, fontWeight: 500, color: "#21241E", marginBottom: 2 }}>Unlock cashflow calendar</div>
+            <div style={{ fontSize: 11, color: "#8A8270" }}>
+              Set <strong style={{ color: "#2E4A3D" }}>Yr</strong> or <strong style={{ color: "#2E4A3D" }}>Qtr</strong> on any expense and pick a month — see exactly which months run tight.
             </div>
           </div>
         </div>
       );
     }
     return (
-      <div style={{ background: "#f9faf9", border: "1.5px solid #e2eae6", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: "#8a9e98", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+      <div style={{ background: "#FBFAF6", border: "1.5px solid #ECE7DB", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
           Month-by-month cashflow preview
         </div>
         <div style={{ display: "flex", gap: 3, overflowX: "auto", paddingBottom: 2 }}>
@@ -251,11 +251,11 @@ export function CashflowCalendar({ items, netMonthly, startingCash = 0, compact 
             return (
               <div key={row.short} style={{
                 flex: "0 0 48px", padding: "6px 4px", borderRadius: 8, textAlign: "center",
-                background: isPos ? (isTight ? "#fffbf0" : "#eaf2ef") : "#fdf4f0",
-                border: `1px solid ${isPos ? (isTight ? "#e4d8bc" : "#c4ddd6") : "#f0d0c4"}`,
+                background: isPos ? (isTight ? "#fffbf0" : "#EAF0EC") : "#fdf4f0",
+                border: `1px solid ${isPos ? (isTight ? "#e4d8bc" : "#D8D2C4") : "#f0d0c4"}`,
               }}>
-                <div style={{ fontSize: 9, color: "#8a9e98", marginBottom: 3, fontWeight: 500, letterSpacing: "0.03em" }}>{row.short}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.2, color: isPos ? (isTight ? "#7a6840" : "#3d6b5e") : "#9a3922" }}>
+                <div style={{ fontSize: 9, color: "#8A8270", marginBottom: 3, fontWeight: 500, letterSpacing: "0.03em" }}>{row.short}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.2, color: isPos ? (isTight ? "#6B5830" : "#2E4A3D") : "#9a3922" }}>
                   {isPos ? "+" : "−"}{currency(Math.abs(row.net)).replace("$", "")}
                 </div>
                 {row.annual > 0 && (
@@ -265,7 +265,7 @@ export function CashflowCalendar({ items, netMonthly, startingCash = 0, compact 
             );
           })}
         </div>
-        <div style={{ fontSize: 10, color: "#b0bab6", marginTop: 8 }}>
+        <div style={{ fontSize: 10, color: "#9DB0A1", marginTop: 8 }}>
           ● = lump-sum due this month · amber = tight (under 30% of normal surplus) · full calendar in Analysis
         </div>
       </div>
@@ -274,21 +274,21 @@ export function CashflowCalendar({ items, netMonthly, startingCash = 0, compact 
 
   // ── FULL TABLE: shown in Stage 7 Analysis ─────────────────────────────────
   const minCash = startingCash > 0 ? Math.min(...rows.map(r => r.cumulative)) : null;
-  const thStyle = { fontSize: 11, fontWeight: 600, color: "#8a9e98", padding: "7px 10px", textAlign: "right", background: "#f4f7f5", borderBottom: "1.5px solid #e2eae6" };
+  const thStyle = { fontSize: 11, fontWeight: 600, color: "#8A8270", padding: "7px 10px", textAlign: "right", background: "#F5F2EB", borderBottom: "1.5px solid #ECE7DB" };
 
   return (
-    <div style={{ background: "white", border: "1.5px solid #e2eae6", borderRadius: 12, overflow: "hidden", marginBottom: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #e2eae6" }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "#8a9e98", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+    <div style={{ background: "white", border: "1.5px solid #ECE7DB", borderRadius: 12, overflow: "hidden", marginBottom: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #ECE7DB" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.08em" }}>
           12-Month Cashflow Calendar
         </div>
         {startingCash > 0 && (
-          <div style={{ fontSize: 11, color: "#6b8f84" }}>Starting cash: {currency(startingCash)}</div>
+          <div style={{ fontSize: 11, color: "#6B6655" }}>Starting cash: {currency(startingCash)}</div>
         )}
       </div>
 
       {!hasNonMonthly ? (
-        <div style={{ padding: "20px 16px", fontSize: 12, color: "#8a9e98", textAlign: "center" }}>
+        <div style={{ padding: "20px 16px", fontSize: 12, color: "#8A8270", textAlign: "center" }}>
           Add annual or quarterly expenses in Stage 2 and assign a start month to see the calendar.
         </div>
       ) : (
@@ -308,37 +308,37 @@ export function CashflowCalendar({ items, netMonthly, startingCash = 0, compact 
               {rows.map((row, idx) => {
                 const isNeg    = row.net < 0;
                 const isTight  = !isNeg && netMonthly > 0 && row.net < netMonthly * 0.3;
-                const rowBg    = isNeg ? "#fdf4f0" : isTight ? "#fffdf5" : idx % 2 === 0 ? "white" : "#fafcfa";
+                const rowBg    = isNeg ? "#fdf4f0" : isTight ? "#fffdf5" : idx % 2 === 0 ? "white" : "#FBFAF6";
                 const isLowest = minCash !== null && row.cumulative === minCash;
-                const tdBase   = { padding: "8px 10px", borderBottom: "1px solid #f0f4f2", fontSize: 12 };
+                const tdBase   = { padding: "8px 10px", borderBottom: "1px solid #F5F2EB", fontSize: 12 };
                 return (
                   <tr key={row.name} style={{ background: rowBg }}>
-                    <td style={{ ...tdBase, paddingLeft: 16, color: "#2d3a35", fontWeight: isNeg || isTight ? 600 : 400 }}>
+                    <td style={{ ...tdBase, paddingLeft: 16, color: "#21241E", fontWeight: isNeg || isTight ? 600 : 400 }}>
                       {row.name}
                     </td>
-                    <td style={{ ...tdBase, textAlign: "right", color: "#3d6b5e" }}>
+                    <td style={{ ...tdBase, textAlign: "right", color: "#2E4A3D" }}>
                       {currency(row.income)}
                     </td>
-                    <td style={{ ...tdBase, textAlign: "right", color: "#6b7a74" }}>
+                    <td style={{ ...tdBase, textAlign: "right", color: "#6B6655" }}>
                       ({currency(row.fixed)})
                     </td>
                     <td style={{ ...tdBase, textAlign: "right" }}>
                       {row.annual > 0 ? (
                         <div>
                           <div style={{ color: "#9a3922", fontWeight: 600 }}>({currency(row.annual)})</div>
-                          <div style={{ fontSize: 10, color: "#a08060", marginTop: 1 }}>
+                          <div style={{ fontSize: 10, color: "#8A8270", marginTop: 1 }}>
                             {row.spikes.map(s => s.label).join(", ")}
                           </div>
                         </div>
                       ) : (
-                        <span style={{ color: "#d0d8d4" }}>—</span>
+                        <span style={{ color: "#D8D2C4" }}>—</span>
                       )}
                     </td>
-                    <td style={{ ...tdBase, textAlign: "right", fontWeight: 600, color: isNeg ? "#9a3922" : isTight ? "#7a6840" : "#3d6b5e" }}>
+                    <td style={{ ...tdBase, textAlign: "right", fontWeight: 600, color: isNeg ? "#9a3922" : isTight ? "#6B5830" : "#2E4A3D" }}>
                       {isNeg ? "−" : "+"}{currency(Math.abs(row.net))}
                     </td>
                     {startingCash > 0 && (
-                      <td style={{ ...tdBase, textAlign: "right", color: row.cumulative < 0 ? "#9a3922" : "#2d3a35", fontWeight: isLowest ? 700 : 400 }}>
+                      <td style={{ ...tdBase, textAlign: "right", color: row.cumulative < 0 ? "#9a3922" : "#21241E", fontWeight: isLowest ? 700 : 400 }}>
                         {currency(row.cumulative)}
                         {isLowest && <span style={{ fontSize: 9, color: "#9a3922", marginLeft: 4 }}>▼ low</span>}
                       </td>
@@ -348,18 +348,18 @@ export function CashflowCalendar({ items, netMonthly, startingCash = 0, compact 
               })}
             </tbody>
             <tfoot>
-              <tr style={{ background: "#f4f7f5" }}>
-                <td style={{ fontSize: 11, fontWeight: 600, color: "#6b8f84", padding: "8px 16px", borderTop: "1.5px solid #e2eae6" }}>Full year</td>
-                <td style={{ fontSize: 11, color: "#3d6b5e", padding: "8px 10px", textAlign: "right", borderTop: "1.5px solid #e2eae6" }}>{currency(netMonthly * 12)}</td>
-                <td style={{ fontSize: 11, color: "#6b7a74", padding: "8px 10px", textAlign: "right", borderTop: "1.5px solid #e2eae6" }}>
+              <tr style={{ background: "#F5F2EB" }}>
+                <td style={{ fontSize: 11, fontWeight: 600, color: "#6B6655", padding: "8px 16px", borderTop: "1.5px solid #ECE7DB" }}>Full year</td>
+                <td style={{ fontSize: 11, color: "#2E4A3D", padding: "8px 10px", textAlign: "right", borderTop: "1.5px solid #ECE7DB" }}>{currency(netMonthly * 12)}</td>
+                <td style={{ fontSize: 11, color: "#6B6655", padding: "8px 10px", textAlign: "right", borderTop: "1.5px solid #ECE7DB" }}>
                   ({currency((rows[0]?.fixed || 0) * 12)})
                 </td>
-                <td style={{ fontSize: 11, color: "#9a3922", padding: "8px 10px", textAlign: "right", borderTop: "1.5px solid #e2eae6" }}>
+                <td style={{ fontSize: 11, color: "#9a3922", padding: "8px 10px", textAlign: "right", borderTop: "1.5px solid #ECE7DB" }}>
                   {rows.some(r => r.annual > 0) ? `(${currency(rows.reduce((s, r) => s + r.annual, 0))})` : "—"}
                 </td>
                 <td
                   colSpan={startingCash > 0 ? 2 : 1}
-                  style={{ fontSize: 11, fontWeight: 700, padding: "8px 10px", textAlign: "right", borderTop: "1.5px solid #e2eae6", color: rows.reduce((s, r) => s + r.net, 0) >= 0 ? "#3d6b5e" : "#9a3922" }}
+                  style={{ fontSize: 11, fontWeight: 700, padding: "8px 10px", textAlign: "right", borderTop: "1.5px solid #ECE7DB", color: rows.reduce((s, r) => s + r.net, 0) >= 0 ? "#2E4A3D" : "#9a3922" }}
                 >
                   {currency(rows.reduce((s, r) => s + r.net, 0))} annual
                 </td>
@@ -368,7 +368,7 @@ export function CashflowCalendar({ items, netMonthly, startingCash = 0, compact 
           </table>
         </div>
       )}
-      <div style={{ fontSize: 10, color: "#b0bab6", padding: "8px 16px", borderTop: "1px solid #f0f4f2" }}>
+      <div style={{ fontSize: 10, color: "#9DB0A1", padding: "8px 16px", borderTop: "1px solid #F5F2EB" }}>
         ★ Annual expenses without a month assigned are smoothed into Fixed spend. Income estimated from FY2026-27 marginal rates.
       </div>
     </div>
@@ -392,12 +392,12 @@ function BudgetItem({ item, onUpdate, onRemove }) {
       onClick={() => onRemove(item.id)}
       style={{
         flexShrink: 0, width: 22, height: 22, border: "none",
-        background: "none", color: "#c8d0cc", cursor: "pointer",
+        background: "none", color: "#D8D2C4", cursor: "pointer",
         fontSize: 17, lineHeight: "22px", textAlign: "center",
         borderRadius: 4, padding: 0,
       }}
       onMouseEnter={e => e.currentTarget.style.color = "#9a3922"}
-      onMouseLeave={e => e.currentTarget.style.color = "#c8d0cc"}
+      onMouseLeave={e => e.currentTarget.style.color = "#D8D2C4"}
     >×</button>
   );
 
@@ -407,10 +407,10 @@ function BudgetItem({ item, onUpdate, onRemove }) {
       title={`Frequency: ${freq} — click to cycle Mo → Qtr → Yr`}
       style={{
         flexShrink: 0, padding: "6px 9px", border: "1.5px solid",
-        borderColor: isNonMonthly ? "#3d6b5e" : "#d4ddd9", borderRadius: 7,
+        borderColor: isNonMonthly ? "#2E4A3D" : "#D8D2C4", borderRadius: 7,
         fontSize: 11, fontWeight: 600,
-        color: isNonMonthly ? "#3d6b5e" : "#a0aba6",
-        background: isNonMonthly ? "#eaf2ef" : "#f9faf9",
+        color: isNonMonthly ? "#2E4A3D" : "#8A8270",
+        background: isNonMonthly ? "#EAF0EC" : "#FBFAF6",
         cursor: "pointer", fontFamily: "inherit",
       }}
     >{FREQ_LABEL[freq]}</button>
@@ -419,14 +419,14 @@ function BudgetItem({ item, onUpdate, onRemove }) {
   // ── Non-monthly (Qtr / Yr): two-row layout so label always has full width ──
   if (isNonMonthly) {
     return (
-      <div style={{ padding: "8px 14px", borderBottom: "1px solid #f0f4f2", background: "white" }}>
+      <div style={{ padding: "8px 14px", borderBottom: "1px solid #F5F2EB", background: "white" }}>
         {/* Row 1: label + /mo equivalent + remove */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <div style={{ flex: 1, fontSize: 13, color: "#2d3a35", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ flex: 1, fontSize: 13, color: "#21241E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {item.label}
           </div>
           {monthly > 0 && (
-            <div style={{ fontSize: 10, color: "#b0bab6", whiteSpace: "nowrap", flexShrink: 0 }}>
+            <div style={{ fontSize: 10, color: "#9DB0A1", whiteSpace: "nowrap", flexShrink: 0 }}>
               {currency(monthly)}/mo
             </div>
           )}
@@ -444,10 +444,10 @@ function BudgetItem({ item, onUpdate, onRemove }) {
             title={freq === "quarterly" ? "First payment month (repeats every 3 months)" : "Month this falls due"}
             style={{
               flexShrink: 0, padding: "6px 5px", width: 54,
-              border: `1.5px solid ${item.month ? "#3d6b5e" : "#d4ddd9"}`,
+              border: `1.5px solid ${item.month ? "#2E4A3D" : "#D8D2C4"}`,
               borderRadius: 7, fontSize: 12,
-              color: item.month ? "#3d6b5e" : "#a0aba6",
-              background: item.month ? "#eaf2ef" : "#f9faf9",
+              color: item.month ? "#2E4A3D" : "#8A8270",
+              background: item.month ? "#EAF0EC" : "#FBFAF6",
               outline: "none", fontFamily: "inherit", cursor: "pointer",
               appearance: "none", textAlign: "center",
             }}
@@ -464,9 +464,9 @@ function BudgetItem({ item, onUpdate, onRemove }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 8,
-      padding: "7px 14px", borderBottom: "1px solid #f0f4f2", background: "white",
+      padding: "7px 14px", borderBottom: "1px solid #F5F2EB", background: "white",
     }}>
-      <div style={{ flex: 1, fontSize: 13, color: "#2d3a35", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <div style={{ flex: 1, fontSize: 13, color: "#21241E", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {item.label}
       </div>
       <div style={{ width: 100, flexShrink: 0 }}>
@@ -549,9 +549,9 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
         return (
           <button key={s} onClick={() => toggleChip(s)} style={{
             padding: "9px 14px", border: "1.5px solid",
-            borderColor: sel ? "#3d6b5e" : "#c4ddd6", borderRadius: 20,
-            fontSize: 13, color: sel ? "white" : "#3d6b5e",
-            background: sel ? "#3d6b5e" : "white",
+            borderColor: sel ? "#2E4A3D" : "#D8D2C4", borderRadius: 20,
+            fontSize: 13, color: sel ? "white" : "#2E4A3D",
+            background: sel ? "#2E4A3D" : "white",
             minHeight: 40, cursor: "pointer", fontFamily: "inherit",
             lineHeight: 1.4, display: "flex", alignItems: "center", gap: 5,
           }}>
@@ -572,17 +572,17 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
         onKeyDown={e => { if (e.key === "Enter" && custom.trim()) addCustom(); }}
         placeholder="Custom item name…"
         style={{
-          flex: 1, padding: "11px 14px", border: "1.5px solid #d4ddd9",
-          borderRadius: 10, fontSize: 16, color: "#0f1a16", background: "white",
+          flex: 1, padding: "11px 14px", border: "1.5px solid #D8D2C4",
+          borderRadius: 10, fontSize: 16, color: "#21241E", background: "white",
           outline: "none", fontFamily: "inherit",
         }}
-        onFocus={e => e.target.style.borderColor = "#3d6b5e"}
-        onBlur={e => e.target.style.borderColor = "#d4ddd9"}
+        onFocus={e => e.target.style.borderColor = "#2E4A3D"}
+        onBlur={e => e.target.style.borderColor = "#D8D2C4"}
       />
       {custom.trim() && (
         <button onClick={addCustom} style={{
           padding: "11px 16px", border: "none", borderRadius: 10,
-          background: "#3d6b5e", color: "white", fontSize: 14,
+          background: "#2E4A3D", color: "white", fontSize: 14,
           cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
         }}>+ Add</button>
       )}
@@ -593,37 +593,37 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
     <div>
       {/* Divider with count */}
       <div style={{
-        fontSize: 10, fontWeight: 600, color: "#8a9e98", textTransform: "uppercase",
+        fontSize: 10, fontWeight: 600, color: "#8A8270", textTransform: "uppercase",
         letterSpacing: "0.08em", margin: "4px 0 12px",
         display: "flex", alignItems: "center", gap: 8,
       }}>
-        <div style={{ flex: 1, height: 1, background: "#e2eae6" }} />
+        <div style={{ flex: 1, height: 1, background: "#ECE7DB" }} />
         Selected {queue.length}
-        <div style={{ flex: 1, height: 1, background: "#e2eae6" }} />
+        <div style={{ flex: 1, height: 1, background: "#ECE7DB" }} />
       </div>
 
       {queue.map(item => (
         <div key={item.id} style={{
-          background: "#f4f7f5", border: "1px solid #e2eae6",
+          background: "#F5F2EB", border: "1px solid #ECE7DB",
           borderRadius: 10, padding: "10px 12px", marginBottom: 8,
         }}>
           {/* Label + remove */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#0f1a16", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {item.label}
             </div>
             <button
               onClick={() => removeQueueItem(item.id)}
-              style={{ border: "none", background: "none", color: "#c8d0cc", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 0 0 8px", flexShrink: 0 }}
+              style={{ border: "none", background: "none", color: "#D8D2C4", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 0 0 8px", flexShrink: 0 }}
               onMouseEnter={e => e.currentTarget.style.color = "#9a3922"}
-              onMouseLeave={e => e.currentTarget.style.color = "#c8d0cc"}
+              onMouseLeave={e => e.currentTarget.style.color = "#D8D2C4"}
             >×</button>
           </div>
           {/* Amount + Mo/Yr + month select */}
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             {/* Amount input */}
             <div style={{ position: "relative", flex: 1 }}>
-              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "#6b8f84", pointerEvents: "none" }}>$</span>
+              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "#6B6655", pointerEvents: "none" }}>$</span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -632,22 +632,22 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
                 placeholder="0"
                 style={{
                   width: "100%", padding: "9px 10px 9px 24px",
-                  border: "1.5px solid #d4ddd9", borderRadius: 8,
-                  fontSize: 16, color: "#0f1a16", background: "white",
+                  border: "1.5px solid #D8D2C4", borderRadius: 8,
+                  fontSize: 16, color: "#21241E", background: "white",
                   outline: "none", fontFamily: "inherit", boxSizing: "border-box",
                 }}
-                onFocus={e => e.target.style.borderColor = "#3d6b5e"}
-                onBlur={e => e.target.style.borderColor = "#d4ddd9"}
+                onFocus={e => e.target.style.borderColor = "#2E4A3D"}
+                onBlur={e => e.target.style.borderColor = "#D8D2C4"}
               />
             </div>
             {/* Mo / Qtr / Yr */}
             {[{ val: "monthly", short: "Mo" }, { val: "quarterly", short: "Qtr" }, { val: "annual", short: "Yr" }].map(({ val, short }) => (
               <button key={val} onClick={() => updateQueueItem(item.id, { frequency: val, month: val === "monthly" ? null : item.month })} style={{
                 padding: "9px 8px", border: "1.5px solid",
-                borderColor: item.frequency === val ? "#3d6b5e" : "#d4ddd9",
+                borderColor: item.frequency === val ? "#2E4A3D" : "#D8D2C4",
                 borderRadius: 8, fontSize: 12, fontWeight: item.frequency === val ? 600 : 400,
-                color: item.frequency === val ? "#3d6b5e" : "#a0aba6",
-                background: item.frequency === val ? "#eaf2ef" : "white",
+                color: item.frequency === val ? "#2E4A3D" : "#8A8270",
+                background: item.frequency === val ? "#EAF0EC" : "white",
                 cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
               }}>{short}</button>
             ))}
@@ -658,10 +658,10 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
                 onChange={e => updateQueueItem(item.id, { month: e.target.value ? parseInt(e.target.value) : null })}
                 style={{
                   flexShrink: 0, padding: "9px 6px", width: 58,
-                  border: `1.5px solid ${item.month ? "#3d6b5e" : "#d4ddd9"}`,
+                  border: `1.5px solid ${item.month ? "#2E4A3D" : "#D8D2C4"}`,
                   borderRadius: 8, fontSize: 12,
-                  color: item.month ? "#3d6b5e" : "#a0aba6",
-                  background: item.month ? "#eaf2ef" : "white",
+                  color: item.month ? "#2E4A3D" : "#8A8270",
+                  background: item.month ? "#EAF0EC" : "white",
                   outline: "none", fontFamily: "inherit", cursor: "pointer",
                   appearance: "none", textAlign: "center",
                 }}
@@ -682,7 +682,7 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
       disabled={queue.length === 0}
       style={{
         width: "100%", padding: "14px", border: "none", borderRadius: 12,
-        background: queue.length > 0 ? "#3d6b5e" : "#c8d0cc",
+        background: queue.length > 0 ? "#2E4A3D" : "#D8D2C4",
         color: "white", fontSize: 15, fontWeight: 600,
         cursor: queue.length > 0 ? "pointer" : "default", fontFamily: "inherit",
       }}
@@ -708,14 +708,14 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
         }}>
           {/* Handle */}
           <div style={{ padding: "12px 0 0", display: "flex", justifyContent: "center", flexShrink: 0 }}>
-            <div style={{ width: 40, height: 4, borderRadius: 2, background: "#d4ddd9" }} />
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: "#D8D2C4" }} />
           </div>
           {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px 4px", flexShrink: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "#0f1a16" }}>Add to {catLabel}</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "#21241E" }}>Add to {catLabel}</div>
             <button onClick={onCancel} style={{
-              background: "#f4f7f5", border: "none", borderRadius: 20,
-              width: 32, height: 32, fontSize: 18, color: "#6b8f84",
+              background: "#F5F2EB", border: "none", borderRadius: 20,
+              width: 32, height: 32, fontSize: 18, color: "#6B6655",
               cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
             }}>×</button>
           </div>
@@ -724,7 +724,7 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
             {bodyContent}
           </div>
           {/* Sticky footer */}
-          <div style={{ padding: "14px 20px 32px", borderTop: "1px solid #f0f4f2", background: "white", flexShrink: 0 }}>
+          <div style={{ padding: "14px 20px 32px", borderTop: "1px solid #F5F2EB", background: "white", flexShrink: 0 }}>
             {addBtn}
           </div>
         </div>
@@ -734,15 +734,15 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
 
   // ── DESKTOP: inline ─────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: "14px", background: "#edf2f0", borderTop: "2px solid #c4ddd6" }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: "#6b8f84", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
+    <div style={{ padding: "14px", background: "#edf2f0", borderTop: "2px solid #D8D2C4" }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: "#6B6655", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
         Select one or more items
       </div>
       {bodyContent}
       {addBtn}
       <button onClick={onCancel} style={{
-        marginTop: 8, width: "100%", padding: "9px", border: "1.5px solid #d4ddd9",
-        borderRadius: 10, background: "white", color: "#8a9e98",
+        marginTop: 8, width: "100%", padding: "9px", border: "1.5px solid #D8D2C4",
+        borderRadius: 10, background: "white", color: "#8A8270",
         fontSize: 13, cursor: "pointer", fontFamily: "inherit",
       }}>Cancel</button>
     </div>
@@ -764,7 +764,7 @@ function BudgetCategory({ cat, items, onAddItems, onUpdateItem, onRemoveItem }) 
   }
 
   return (
-    <div style={{ borderBottom: "1px solid #eaeeed" }}>
+    <div style={{ borderBottom: "1px solid #ECE7DB" }}>
       <div
         onClick={() => { setExpanded(e => !e); setShowPicker(false); }}
         style={{
@@ -774,20 +774,20 @@ function BudgetCategory({ cat, items, onAddItems, onUpdateItem, onRemoveItem }) 
         }}
       >
         <span style={{ fontSize: 15, width: 22, textAlign: "center", flexShrink: 0 }}>{cat.icon}</span>
-        <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "#2d3a35" }}>{cat.label}</div>
+        <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "#21241E" }}>{cat.label}</div>
         {catTotal > 0 ? (
           <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <div style={{ fontSize: 13, fontFamily: "Instrument Serif, serif", color: "#0f1a16" }}>
-              {currency(catTotal)}<span style={{ fontSize: 10, color: "#b0bab6", fontFamily: "DM Sans, sans-serif" }}>/mo</span>
+            <div style={{ fontSize: 13, fontFamily: "Spectral, serif", color: "#21241E" }}>
+              {currency(catTotal)}<span style={{ fontSize: 10, color: "#9DB0A1", fontFamily: "DM Sans, sans-serif" }}>/mo</span>
             </div>
             {hasNonMonthly && (
-              <div style={{ fontSize: 9, color: "#c0c8c4" }}>{currency(catTotal * 12)}/yr</div>
+              <div style={{ fontSize: 9, color: "#9DB0A1" }}>{currency(catTotal * 12)}/yr</div>
             )}
           </div>
         ) : (
-          <div style={{ fontSize: 11, color: "#d0d8d4" }}>—</div>
+          <div style={{ fontSize: 11, color: "#D8D2C4" }}>—</div>
         )}
-        <span style={{ color: "#b0bab6", fontSize: 10, flexShrink: 0 }}>{expanded ? "▲" : "▼"}</span>
+        <span style={{ color: "#9DB0A1", fontSize: 10, flexShrink: 0 }}>{expanded ? "▲" : "▼"}</span>
       </div>
 
       {expanded && (
@@ -798,12 +798,12 @@ function BudgetCategory({ cat, items, onAddItems, onUpdateItem, onRemoveItem }) 
           {showPicker ? (
             <AddItemPicker categoryKey={cat.key} catLabel={cat.label} onAdd={handleAdd} onCancel={() => setShowPicker(false)} />
           ) : (
-            <div style={{ padding: "8px 14px", background: "#fafcfa" }}>
+            <div style={{ padding: "8px 14px", background: "#FBFAF6" }}>
               <button
                 onClick={e => { e.stopPropagation(); setShowPicker(true); }}
                 style={{
-                  padding: "5px 12px", border: "1.5px dashed #c4ddd6", borderRadius: 8,
-                  background: "none", color: "#3d6b5e", fontSize: 12,
+                  padding: "5px 12px", border: "1.5px dashed #D8D2C4", borderRadius: 8,
+                  background: "none", color: "#2E4A3D", fontSize: 12,
                   cursor: "pointer", fontFamily: "inherit",
                 }}
               >+ Add item</button>
@@ -871,7 +871,7 @@ export default function Stage2({ data, setMany }) {
 
       <SectionDivider label="Monthly Budget" />
 
-      <div style={{ background: "#f9faf9", border: "1.5px solid #e2eae6", borderRadius: 12, overflow: "hidden", marginBottom: 14 }}>
+      <div style={{ background: "#FBFAF6", border: "1.5px solid #ECE7DB", borderRadius: 12, overflow: "hidden", marginBottom: 14 }}>
         {BUDGET_CATS.map(cat => (
           <BudgetCategory
             key={cat.key}
@@ -882,16 +882,16 @@ export default function Stage2({ data, setMany }) {
             onRemoveItem={removeItem}
           />
         ))}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "#eaf2ef", borderTop: "1.5px solid #c4ddd6" }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: "#3d6b5e", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "#EAF0EC", borderTop: "1.5px solid #D8D2C4" }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "#2E4A3D", textTransform: "uppercase", letterSpacing: "0.06em" }}>
             Monthly total · {items.length} item{items.length !== 1 ? "s" : ""}
           </span>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontFamily: "Instrument Serif, serif", fontSize: 22, color: "#0f1a16" }}>
-              {bTotal > 0 ? currency(bTotal) : <span style={{ color: "#c0c8c4", fontSize: 15 }}>Add items above</span>}
+            <div style={{ fontFamily: "Spectral, serif", fontSize: 22, color: "#21241E" }}>
+              {bTotal > 0 ? currency(bTotal) : <span style={{ color: "#9DB0A1", fontSize: 15 }}>Add items above</span>}
             </div>
             {bTotal > 0 && (
-              <div style={{ fontSize: 10, color: "#8a9e98" }}>{currency(bTotal * 12)}/year</div>
+              <div style={{ fontSize: 10, color: "#8A8270" }}>{currency(bTotal * 12)}/year</div>
             )}
           </div>
         </div>

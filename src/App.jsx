@@ -243,21 +243,21 @@ function PropertyCard({ ip, onChange, onClone, onRemove }) {
   function upd(field, val) { onChange({ ...ip, [field]: val }); }
 
   return (
-    <div style={{ border: "1.5px solid #d4ddd9", borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
-      <div style={{ padding: "12px 16px", background: "#f9faf9", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+    <div style={{ border: "1.5px solid #D8D2C4", borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
+      <div style={{ padding: "12px 16px", background: "#FBFAF6", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
             <span style={{
               fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 20, flexShrink: 0,
-              background: ip.status === "existing" ? "#eaf2ef" : "#eaf0f7",
-              color: ip.status === "existing" ? "#3d6b5e" : "#3a5a8a",
+              background: ip.status === "existing" ? "#EAF0EC" : "#eaf0f7",
+              color: ip.status === "existing" ? "#2E4A3D" : "#3a5a8a",
             }}>
               {ip.status === "existing" ? "Existing" : `Planned ${ip.purchaseYear}`}
             </span>
-            <span style={{ fontSize: 14, fontWeight: 500, color: "#0f1a16", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ip.label}</span>
+            <span style={{ fontSize: 14, fontWeight: 500, color: "#21241E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ip.label}</span>
           </div>
           {(ip.value || ip.weeklyRent) && (
-            <div style={{ fontSize: 12, color: "#8a9e98", display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 12, color: "#8A8270", display: "flex", gap: 16, flexWrap: "wrap" }}>
               {ip.value      && <span>Value {currency(ip.value)}</span>}
               {ipMort > 0    && <span>Equity {currency(equity)}</span>}
               {ip.weeklyRent && <span>${ip.weeklyRent}/wk</span>}
@@ -265,16 +265,16 @@ function PropertyCard({ ip, onChange, onClone, onRemove }) {
           )}
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-          <button onClick={onClone} style={{ fontSize: 11, color: "#6b8f84", background: "none", border: "1px solid #d4ddd9", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>Clone</button>
+          <button onClick={onClone} style={{ fontSize: 11, color: "#6B6655", background: "none", border: "1px solid #D8D2C4", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>Clone</button>
           <button onClick={onRemove} style={{ fontSize: 11, color: "#9a3922", background: "none", border: "1px solid #f0d0c4", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
-          <button onClick={() => setExpanded(e => !e)} style={{ fontSize: 11, color: "#3d6b5e", background: "#eaf2ef", border: "1px solid #c4ddd6", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+          <button onClick={() => setExpanded(e => !e)} style={{ fontSize: 11, color: "#2E4A3D", background: "#EAF0EC", border: "1px solid #D8D2C4", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
             {expanded ? "Collapse ▲" : "Edit ▼"}
           </button>
         </div>
       </div>
 
       {expanded && (
-        <div style={{ padding: "20px 16px", background: "white", borderTop: "1px solid #e2eae6" }}>
+        <div style={{ padding: "20px 16px", background: "white", borderTop: "1px solid #ECE7DB" }}>
           <TwoCol>
             <Field label="Property label">
               <Input value={ip.label} onChange={v => upd("label", v)} placeholder="e.g. Sydney IP" />
@@ -349,9 +349,9 @@ function PropertyPortfolio({ ips, onChange }) {
   return (
     <div>
       {ips.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "24px", background: "#f9faf9", border: "1.5px dashed #d4ddd9", borderRadius: 12, marginBottom: 12 }}>
-          <div style={{ fontSize: 13, color: "#8a9e98", marginBottom: 12 }}>No investment properties added yet</div>
-          <button onClick={addProperty} style={{ padding: "10px 20px", border: "none", borderRadius: 10, background: "#3d6b5e", color: "white", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+        <div style={{ textAlign: "center", padding: "24px", background: "#FBFAF6", border: "1.5px dashed #D8D2C4", borderRadius: 12, marginBottom: 12 }}>
+          <div style={{ fontSize: 13, color: "#8A8270", marginBottom: 12 }}>No investment properties added yet</div>
+          <button onClick={addProperty} style={{ padding: "10px 20px", border: "none", borderRadius: 10, background: "#2E4A3D", color: "white", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
             + Add Investment Property
           </button>
         </div>
@@ -364,7 +364,7 @@ function PropertyPortfolio({ ips, onChange }) {
               onRemove={() => removeAt(i)}
             />
           ))}
-          <button onClick={addProperty} style={{ width: "100%", padding: "10px", border: "1.5px dashed #c4ddd6", borderRadius: 10, background: "#f9faf9", fontSize: 13, color: "#3d6b5e", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <button onClick={addProperty} style={{ width: "100%", padding: "10px", border: "1.5px dashed #D8D2C4", borderRadius: 10, background: "#FBFAF6", fontSize: 13, color: "#2E4A3D", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
             + Add another property
           </button>
         </>
@@ -457,9 +457,9 @@ function Stage5({ data, set }) {
             return (
               <div key={o.value} style={{
                 border: "1.5px solid",
-                borderColor: isSelected ? "#3d6b5e" : "#d4ddd9",
+                borderColor: isSelected ? "#2E4A3D" : "#D8D2C4",
                 borderRadius: 10, overflow: "hidden",
-                background: isSelected ? "#eaf2ef" : "#f9faf9",
+                background: isSelected ? "#EAF0EC" : "#FBFAF6",
                 transition: "border-color 0.15s, background 0.15s",
               }}>
                 <button
@@ -467,14 +467,14 @@ function Stage5({ data, set }) {
                   style={{
                     width: "100%", padding: "10px 14px", border: "none",
                     background: "transparent", cursor: "pointer", fontFamily: "inherit",
-                    fontSize: 13, color: isSelected ? "#3d6b5e" : "#2d3a35",
+                    fontSize: 13, color: isSelected ? "#2E4A3D" : "#21241E",
                     textAlign: "left", display: "flex", alignItems: "center", gap: 10,
                   }}
                 >
                   <div style={{
                     width: 18, height: 18, borderRadius: 5, border: "2px solid", flexShrink: 0,
-                    borderColor: isSelected ? "#3d6b5e" : "#d4ddd9",
-                    background: isSelected ? "#3d6b5e" : "white",
+                    borderColor: isSelected ? "#2E4A3D" : "#D8D2C4",
+                    background: isSelected ? "#2E4A3D" : "white",
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}>
                     {isSelected && <span style={{ color: "white", fontSize: 11, lineHeight: 1 }}>✓</span>}
@@ -483,15 +483,15 @@ function Stage5({ data, set }) {
                 </button>
 
                 {isSelected && goalObj && (
-                  <div style={{ padding: "0 14px 14px", borderTop: "1px solid #c4ddd6" }}>
-                    <div style={{ fontSize: 11, color: "#6b8f84", marginBottom: 8, marginTop: 10 }}>
+                  <div style={{ padding: "0 14px 14px", borderTop: "1px solid #D8D2C4" }}>
+                    <div style={{ fontSize: 11, color: "#6B6655", marginBottom: 8, marginTop: 10 }}>
                       Estimated spend
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                       <div style={{ position: "relative", flex: 1, maxWidth: 140 }}>
                         <span style={{
                           position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
-                          fontSize: 13, color: "#8a9e98", pointerEvents: "none",
+                          fontSize: 13, color: "#8A8270", pointerEvents: "none",
                         }}>$</span>
                         <input
                           type="number"
@@ -500,7 +500,7 @@ function Stage5({ data, set }) {
                           placeholder="0"
                           style={{
                             width: "100%", padding: "7px 10px 7px 22px",
-                            border: "1.5px solid #c4ddd6", borderRadius: 8,
+                            border: "1.5px solid #D8D2C4", borderRadius: 8,
                             fontSize: 13, fontFamily: "inherit", background: "white",
                             outline: "none",
                           }}
@@ -516,10 +516,10 @@ function Stage5({ data, set }) {
                           onClick={() => updateGoal(o.value, "frequency", f.key)}
                           style={{
                             padding: "7px 12px", border: "1.5px solid",
-                            borderColor: goalObj.frequency === f.key ? "#3d6b5e" : "#c4ddd6",
+                            borderColor: goalObj.frequency === f.key ? "#2E4A3D" : "#D8D2C4",
                             borderRadius: 8, fontSize: 12, fontFamily: "inherit", cursor: "pointer",
-                            background: goalObj.frequency === f.key ? "#3d6b5e" : "white",
-                            color: goalObj.frequency === f.key ? "white" : "#6b8f84",
+                            background: goalObj.frequency === f.key ? "#2E4A3D" : "white",
+                            color: goalObj.frequency === f.key ? "white" : "#6B6655",
                             fontWeight: goalObj.frequency === f.key ? 600 : 400,
                           }}
                         >{f.label}</button>
@@ -530,8 +530,8 @@ function Stage5({ data, set }) {
                         onClick={() => updateGoal(o.value, "additive", !goalObj.additive)}
                         style={{
                           width: 18, height: 18, borderRadius: 4, border: "2px solid", flexShrink: 0, marginTop: 1,
-                          borderColor: goalObj.additive ? "#3d6b5e" : "#b0bab6",
-                          background: goalObj.additive ? "#3d6b5e" : "white",
+                          borderColor: goalObj.additive ? "#2E4A3D" : "#9DB0A1",
+                          background: goalObj.additive ? "#2E4A3D" : "white",
                           display: "flex", alignItems: "center", justifyContent: "center",
                           cursor: "pointer",
                         }}
@@ -540,10 +540,10 @@ function Stage5({ data, set }) {
                       </div>
                       <span
                         onClick={() => updateGoal(o.value, "additive", !goalObj.additive)}
-                        style={{ fontSize: 12, color: "#4a6660", lineHeight: 1.5, cursor: "pointer" }}
+                        style={{ fontSize: 12, color: "#6B6655", lineHeight: 1.5, cursor: "pointer" }}
                       >
                         This is <strong>in addition to</strong> my retirement spending target
-                        {!goalObj.additive && <span style={{ color: "#8a9e98" }}> (currently treated as included in my target)</span>}
+                        {!goalObj.additive && <span style={{ color: "#8A8270" }}> (currently treated as included in my target)</span>}
                       </span>
                     </div>
                   </div>
@@ -565,18 +565,18 @@ function AssumptionRow({ fieldKey, value, defaultValue, onChange, isCustom }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "#2d3a35" }}>{meta.label}</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E" }}>{meta.label}</div>
         <button
           onClick={() => setShowSource(s => !s)}
-          style={{ fontSize: 11, color: "#3d6b5e", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+          style={{ fontSize: 11, color: "#2E4A3D", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
         >
           {showSource ? "Hide source" : "Why this number?"}
         </button>
       </div>
       {showSource && (
         <div style={{
-          background: "#eaf2ef", border: "1px solid #c4ddd6", borderRadius: 8,
-          padding: "10px 12px", fontSize: 12, color: "#2d5a4e", lineHeight: 1.6, marginBottom: 8,
+          background: "#EAF0EC", border: "1px solid #D8D2C4", borderRadius: 8,
+          padding: "10px 12px", fontSize: 12, color: "#3C5247", lineHeight: 1.6, marginBottom: 8,
         }}>
           {meta.source}
         </div>
@@ -590,13 +590,13 @@ function AssumptionRow({ fieldKey, value, defaultValue, onChange, isCustom }) {
           step="0.1"
           style={{
             flex: 1, padding: "9px 12px", border: "1.5px solid",
-            borderColor: isCustom ? "#3d6b5e" : "#e2eae6",
-            borderRadius: 8, fontSize: 14, color: isCustom ? "#0f1a16" : "#8a9e98",
-            background: isCustom ? "#f9faf9" : "#f4f7f5",
+            borderColor: isCustom ? "#2E4A3D" : "#ECE7DB",
+            borderRadius: 8, fontSize: 14, color: isCustom ? "#21241E" : "#8A8270",
+            background: isCustom ? "#FBFAF6" : "#F5F2EB",
             outline: "none", fontFamily: "inherit",
           }}
         />
-        <span style={{ fontSize: 13, color: "#6b8f84", width: 20 }}>%</span>
+        <span style={{ fontSize: 13, color: "#6B6655", width: 20 }}>%</span>
         {isCustom && value !== defaultValue && (
           <button
             onClick={() => onChange(defaultValue)}
@@ -627,8 +627,8 @@ function ScenarioPanel({ scenarioKey, label, data, set, isActive, isCustom }) {
   }
 
   const colors = {
-    base: { bg: "#eaf2ef", border: "#c4ddd6", active: "#3d6b5e" },
-    conservative: { bg: "#f5f0eb", border: "#e0d5c5", active: "#8a6a3a" },
+    base: { bg: "#EAF0EC", border: "#D8D2C4", active: "#2E4A3D" },
+    conservative: { bg: "#F5F0E8", border: "#D8D2C4", active: "#7A5E30" },
     aggressive: { bg: "#eaf0f7", border: "#c4d5e8", active: "#3a5a8a" },
   };
   const c = colors[scenarioKey];
@@ -649,15 +649,15 @@ function ScenarioPanel({ scenarioKey, label, data, set, isActive, isCustom }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
             width: 18, height: 18, borderRadius: "50%", border: "2px solid",
-            borderColor: isActive ? c.active : "#d4ddd9",
+            borderColor: isActive ? c.active : "#D8D2C4",
             background: isActive ? c.active : "white",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             {isActive && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "white" }} />}
           </div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: isActive ? c.active : "#2d3a35" }}>{label}</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: isActive ? c.active : "#21241E" }}>{label}</div>
         </div>
-        <div style={{ fontSize: 12, color: "#8a9e98" }}>
+        <div style={{ fontSize: 12, color: "#8A8270" }}>
           {assumptions.returnRate}% return · {assumptions.inflation}% inflation · {assumptions.propertyGrowth}% property
         </div>
       </button>
@@ -715,14 +715,14 @@ function Stage6({ data, set }) {
               onClick={() => set("retirementLifestyle", o.value)}
               style={{
                 flex: 1, padding: "12px 8px", border: "1.5px solid",
-                borderColor: data.retirementLifestyle === o.value ? "#3d6b5e" : "#d4ddd9",
+                borderColor: data.retirementLifestyle === o.value ? "#2E4A3D" : "#D8D2C4",
                 borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-                background: data.retirementLifestyle === o.value ? "#eaf2ef" : "#f9faf9",
+                background: data.retirementLifestyle === o.value ? "#EAF0EC" : "#FBFAF6",
                 transition: "all 0.15s",
               }}
             >
-              <div style={{ fontSize: 13, fontWeight: 600, color: data.retirementLifestyle === o.value ? "#3d6b5e" : "#2d3a35", marginBottom: 3 }}>{o.label}</div>
-              <div style={{ fontSize: 11, color: "#8a9e98" }}>{o.desc}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: data.retirementLifestyle === o.value ? "#2E4A3D" : "#21241E", marginBottom: 3 }}>{o.label}</div>
+              <div style={{ fontSize: 11, color: "#8A8270" }}>{o.desc}</div>
             </button>
           ))}
         </div>
@@ -743,13 +743,13 @@ function Stage6({ data, set }) {
       <SectionDivider label="Planning scenario & assumptions" />
 
       <div style={{
-        background: "#f4f7f5", border: "1px solid #e2eae6", borderRadius: 10,
+        background: "#F5F2EB", border: "1px solid #ECE7DB", borderRadius: 10,
         padding: "12px 14px", marginBottom: 16,
       }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "#2d3a35", marginBottom: 4 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E", marginBottom: 4 }}>
           How do assumptions work?
         </div>
-        <div style={{ fontSize: 12, color: "#6b8f84", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 12, color: "#6B6655", lineHeight: 1.6 }}>
           Select a scenario below to run your analysis under different market conditions.
           By default, each scenario uses carefully researched assumptions. If you want to adjust
           any numbers, turn on custom assumptions — you can always reset back to defaults.
@@ -757,19 +757,19 @@ function Stage6({ data, set }) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "#2d3a35" }}>Assumptions mode</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E" }}>Assumptions mode</div>
         <button
           onClick={() => set("useCustomAssumptions", !data.useCustomAssumptions)}
           style={{
             display: "flex", alignItems: "center", gap: 8, padding: "6px 12px",
-            border: "1.5px solid", borderColor: data.useCustomAssumptions ? "#3d6b5e" : "#d4ddd9",
-            borderRadius: 20, background: data.useCustomAssumptions ? "#eaf2ef" : "white",
+            border: "1.5px solid", borderColor: data.useCustomAssumptions ? "#2E4A3D" : "#D8D2C4",
+            borderRadius: 20, background: data.useCustomAssumptions ? "#EAF0EC" : "white",
             cursor: "pointer", fontFamily: "inherit", fontSize: 12,
-            color: data.useCustomAssumptions ? "#3d6b5e" : "#6b7a74",
+            color: data.useCustomAssumptions ? "#2E4A3D" : "#6B6655",
           }}
         >
           <div style={{
-            width: 32, height: 18, borderRadius: 9, background: data.useCustomAssumptions ? "#3d6b5e" : "#d4ddd9",
+            width: 32, height: 18, borderRadius: 9, background: data.useCustomAssumptions ? "#2E4A3D" : "#D8D2C4",
             position: "relative", transition: "background 0.2s",
           }}>
             <div style={{
@@ -815,10 +815,10 @@ function ScenarioToggle({ data, set }) {
 
   return (
     <div style={{
-      background: "#f4f7f5", border: "1px solid #e2eae6", borderRadius: 12,
+      background: "#F5F2EB", border: "1px solid #ECE7DB", borderRadius: 12,
       padding: "14px 16px", marginBottom: 20,
     }}>
-      <div style={{ fontSize: 11, color: "#8a9e98", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: "#8A8270", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>
         Planning scenario
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -828,10 +828,10 @@ function ScenarioToggle({ data, set }) {
             onClick={() => set("activeScenario", s.key)}
             style={{
               flex: 1, padding: "8px 0", border: "1.5px solid",
-              borderColor: data.activeScenario === s.key ? "#3d6b5e" : "#d4ddd9",
+              borderColor: data.activeScenario === s.key ? "#2E4A3D" : "#D8D2C4",
               borderRadius: 8, fontSize: 13, fontWeight: data.activeScenario === s.key ? 600 : 400,
-              color: data.activeScenario === s.key ? "#3d6b5e" : "#6b7a74",
-              background: data.activeScenario === s.key ? "#eaf2ef" : "white",
+              color: data.activeScenario === s.key ? "#2E4A3D" : "#6B6655",
+              background: data.activeScenario === s.key ? "#EAF0EC" : "white",
               cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
             }}
           >
@@ -847,12 +847,12 @@ function ScenarioToggle({ data, set }) {
           { label: "Withdrawal", value: assumptions.safeWithdrawal + "%" },
         ].map((item, i) => (
           <div key={i}>
-            <div style={{ fontSize: 10, color: "#a0aba6", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}</div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#2d3a35" }}>{item.value}</div>
+            <div style={{ fontSize: 10, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E" }}>{item.value}</div>
           </div>
         ))}
         {data.useCustomAssumptions && (
-          <div style={{ marginLeft: "auto", fontSize: 11, color: "#b8913a", background: "#f5eddb", padding: "3px 8px", borderRadius: 20, alignSelf: "center" }}>
+          <div style={{ marginLeft: "auto", fontSize: 11, color: "#C2A06B", background: "#FBF8F2", padding: "3px 8px", borderRadius: 20, alignSelf: "center" }}>
             Custom assumptions
           </div>
         )}
@@ -935,27 +935,27 @@ function MetricsRow({ engine, data }) {
     },
   ];
 
-  const subColor = (ok) => ok === true ? "#3d6b5e" : ok === false ? "#9a3922" : "#8a9e98";
+  const subColor = (ok) => ok === true ? "#2E4A3D" : ok === false ? "#9a3922" : "#8A8270";
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
       {cards.map((card, i) => (
         <div key={i} style={{
-          background: "#f9faf9", border: "1.5px solid #e2eae6",
+          background: "#FBFAF6", border: "1.5px solid #ECE7DB",
           borderRadius: 12, padding: "14px 16px",
         }}>
           <div style={{
             fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
-            textTransform: "uppercase", color: "#8a9e98", marginBottom: 2,
+            textTransform: "uppercase", color: "#8A8270", marginBottom: 2,
           }}>
             {card.label}
           </div>
           {card.sub2 && (
-            <div style={{ fontSize: 10, color: "#b0bab6", marginBottom: 6 }}>{card.sub2}</div>
+            <div style={{ fontSize: 10, color: "#9DB0A1", marginBottom: 6 }}>{card.sub2}</div>
           )}
           <div style={{
-            fontSize: 19, fontWeight: 500, color: "#0f1a16",
-            fontFamily: "Instrument Serif, serif",
+            fontSize: 19, fontWeight: 500, color: "#21241E",
+            fontFamily: "Spectral, serif",
             marginBottom: card.sub ? 4 : 0,
           }}>
             {card.value}
@@ -981,10 +981,10 @@ function RetirementGauge({ successRate, color }) {
   const bgPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
   return (
     <svg viewBox="0 0 180 88" width="150" style={{ display: "block", flexShrink: 0 }}>
-      <path d={bgPath} fill="none" stroke="#e2eae6" strokeWidth={strokeW} strokeLinecap="round" />
+      <path d={bgPath} fill="none" stroke="#ECE7DB" strokeWidth={strokeW} strokeLinecap="round" />
       <path d={bgPath} fill="none" stroke={color} strokeWidth={strokeW} strokeLinecap="round"
         strokeDasharray={`${filled.toFixed(1)} ${arcLen.toFixed(1)}`} />
-      <text x={cx} y={cy - 12} textAnchor="middle" fontFamily="Instrument Serif, serif"
+      <text x={cx} y={cy - 12} textAnchor="middle" fontFamily="Spectral, serif"
         fontSize="30" fill={color}>{successRate}%</text>
     </svg>
   );
@@ -997,9 +997,9 @@ function MonteCarloCard({ data, engine }) {
   const hasTarget = parseFloat(String(data.targetRetirementSpending).replace(/,/g, "")) > 0;
 
   if (!hasTarget) return (
-    <div style={{ background: "#f4f7f5", border: "1px solid #e2eae6", borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8a9e98", marginBottom: 6 }}>Retirement Probability</div>
-      <div style={{ fontSize: 13, color: "#a0aba6" }}>Enter a target retirement spending in Stage 5 to see Monte Carlo simulation</div>
+    <div style={{ background: "#F5F2EB", border: "1px solid #ECE7DB", borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 6 }}>Retirement Probability</div>
+      <div style={{ fontSize: 13, color: "#8A8270" }}>Enter a target retirement spending in Stage 5 to see Monte Carlo simulation</div>
     </div>
   );
 
@@ -1008,9 +1008,9 @@ function MonteCarloCard({ data, engine }) {
   const { successRate, retirementBalance, iterations, stdDev } = mc;
   const isStrong  = successRate >= 85;
   const isWatch   = successRate >= 70 && successRate < 85;
-  const color = isStrong ? "#3d6b5e" : isWatch ? "#b8913a" : "#9a3922";
-  const bg    = isStrong ? "#eaf2ef" : isWatch ? "#f5eddb" : "#fdf4f0";
-  const bdr   = isStrong ? "#c4ddd6" : isWatch ? "#e0cfa0" : "#f0d0c4";
+  const color = isStrong ? "#2E4A3D" : isWatch ? "#C2A06B" : "#9a3922";
+  const bg    = isStrong ? "#EAF0EC" : isWatch ? "#FBF8F2" : "#fdf4f0";
+  const bdr   = isStrong ? "#D8D2C4" : isWatch ? "#E4D8BC" : "#f0d0c4";
   const label = isStrong ? "Strong" : isWatch ? "Watch zone" : "Needs attention";
   const desc  = isStrong
     ? `High confidence your plan funds retirement to age ${data.lifeExpectancy || 90}`
@@ -1020,32 +1020,32 @@ function MonteCarloCard({ data, engine }) {
 
   return (
     <div style={{ background: bg, border: `1.5px solid ${bdr}`, borderRadius: 12, padding: "16px 18px", marginBottom: 20 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8a9e98", marginBottom: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 10 }}>
         Retirement Probability
       </div>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 14 }}>
         <RetirementGauge successRate={successRate} color={color} />
         <div style={{ paddingTop: 6, flex: 1 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color, background: `${color}20`, padding: "3px 10px", borderRadius: 20, display: "inline-block", marginBottom: 8 }}>{label}</span>
-          <div style={{ fontSize: 12, color: "#6b8f84", lineHeight: 1.5 }}>{desc}</div>
+          <div style={{ fontSize: 12, color: "#6B6655", lineHeight: 1.5 }}>{desc}</div>
         </div>
       </div>
 
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div>
-          <div style={{ fontSize: 10, color: "#a0aba6", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Super at retirement — range</div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: "#2d3a35" }}>
+          <div style={{ fontSize: 10, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Super at retirement — range</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E" }}>
             {currency(retirementBalance.p10)} — {currency(retirementBalance.p90)}
           </div>
-          <div style={{ fontSize: 10, color: "#b0bab6" }}>10th to 90th percentile</div>
+          <div style={{ fontSize: 10, color: "#9DB0A1" }}>10th to 90th percentile</div>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: "#a0aba6", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Median outcome</div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: "#2d3a35" }}>{currency(retirementBalance.p50)}</div>
+          <div style={{ fontSize: 10, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Median outcome</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E" }}>{currency(retirementBalance.p50)}</div>
         </div>
         <div style={{ marginLeft: "auto", textAlign: "right" }}>
-          <div style={{ fontSize: 10, color: "#b0bab6" }}>{iterations.toLocaleString()} simulations</div>
-          <div style={{ fontSize: 10, color: "#b0bab6" }}>{Math.round(stdDev * 100)}% annual volatility</div>
+          <div style={{ fontSize: 10, color: "#9DB0A1" }}>{iterations.toLocaleString()} simulations</div>
+          <div style={{ fontSize: 10, color: "#9DB0A1" }}>{Math.round(stdDev * 100)}% annual volatility</div>
         </div>
       </div>
     </div>
@@ -1101,15 +1101,15 @@ function NetWorthChart({ engine, data }) {
   const endPoint = trajectory[trajectory.length - 1];
 
   return (
-    <div style={{ background: "#f9faf9", border: "1.5px solid #e2eae6", borderRadius: 12, padding: "16px 16px 12px", marginBottom: 20 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8a9e98", marginBottom: 12 }}>
+    <div style={{ background: "#FBFAF6", border: "1.5px solid #ECE7DB", borderRadius: 12, padding: "16px 16px 12px", marginBottom: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 12 }}>
         Net Worth Trajectory
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block", overflow: "visible" }}>
         <defs>
           <linearGradient id="nwGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#3d6b5e" stopOpacity="0.20" />
-            <stop offset="100%" stopColor="#3d6b5e" stopOpacity="0.02" />
+            <stop offset="0%"   stopColor="#2E4A3D" stopOpacity="0.20" />
+            <stop offset="100%" stopColor="#2E4A3D" stopOpacity="0.02" />
           </linearGradient>
           <clipPath id="nwClip">
             <rect x={mg.left} y={mg.top - 5} width={cW} height={cH + 10} />
@@ -1119,44 +1119,44 @@ function NetWorthChart({ engine, data }) {
         {yTicks.map(({ nw, y }, i) => (
           <g key={i}>
             <line x1={mg.left} x2={W - mg.right} y1={y} y2={y}
-              stroke={i === 0 ? "#c4ddd6" : "#eaeeed"} strokeWidth={i === 0 ? 1.5 : 1} />
-            <text x={mg.left - 6} y={y + 3.5} textAnchor="end" fontSize="9.5" fill="#b0bab6">{fmt(nw)}</text>
+              stroke={i === 0 ? "#D8D2C4" : "#ECE7DB"} strokeWidth={i === 0 ? 1.5 : 1} />
+            <text x={mg.left - 6} y={y + 3.5} textAnchor="end" fontSize="9.5" fill="#9DB0A1">{fmt(nw)}</text>
           </g>
         ))}
 
         <line x1={retX} x2={retX} y1={mg.top} y2={mg.top + cH}
-          stroke="#3d6b5e" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.4" />
-        <text x={retX + 5} y={mg.top + 12} fontSize="9" fill="#3d6b5e" opacity="0.65">
+          stroke="#2E4A3D" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.4" />
+        <text x={retX + 5} y={mg.top + 12} fontSize="9" fill="#2E4A3D" opacity="0.65">
           Retire {retirementAge}
         </text>
 
         <g clipPath="url(#nwClip)">
           <path d={areaPath} fill="url(#nwGrad)" />
-          <path d={linePath} fill="none" stroke="#3d6b5e" strokeWidth="2.5"
+          <path d={linePath} fill="none" stroke="#2E4A3D" strokeWidth="2.5"
             strokeLinecap="round" strokeLinejoin="round" />
         </g>
 
         <circle cx={xS(minAge)} cy={yS(trajectory[0].netWorth)} r="3.5"
-          fill="white" stroke="#3d6b5e" strokeWidth="2" />
+          fill="white" stroke="#2E4A3D" strokeWidth="2" />
         {retPoint && (
           <circle cx={retX} cy={yS(retPoint.netWorth)} r="4"
-            fill="#3d6b5e" stroke="white" strokeWidth="2" />
+            fill="#2E4A3D" stroke="white" strokeWidth="2" />
         )}
         <circle cx={xS(maxAge)} cy={yS(endPoint.netWorth)} r="3.5"
-          fill="white" stroke="#3d6b5e" strokeWidth="2" />
+          fill="white" stroke="#2E4A3D" strokeWidth="2" />
 
         {[minAge, retirementAge, maxAge].map((age, i) => (
-          <text key={i} x={xS(age)} y={H - 4} textAnchor="middle" fontSize="9.5" fill="#b0bab6">
+          <text key={i} x={xS(age)} y={H - 4} textAnchor="middle" fontSize="9.5" fill="#9DB0A1">
             Age {age}
           </text>
         ))}
       </svg>
-      <div style={{ display: "flex", gap: 24, fontSize: 11, color: "#8a9e98", marginTop: 6, flexWrap: "wrap" }}>
-        <span>Today: <strong style={{ color: "#0f1a16", fontFamily: "Instrument Serif, serif", fontSize: 13 }}>{currency(trajectory[0].netWorth)}</strong></span>
+      <div style={{ display: "flex", gap: 24, fontSize: 11, color: "#8A8270", marginTop: 6, flexWrap: "wrap" }}>
+        <span>Today: <strong style={{ color: "#21241E", fontFamily: "Spectral, serif", fontSize: 13 }}>{currency(trajectory[0].netWorth)}</strong></span>
         {retPoint && (
-          <span>At retirement: <strong style={{ color: "#0f1a16", fontFamily: "Instrument Serif, serif", fontSize: 13 }}>{currency(retPoint.netWorth)}</strong></span>
+          <span>At retirement: <strong style={{ color: "#21241E", fontFamily: "Spectral, serif", fontSize: 13 }}>{currency(retPoint.netWorth)}</strong></span>
         )}
-        <span>Age {lifeExp}: <strong style={{ color: "#0f1a16", fontFamily: "Instrument Serif, serif", fontSize: 13 }}>{currency(endPoint.netWorth)}</strong></span>
+        <span>Age {lifeExp}: <strong style={{ color: "#21241E", fontFamily: "Spectral, serif", fontSize: 13 }}>{currency(endPoint.netWorth)}</strong></span>
       </div>
     </div>
   );
@@ -1166,8 +1166,8 @@ function NetWorthChart({ engine, data }) {
 
 function ScenarioComparisonRow({ data }) {
   const SCENS = [
-    { key: "conservative", label: "Conservative", color: "#7a6840", bg: "#f8f4ec", bdr: "#e4d8bc" },
-    { key: "base",         label: "Base",         color: "#3d6b5e", bg: "#eaf2ef", bdr: "#c4ddd6" },
+    { key: "conservative", label: "Conservative", color: "#6B5830", bg: "#F5F0E8", bdr: "#e4d8bc" },
+    { key: "base",         label: "Base",         color: "#2E4A3D", bg: "#EAF0EC", bdr: "#D8D2C4" },
     { key: "aggressive",   label: "Aggressive",   color: "#2a5480", bg: "#eaf0f8", bdr: "#b8cde0" },
   ];
   const assetTotals = deriveAssetTotals(data.assetItems);
@@ -1176,7 +1176,7 @@ function ScenarioComparisonRow({ data }) {
   );
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8a9e98", marginBottom: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 10 }}>
         Scenario Comparison
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
@@ -1186,8 +1186,8 @@ function ScenarioComparisonRow({ data }) {
           const isActive = data.activeScenario === key && !data.useCustomAssumptions;
           return (
             <div key={key} style={{
-              background: isActive ? bg : "#f9faf9",
-              border: `1.5px solid ${isActive ? bdr : "#e2eae6"}`,
+              background: isActive ? bg : "#FBFAF6",
+              border: `1.5px solid ${isActive ? bdr : "#ECE7DB"}`,
               borderRadius: 12, padding: "14px 14px", position: "relative",
             }}>
               {isActive && (
@@ -1199,31 +1199,31 @@ function ScenarioComparisonRow({ data }) {
               )}
               <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 12 }}>{label}</div>
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 9, color: "#a0aba6", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Super at retirement</div>
-                <div style={{ fontSize: 17, fontFamily: "Instrument Serif, serif", color: "#0f1a16" }}>
+                <div style={{ fontSize: 9, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Super at retirement</div>
+                <div style={{ fontSize: 17, fontFamily: "Spectral, serif", color: "#21241E" }}>
                   {currency(eng.metrics.projectedSuper)}
                 </div>
               </div>
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 9, color: "#a0aba6", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Net worth at retirement</div>
-                <div style={{ fontSize: 17, fontFamily: "Instrument Serif, serif", color: "#0f1a16" }}>
+                <div style={{ fontSize: 9, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Net worth at retirement</div>
+                <div style={{ fontSize: 17, fontFamily: "Spectral, serif", color: "#21241E" }}>
                   {currency(eng.metrics.retirementNetWorth)}
                 </div>
               </div>
               {mc ? (
                 <div>
-                  <div style={{ fontSize: 9, color: "#a0aba6", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Probability of success</div>
+                  <div style={{ fontSize: 9, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Probability of success</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 22, fontFamily: "Instrument Serif, serif", color, lineHeight: 1 }}>{mc.successRate}%</span>
-                    <div style={{ flex: 1, height: 5, background: "#e2eae6", borderRadius: 3, overflow: "hidden" }}>
+                    <span style={{ fontSize: 22, fontFamily: "Spectral, serif", color, lineHeight: 1 }}>{mc.successRate}%</span>
+                    <div style={{ flex: 1, height: 5, background: "#ECE7DB", borderRadius: 3, overflow: "hidden" }}>
                       <div style={{ height: "100%", width: `${mc.successRate}%`, background: color, borderRadius: 3 }} />
                     </div>
                   </div>
                 </div>
               ) : (
-                <div style={{ fontSize: 10, color: "#b0bab6", fontStyle: "italic" }}>Add retirement spending target for simulation</div>
+                <div style={{ fontSize: 10, color: "#9DB0A1", fontStyle: "italic" }}>Add retirement spending target for simulation</div>
               )}
-              <div style={{ fontSize: 9, color: "#c0c8c4", marginTop: 10, borderTop: "1px solid #eaeeed", paddingTop: 8 }}>
+              <div style={{ fontSize: 9, color: "#9DB0A1", marginTop: 10, borderTop: "1px solid #ECE7DB", paddingTop: 8 }}>
                 {eng.assumptions.returnRate}% returns · {eng.assumptions.inflation}% inflation
               </div>
             </div>
@@ -1301,7 +1301,7 @@ function AnalysisSummary({ data, engine }) {
         ? `Under the ${scenarioLabel} scenario, super is projected to reach ${currency(m.projectedSuper)} at age ${retireAge} — ${currency(m.superSurplus)} ahead of the modelled retirement target.`
         : `Under the ${scenarioLabel} scenario, super is projected to reach ${currency(m.projectedSuper)} at age ${retireAge} — ${currency(Math.abs(m.superSurplus))} below what's needed to fund the retirement spending target entered.`);
     }
-    sections.push({ title: "Financial position", color: "#3d6b5e", text: parts.join(" ") });
+    sections.push({ title: "Financial position", color: "#2E4A3D", text: parts.join(" ") });
   }
 
   // ── 2. Income & cashflow ──
@@ -1399,24 +1399,24 @@ function AnalysisSummary({ data, engine }) {
         fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
         color, marginBottom: 8, paddingBottom: 6, borderBottom: `1px solid ${color}30`,
       }}>{title}</div>
-      <p style={{ fontSize: 14, lineHeight: 1.75, color: "#2d3a35", margin: 0 }}>{text}</p>
+      <p style={{ fontSize: 14, lineHeight: 1.75, color: "#21241E", margin: 0 }}>{text}</p>
     </div>
   );
 
   return (
     <div style={{ marginTop: 4 }}>
       <div style={{
-        background: "#eaf2ef", border: "1px solid #c4ddd6", borderRadius: 12,
+        background: "#EAF0EC", border: "1px solid #D8D2C4", borderRadius: 12,
         padding: "14px 18px", marginBottom: 24, display: "flex", alignItems: "center", gap: 12,
       }}>
         <div style={{
-          width: 34, height: 34, background: "#3d6b5e", borderRadius: "50%",
+          width: 34, height: 34, background: "#2E4A3D", borderRadius: "50%",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontFamily: "Instrument Serif, serif", fontSize: 17, color: "white", flexShrink: 0,
+          fontFamily: "Spectral, serif", fontSize: 17, color: "white", flexShrink: 0,
         }}>C</div>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#3d6b5e", marginBottom: 1 }}>Clearpath Summary</div>
-          <div style={{ fontSize: 11, color: "#8a9e98" }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#2E4A3D", marginBottom: 1 }}>Clearpath Summary</div>
+          <div style={{ fontSize: 11, color: "#8A8270" }}>
             {firstName ? `Prepared for ${firstName}` : "Your financial picture"} · {scenarioLabel} scenario · General information only
           </div>
         </div>
@@ -1437,18 +1437,18 @@ function AnalysisSummary({ data, engine }) {
               return (
                 <div key={g.key} style={{
                   display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-                  padding: "8px 12px", background: "#f9faf9", borderRadius: 8, border: "1px solid #e2eae6",
+                  padding: "8px 12px", background: "#FBFAF6", borderRadius: 8, border: "1px solid #ECE7DB",
                 }}>
-                  <div style={{ flex: 1, fontSize: 13, color: "#2d3a35", minWidth: 160 }}>{g.label}</div>
+                  <div style={{ flex: 1, fontSize: 13, color: "#21241E", minWidth: 160 }}>{g.label}</div>
                   {amt > 0 && (
-                    <div style={{ fontSize: 12, fontWeight: 500, color: "#3d6b5e", whiteSpace: "nowrap" }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: "#2E4A3D", whiteSpace: "nowrap" }}>
                       {currency(amt)}{freqLabel}
                     </div>
                   )}
                   <div style={{
                     fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase",
-                    color: g.additive ? "#2a5480" : "#6b8f84",
-                    background: g.additive ? "#eaf0f8" : "#f0f4f2",
+                    color: g.additive ? "#2a5480" : "#6B6655",
+                    background: g.additive ? "#eaf0f8" : "#F5F2EB",
                     padding: "3px 8px", borderRadius: 10, whiteSpace: "nowrap",
                   }}>
                     {g.additive ? "+ Additional" : "Included in target"}
@@ -1462,7 +1462,7 @@ function AnalysisSummary({ data, engine }) {
               {currency(additiveGoalAmt)}/year in additional goal spending is included in the retirement projections above.
             </div>
           ) : (
-            <div style={{ marginTop: 8, fontSize: 12, color: "#8a9e98", lineHeight: 1.5 }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: "#8A8270", lineHeight: 1.5 }}>
               No goals are currently marked as additional to your retirement target. Tick "in addition to" on any goal in Stage 6 to include its cost in the projections.
             </div>
           )}
@@ -1470,17 +1470,17 @@ function AnalysisSummary({ data, engine }) {
       )}
 
       {adviserPoints.length > 0 && (
-        <div style={{ background: "#f4f7f5", border: "1px solid #e2eae6", borderRadius: 12, padding: "18px 18px 14px" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b8f84", marginBottom: 12 }}>
+        <div style={{ background: "#F5F2EB", border: "1px solid #ECE7DB", borderRadius: 12, padding: "18px 18px 14px" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6B6655", marginBottom: 12 }}>
             Topics to discuss with your adviser
           </div>
           {adviserPoints.map((pt, i) => (
             <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-              <div style={{ color: "#3d6b5e", fontWeight: 700, fontSize: 13, flexShrink: 0, marginTop: 2 }}>→</div>
-              <div style={{ fontSize: 13, lineHeight: 1.6, color: "#4a6660" }}>{pt}</div>
+              <div style={{ color: "#2E4A3D", fontWeight: 700, fontSize: 13, flexShrink: 0, marginTop: 2 }}>→</div>
+              <div style={{ fontSize: 13, lineHeight: 1.6, color: "#6B6655" }}>{pt}</div>
             </div>
           ))}
-          <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #e2eae6", fontSize: 11, color: "#a0aba6", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #ECE7DB", fontSize: 11, color: "#8A8270", lineHeight: 1.5 }}>
             The above are topics for discussion only. Nothing in this summary constitutes personal financial advice. For tailored recommendations, engage a licensed Australian financial adviser (AFSL holder).
           </div>
         </div>
@@ -1518,7 +1518,7 @@ function AnalysisScreen({ data, set }) {
       <div style={{ marginTop: 24, display: "flex", gap: 10 }}>
         <button onClick={() => window.print()} style={{
           padding: "10px 20px", border: "none", borderRadius: 10,
-          background: "#3d6b5e", color: "white", fontSize: 13, cursor: "pointer", fontFamily: "inherit",
+          background: "#C2A06B", color: "#2A2113", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
         }}>Print / Save PDF</button>
       </div>
     </div>
@@ -1574,47 +1574,47 @@ export default function ClearpathMVP() {
   const runway = monthlyLiquid > 0 && monthlyExp > 0 ? (monthlyLiquid / monthlyExp).toFixed(1) : "—";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f4f7f5", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
-      <style>{"@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap'); @keyframes bounce { 0%,80%,100% { transform: translateY(0); opacity: .5; } 40% { transform: translateY(-5px); opacity: 1; } } @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } * { box-sizing: border-box; } input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }"}</style>
+    <div style={{ minHeight: "100vh", background: "#F5F2EB", fontFamily: "'Albert Sans', sans-serif", display: "flex", flexDirection: "column" }}>
+      <style>{"@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Albert+Sans:wght@300;400;500;600&display=swap'); @keyframes bounce { 0%,80%,100% { transform: translateY(0); opacity: .5; } 40% { transform: translateY(-5px); opacity: 1; } } @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } * { box-sizing: border-box; } input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }"}</style>
 
-      <header style={{ background: "white", borderBottom: "1px solid #e2eae6", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
+      <header style={{ background: "#FBFAF6", borderBottom: "1px solid #ECE7DB", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
         <div>
-          <div style={{ fontFamily: "Instrument Serif, serif", fontSize: 20, color: "#0f1a16" }}>
-            Clear<span style={{ color: "#3d6b5e" }}>path</span>
+          <div style={{ fontFamily: "Spectral, serif", fontSize: 20, color: "#21241E" }}>
+            Clear<span style={{ color: "#2E4A3D" }}>path</span>
           </div>
-          <div style={{ fontSize: 10, color: "#8a9e98", letterSpacing: "0.08em", textTransform: "uppercase" }}>Australian Financial Planner</div>
+          <div style={{ fontSize: 10, color: "#8A8270", letterSpacing: "0.08em", textTransform: "uppercase" }}>Australian Financial Planner</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          {data.firstName && <div style={{ fontSize: 12, color: "#6b8f84" }}>Hi, {data.firstName} 👋</div>}
+          {data.firstName && <div style={{ fontSize: 12, color: "#6B6655" }}>Hi, {data.firstName} 👋</div>}
           <button
             onClick={() => { if (window.confirm("Clear all saved data?")) { localStorage.removeItem(STORAGE_KEY); setData({ ...EMPTY_DATA }); setStage(1); } }}
-            style={{ fontSize: 11, color: "#a0aba6", background: "none", border: "1px solid #e2eae6", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}
+            style={{ fontSize: 11, color: "#8A8270", background: "none", border: "1px solid #ECE7DB", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}
           >Clear data</button>
         </div>
       </header>
 
-      <div style={{ background: "white", borderBottom: "1px solid #e2eae6", padding: "0 28px 14px" }}>
+      <div style={{ background: "white", borderBottom: "1px solid #ECE7DB", padding: "0 28px 14px" }}>
         <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
           {STAGES.map(s => (
             <button key={s.id} onClick={() => s.id < stage ? goTo(s.id) : null}
               style={{
                 flex: 1, padding: "6px 0", border: "none",
-                background: s.id === stage ? "#3d6b5e" : s.id < stage ? "#c4ddd6" : "#e8f0ee",
+                background: s.id === stage ? "#2E4A3D" : s.id < stage ? "#D8D2C4" : "#ECE7DB",
                 borderRadius: 6, cursor: s.id < stage ? "pointer" : "default",
                 display: "flex", flexDirection: "column", alignItems: "center", gap: 2, transition: "all 0.2s",
               }}>
               <div style={{ fontSize: 12 }}>{s.icon}</div>
-              <div style={{ fontSize: 8, fontWeight: 600, letterSpacing: "0.04em", color: s.id === stage ? "white" : s.id < stage ? "#2d6558" : "#8ab5aa", textTransform: "uppercase" }}>{s.label}</div>
+              <div style={{ fontSize: 8, fontWeight: 600, letterSpacing: "0.04em", color: s.id === stage ? "#EDE7D7" : s.id < stage ? "#2E4A3D" : "#9DB0A1", textTransform: "uppercase" }}>{s.label}</div>
             </button>
           ))}
         </div>
-        <div style={{ height: 3, background: "#e8f0ee", borderRadius: 2, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: progress + "%", background: "#3d6b5e", borderRadius: 2, transition: "width 0.4s ease" }} />
+        <div style={{ height: 3, background: "#ECE7DB", borderRadius: 2, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: progress + "%", background: "#C2A06B", borderRadius: 2, transition: "width 0.4s ease" }} />
         </div>
       </div>
 
       {(data.grossIncome || data.superBalance || (data.assetItems || []).length > 0) && (
-        <div style={{ background: "#3d6b5e", padding: "10px 28px", display: "flex", gap: 24, overflowX: "auto" }}>
+        <div style={{ background: "#2E4A3D", padding: "10px 28px", display: "flex", gap: 24, overflowX: "auto" }}>
           {[
             { label: "Net Worth", value: currency(netWorth) },
             { label: "Super", value: currency(data.superBalance) },
@@ -1623,8 +1623,8 @@ export default function ClearpathMVP() {
             { label: "Scenario", value: { base: "Base", conservative: "Conservative", aggressive: "Aggressive" }[data.activeScenario] || "Base" },
           ].map((item, i) => (
             <div key={i} style={{ flexShrink: 0 }}>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{item.label}</div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: "white", marginTop: 1 }}>{item.value}</div>
+              <div style={{ fontSize: 9, color: "rgba(237,231,215,0.65)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{item.label}</div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: "#EDE7D7", marginTop: 1 }}>{item.value}</div>
             </div>
           ))}
         </div>
@@ -1633,12 +1633,12 @@ export default function ClearpathMVP() {
       <div style={{ flex: 1, display: "flex", justifyContent: "center", padding: "32px 20px 100px" }}>
         <div style={{ width: "100%", maxWidth: 620 }}>
           <div style={{ marginBottom: 28, animation: "fadeIn 0.3s ease" }}>
-            <div style={{ fontSize: 11, color: "#8a9e98", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>Step {stage} of 7</div>
-            <div style={{ fontFamily: "Instrument Serif, serif", fontSize: 28, color: "#0f1a16", marginBottom: 4 }}>{currentStage.title}</div>
-            <div style={{ fontSize: 14, color: "#6b8f84" }}>{currentStage.subtitle}</div>
+            <div style={{ fontSize: 11, color: "#8A8270", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>Step {stage} of 7</div>
+            <div style={{ fontFamily: "Spectral, serif", fontSize: 28, color: "#21241E", marginBottom: 4 }}>{currentStage.title}</div>
+            <div style={{ fontSize: 14, color: "#6B6655" }}>{currentStage.subtitle}</div>
           </div>
 
-          <div ref={scrollRef} style={{ background: "white", borderRadius: 18, border: "1px solid #e2eae6", padding: "28px", animation: "fadeIn 0.25s ease", boxShadow: "0 2px 16px rgba(0,0,0,0.04)" }}>
+          <div ref={scrollRef} style={{ background: "#FBFAF6", borderRadius: 18, border: "1px solid #ECE7DB", padding: "28px", animation: "fadeIn 0.25s ease", boxShadow: "0 2px 16px rgba(0,0,0,0.04)" }}>
             {stage === 1 && <Stage1 data={data} set={set} />}
             {stage === 2 && <Stage2 data={data} setMany={setMany} />}
             {stage === 3 && <AssetStage3 data={data} setMany={setMany} />}
@@ -1651,9 +1651,9 @@ export default function ClearpathMVP() {
           {stage < 7 && (
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
               {stage > 1 ? (
-                <button onClick={back} style={{ padding: "12px 24px", border: "1.5px solid #d4ddd9", borderRadius: 12, background: "white", fontSize: 14, color: "#4a6660", cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
+                <button onClick={back} style={{ padding: "12px 24px", border: "1.5px solid #D8D2C4", borderRadius: 12, background: "#FBFAF6", fontSize: 14, color: "#6B6655", cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
               ) : <div />}
-              <button onClick={next} style={{ padding: "12px 28px", border: "none", borderRadius: 12, background: "#3d6b5e", color: "white", fontSize: 14, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 12px rgba(61,107,94,0.3)" }}>
+              <button onClick={next} style={{ padding: "12px 28px", border: "none", borderRadius: 12, background: "#C2A06B", color: "#2A2113", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 12px rgba(194,160,107,0.3)" }}>
                 {stage === 6 ? "View My Analysis →" : "Continue →"}
               </button>
             </div>
@@ -1661,15 +1661,15 @@ export default function ClearpathMVP() {
 
           {stage === 7 && (
             <div style={{ marginTop: 20 }}>
-              <button onClick={back} style={{ padding: "12px 24px", border: "1.5px solid #d4ddd9", borderRadius: 12, background: "white", fontSize: 14, color: "#4a6660", cursor: "pointer", fontFamily: "inherit" }}>← Edit my details</button>
+              <button onClick={back} style={{ padding: "12px 24px", border: "1.5px solid #D8D2C4", borderRadius: 12, background: "#FBFAF6", fontSize: 14, color: "#6B6655", cursor: "pointer", fontFamily: "inherit" }}>← Edit my details</button>
             </div>
           )}
         </div>
       </div>
 
-      <footer style={{ background: "white", borderTop: "1px solid #e2eae6", padding: "16px 28px", textAlign: "center", marginTop: "auto" }}>
-        <div style={{ fontSize: 11, color: "#a0aba6", lineHeight: 1.6, maxWidth: 620, margin: "0 auto" }}>
-          <strong style={{ color: "#6b7a74" }}>General information only.</strong> Clearpath is an educational planning tool and does not provide personal financial advice. All projections and analysis are illustrative estimates based on the information you enter. Before making financial decisions, consider seeking advice from a licensed Australian financial adviser (AFSL holder). Past performance is not a reliable indicator of future performance.
+      <footer style={{ background: "white", borderTop: "1px solid #ECE7DB", padding: "16px 28px", textAlign: "center", marginTop: "auto" }}>
+        <div style={{ fontSize: 11, color: "#8A8270", lineHeight: 1.6, maxWidth: 620, margin: "0 auto" }}>
+          <strong style={{ color: "#6B6655" }}>General information only.</strong> Clearpath is an educational planning tool and does not provide personal financial advice. All projections and analysis are illustrative estimates based on the information you enter. Before making financial decisions, consider seeking advice from a licensed Australian financial adviser (AFSL holder). Past performance is not a reliable indicator of future performance.
         </div>
       </footer>
     </div>

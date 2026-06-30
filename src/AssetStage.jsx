@@ -77,10 +77,10 @@ function AssetItem({ item, onUpdate, onRemove }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 8,
-      padding: "7px 14px", borderBottom: "1px solid #f0f4f2",
+      padding: "7px 14px", borderBottom: "1px solid #F5F2EB",
       background: "white",
     }}>
-      <div style={{ flex: 1, fontSize: 13, color: "#2d3a35", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <div style={{ flex: 1, fontSize: 13, color: "#21241E", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {item.label}
       </div>
       <div style={{ width: 120, flexShrink: 0 }}>
@@ -95,12 +95,12 @@ function AssetItem({ item, onUpdate, onRemove }) {
         onClick={() => onRemove(item.id)}
         style={{
           flexShrink: 0, width: 22, height: 22, border: "none",
-          background: "none", color: "#c8d0cc", cursor: "pointer",
+          background: "none", color: "#D8D2C4", cursor: "pointer",
           fontSize: 17, lineHeight: "22px", textAlign: "center",
           borderRadius: 4, padding: 0,
         }}
         onMouseEnter={e => e.currentTarget.style.color = "#9a3922"}
-        onMouseLeave={e => e.currentTarget.style.color = "#c8d0cc"}
+        onMouseLeave={e => e.currentTarget.style.color = "#D8D2C4"}
       >×</button>
     </div>
   );
@@ -133,15 +133,15 @@ function AddAssetPicker({ categoryKey, catLabel, onAdd, onCancel }) {
   }
 
   const chipStyle = {
-    padding: "9px 14px", border: "1.5px solid #c4ddd6", borderRadius: 20,
-    background: "white", fontSize: 13, color: "#3d6b5e", minHeight: 40,
+    padding: "9px 14px", border: "1.5px solid #D8D2C4", borderRadius: 20,
+    background: "white", fontSize: 13, color: "#2E4A3D", minHeight: 40,
     cursor: "pointer", fontFamily: "inherit", lineHeight: 1.4, textAlign: "left",
   };
 
   const chips = suggestions.map(s => (
     <button key={s} onClick={() => handleAdd(s)} style={chipStyle}
-      onMouseEnter={e => { e.currentTarget.style.background = "#eaf2ef"; e.currentTarget.style.borderColor = "#3d6b5e"; }}
-      onMouseLeave={e => { e.currentTarget.style.background = "white"; e.currentTarget.style.borderColor = "#c4ddd6"; }}
+      onMouseEnter={e => { e.currentTarget.style.background = "#EAF0EC"; e.currentTarget.style.borderColor = "#2E4A3D"; }}
+      onMouseLeave={e => { e.currentTarget.style.background = "white"; e.currentTarget.style.borderColor = "#D8D2C4"; }}
     >{s}</button>
   ));
 
@@ -154,17 +154,17 @@ function AddAssetPicker({ categoryKey, catLabel, onAdd, onCancel }) {
         onKeyDown={e => { if (e.key === "Enter" && custom.trim()) handleAdd(custom); }}
         placeholder="Custom asset name…"
         style={{
-          flex: 1, padding: "11px 14px", border: "1.5px solid #d4ddd9",
-          borderRadius: 10, fontSize: 16, color: "#0f1a16", background: "white",
+          flex: 1, padding: "11px 14px", border: "1.5px solid #D8D2C4",
+          borderRadius: 10, fontSize: 16, color: "#21241E", background: "white",
           outline: "none", fontFamily: "inherit",
         }}
-        onFocus={e => e.target.style.borderColor = "#3d6b5e"}
-        onBlur={e => e.target.style.borderColor = "#d4ddd9"}
+        onFocus={e => e.target.style.borderColor = "#2E4A3D"}
+        onBlur={e => e.target.style.borderColor = "#D8D2C4"}
       />
       {custom.trim() && (
         <button onClick={() => handleAdd(custom)} style={{
           padding: "11px 16px", border: "none", borderRadius: 10,
-          background: "#3d6b5e", color: "white", fontSize: 14,
+          background: "#2E4A3D", color: "white", fontSize: 14,
           cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
         }}>Add</button>
       )}
@@ -186,13 +186,13 @@ function AddAssetPicker({ categoryKey, catLabel, onAdd, onCancel }) {
           boxShadow: "0 -8px 32px rgba(0,0,0,0.15)",
         }}>
           <div style={{ padding: "12px 0 0", display: "flex", justifyContent: "center", flexShrink: 0 }}>
-            <div style={{ width: 40, height: 4, borderRadius: 2, background: "#d4ddd9" }} />
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: "#D8D2C4" }} />
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px 4px", flexShrink: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "#0f1a16" }}>Add to {catLabel}</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "#21241E" }}>Add to {catLabel}</div>
             <button onClick={onCancel} style={{
-              background: "#f4f7f5", border: "none", borderRadius: 20,
-              width: 32, height: 32, fontSize: 18, color: "#6b8f84",
+              background: "#F5F2EB", border: "none", borderRadius: 20,
+              width: 32, height: 32, fontSize: 18, color: "#6B6655",
               cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
             }}>×</button>
           </div>
@@ -201,7 +201,7 @@ function AddAssetPicker({ categoryKey, catLabel, onAdd, onCancel }) {
               {chips}
             </div>
           </div>
-          <div style={{ padding: "14px 20px 32px", borderTop: "1px solid #f0f4f2", background: "white", flexShrink: 0 }}>
+          <div style={{ padding: "14px 20px 32px", borderTop: "1px solid #F5F2EB", background: "white", flexShrink: 0 }}>
             {customRow}
           </div>
         </div>
@@ -211,8 +211,8 @@ function AddAssetPicker({ categoryKey, catLabel, onAdd, onCancel }) {
 
   // ── DESKTOP: inline ─────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: "12px 14px", background: "#edf2f0", borderTop: "2px solid #c4ddd6" }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: "#6b8f84", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
+    <div style={{ padding: "12px 14px", background: "#edf2f0", borderTop: "2px solid #D8D2C4" }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: "#6B6655", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
         Select or type an asset
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
@@ -221,8 +221,8 @@ function AddAssetPicker({ categoryKey, catLabel, onAdd, onCancel }) {
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <div style={{ flex: 1 }}>{customRow}</div>
         <button onClick={onCancel} style={{
-          padding: "11px 14px", border: "1.5px solid #d4ddd9", borderRadius: 10,
-          background: "white", color: "#8a9e98", fontSize: 13,
+          padding: "11px 14px", border: "1.5px solid #D8D2C4", borderRadius: 10,
+          background: "white", color: "#8A8270", fontSize: 13,
           cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
         }}>Cancel</button>
       </div>
@@ -244,7 +244,7 @@ function AssetCategory({ cat, items, onAddItem, onUpdateItem, onRemoveItem }) {
   }
 
   return (
-    <div style={{ borderBottom: "1px solid #eaeeed" }}>
+    <div style={{ borderBottom: "1px solid #ECE7DB" }}>
       <div
         onClick={() => { setExpanded(e => !e); setShowPicker(false); }}
         style={{
@@ -254,15 +254,15 @@ function AssetCategory({ cat, items, onAddItem, onUpdateItem, onRemoveItem }) {
         }}
       >
         <span style={{ fontSize: 15, width: 22, textAlign: "center", flexShrink: 0 }}>{cat.icon}</span>
-        <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "#2d3a35" }}>{cat.label}</div>
+        <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "#21241E" }}>{cat.label}</div>
         {catTotal > 0 ? (
-          <div style={{ fontSize: 13, fontFamily: "Instrument Serif, serif", color: "#0f1a16", flexShrink: 0 }}>
+          <div style={{ fontSize: 13, fontFamily: "Spectral, serif", color: "#21241E", flexShrink: 0 }}>
             {currency(catTotal)}
           </div>
         ) : (
-          <div style={{ fontSize: 11, color: "#d0d8d4" }}>—</div>
+          <div style={{ fontSize: 11, color: "#D8D2C4" }}>—</div>
         )}
-        <span style={{ color: "#b0bab6", fontSize: 10, flexShrink: 0 }}>{expanded ? "▲" : "▼"}</span>
+        <span style={{ color: "#9DB0A1", fontSize: 10, flexShrink: 0 }}>{expanded ? "▲" : "▼"}</span>
       </div>
 
       {expanded && (
@@ -273,12 +273,12 @@ function AssetCategory({ cat, items, onAddItem, onUpdateItem, onRemoveItem }) {
           {showPicker ? (
             <AddAssetPicker categoryKey={cat.key} catLabel={cat.label} onAdd={handleAdd} onCancel={() => setShowPicker(false)} />
           ) : (
-            <div style={{ padding: "8px 14px", background: "#fafcfa" }}>
+            <div style={{ padding: "8px 14px", background: "#FBFAF6" }}>
               <button
                 onClick={e => { e.stopPropagation(); setShowPicker(true); }}
                 style={{
-                  padding: "5px 12px", border: "1.5px dashed #c4ddd6", borderRadius: 8,
-                  background: "none", color: "#3d6b5e", fontSize: 12,
+                  padding: "5px 12px", border: "1.5px dashed #D8D2C4", borderRadius: 8,
+                  background: "none", color: "#2E4A3D", fontSize: 12,
                   cursor: "pointer", fontFamily: "inherit",
                 }}
               >+ Add asset</button>
@@ -312,7 +312,7 @@ export default function AssetStage3({ data, setMany }) {
 
   return (
     <div>
-      <div style={{ background: "#f9faf9", border: "1.5px solid #e2eae6", borderRadius: 12, overflow: "hidden", marginBottom: 14 }}>
+      <div style={{ background: "#FBFAF6", border: "1.5px solid #ECE7DB", borderRadius: 12, overflow: "hidden", marginBottom: 14 }}>
         {ASSET_CATS.map(cat => (
           <AssetCategory
             key={cat.key}
@@ -324,16 +324,16 @@ export default function AssetStage3({ data, setMany }) {
           />
         ))}
         {/* Total row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "#eaf2ef", borderTop: "1.5px solid #c4ddd6" }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: "#3d6b5e", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "#EAF0EC", borderTop: "1.5px solid #D8D2C4" }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "#2E4A3D", textTransform: "uppercase", letterSpacing: "0.06em" }}>
             Total liquid · {items.length} item{items.length !== 1 ? "s" : ""}
           </span>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontFamily: "Instrument Serif, serif", fontSize: 22, color: "#0f1a16" }}>
-              {totalLiquid > 0 ? currency(totalLiquid) : <span style={{ color: "#c0c8c4", fontSize: 15 }}>Add assets above</span>}
+            <div style={{ fontFamily: "Spectral, serif", fontSize: 22, color: "#21241E" }}>
+              {totalLiquid > 0 ? currency(totalLiquid) : <span style={{ color: "#9DB0A1", fontSize: 15 }}>Add assets above</span>}
             </div>
             {totalLiquid > 0 && (
-              <div style={{ fontSize: 10, color: "#8a9e98" }}>excl. super & property</div>
+              <div style={{ fontSize: 10, color: "#8A8270" }}>excl. super & property</div>
             )}
           </div>
         </div>
@@ -348,12 +348,12 @@ export default function AssetStage3({ data, setMany }) {
             const pct = Math.round((val / totalLiquid) * 100);
             return (
               <div key={cat.key} style={{
-                flex: "1 1 auto", background: "#f4f7f5", border: "1px solid #e2eae6",
+                flex: "1 1 auto", background: "#F5F2EB", border: "1px solid #ECE7DB",
                 borderRadius: 8, padding: "8px 12px",
               }}>
-                <div style={{ fontSize: 10, color: "#8a9e98", marginBottom: 2 }}>{cat.icon} {cat.label}</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#0f1a16" }}>{currency(val)}</div>
-                <div style={{ fontSize: 10, color: "#b0bab6" }}>{pct}%</div>
+                <div style={{ fontSize: 10, color: "#8A8270", marginBottom: 2 }}>{cat.icon} {cat.label}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#21241E" }}>{currency(val)}</div>
+                <div style={{ fontSize: 10, color: "#9DB0A1" }}>{pct}%</div>
               </div>
             );
           })}
