@@ -21,9 +21,9 @@
 | AI | Anthropic API (`claude-sonnet-4-6`) via Vercel serverless function |
 | Hosting | Vercel (auto-deploys on GitHub push) |
 | Persistence | `localStorage` key `clearpath_v1` |
-| Fonts | Instrument Serif (headings/numbers) + DM Sans (body) |
+| Fonts | Spectral (serif headings/numbers) + Albert Sans (UI/body) |
 
-**Primary colour:** `#3d6b5e` (sage green). Background: `#f4f7f5`. Cards: `#f9faf9` / `#e2eae6` borders.
+**Colour palette — "Quiet Wealth":** Pine `#2E4A3D` (brand anchor) · Paper `#F5F2EB` (background) · Card `#FBFAF6` · Gold `#C2A06B` (CTAs/progress, used sparingly) · Stone `#D8D2C4` (borders) · Sage `#9DB0A1` (captions) · Ink `#21241E` (body text). Revert to pre-palette: `git checkout 611ead6`.
 
 ---
 
