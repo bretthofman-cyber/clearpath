@@ -34,8 +34,8 @@ const STAGES = [
   { id: 2, label: "Income",   icon: "💰", title: "Income & Cashflow",       subtitle: "Your earnings and spending" },
   { id: 3, label: "Assets",   icon: "🏦", title: "Assets & Savings",        subtitle: "What you own and hold" },
   { id: 4, label: "Property", icon: "🏠", title: "Property & Debt",         subtitle: "Leverage and obligations" },
-  { id: 5, label: "Super",    icon: "📈", title: "Superannuation",          subtitle: "Your retirement engine" },
-  { id: 6, label: "Goals",    icon: "🎯", title: "Goals & Scenarios",       subtitle: "Your priorities and planning assumptions" },
+  { id: 5, label: "Super",     icon: "📈", title: "Super & Goals",            subtitle: "Retirement engine and priorities" },
+  { id: 6, label: "Scenarios", icon: "🎯", title: "Scenarios",               subtitle: "Planning assumptions" },
   { id: 7, label: "Analysis", icon: "✦",  title: "Your Financial Picture",  subtitle: "Financial summary & discussion points" },
 ];
 
@@ -405,6 +405,22 @@ function Stage4({ data, set }) {
 }
 
 function Stage5({ data, set }) {
+  const goals = data.goals || [];
+
+  function toggleGoal(value) {
+    const isSelected = goals.some(g => g.key === value);
+    if (isSelected) {
+      set("goals", goals.filter(g => g.key !== value));
+    } else {
+      const opt = GOAL_OPTIONS.find(o => o.value === value);
+      set("goals", [...goals, { key: value, label: opt?.label || value, amount: "", frequency: "annual", additive: false }]);
+    }
+  }
+
+  function updateGoal(key, field, val) {
+    set("goals", goals.map(g => g.key === key ? { ...g, [field]: val } : g));
+  }
+
   return (
     <div>
       <TwoCol>
@@ -425,9 +441,115 @@ function Stage5({ data, set }) {
         <Toggle value={data.insuranceInSuper} onChange={v => set("insuranceInSuper", v)}
           options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }, { value: "unsure", label: "Not sure" }]} />
       </Field>
-      <SectionDivider label="Retirement target" />
+
+      <SectionDivider label="Retirement target & goals" />
       <Field label="Target annual retirement spending" hint="In today's dollars — what lifestyle do you want in retirement?">
         <Input value={data.targetRetirementSpending} onChange={v => set("targetRetirementSpending", v)} placeholder="65,000" prefix="$" />
+      </Field>
+
+      <Field label="What else are you planning for?" hint="Select any goals and add an estimated cost — we'll factor them into your projections">
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {GOAL_OPTIONS.map(o => {
+            const goalObj = goals.find(g => g.key === o.value);
+            const isSelected = !!goalObj;
+            return (
+              <div key={o.value} style={{
+                border: "1.5px solid",
+                borderColor: isSelected ? "#3d6b5e" : "#d4ddd9",
+                borderRadius: 10, overflow: "hidden",
+                background: isSelected ? "#eaf2ef" : "#f9faf9",
+                transition: "border-color 0.15s, background 0.15s",
+              }}>
+                <button
+                  onClick={() => toggleGoal(o.value)}
+                  style={{
+                    width: "100%", padding: "10px 14px", border: "none",
+                    background: "transparent", cursor: "pointer", fontFamily: "inherit",
+                    fontSize: 13, color: isSelected ? "#3d6b5e" : "#2d3a35",
+                    textAlign: "left", display: "flex", alignItems: "center", gap: 10,
+                  }}
+                >
+                  <div style={{
+                    width: 18, height: 18, borderRadius: 5, border: "2px solid", flexShrink: 0,
+                    borderColor: isSelected ? "#3d6b5e" : "#d4ddd9",
+                    background: isSelected ? "#3d6b5e" : "white",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {isSelected && <span style={{ color: "white", fontSize: 11, lineHeight: 1 }}>✓</span>}
+                  </div>
+                  {o.label}
+                </button>
+
+                {isSelected && goalObj && (
+                  <div style={{ padding: "0 14px 14px", borderTop: "1px solid #c4ddd6" }}>
+                    <div style={{ fontSize: 11, color: "#6b8f84", marginBottom: 8, marginTop: 10 }}>
+                      Estimated spend
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                      <div style={{ position: "relative", flex: 1, maxWidth: 140 }}>
+                        <span style={{
+                          position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
+                          fontSize: 13, color: "#8a9e98", pointerEvents: "none",
+                        }}>$</span>
+                        <input
+                          type="number"
+                          value={goalObj.amount}
+                          onChange={e => updateGoal(o.value, "amount", e.target.value)}
+                          placeholder="0"
+                          style={{
+                            width: "100%", padding: "7px 10px 7px 22px",
+                            border: "1.5px solid #c4ddd6", borderRadius: 8,
+                            fontSize: 13, fontFamily: "inherit", background: "white",
+                            outline: "none",
+                          }}
+                        />
+                      </div>
+                      {[
+                        { key: "monthly",   label: "Mo"  },
+                        { key: "quarterly", label: "Qtr" },
+                        { key: "annual",    label: "Yr"  },
+                      ].map(f => (
+                        <button
+                          key={f.key}
+                          onClick={() => updateGoal(o.value, "frequency", f.key)}
+                          style={{
+                            padding: "7px 12px", border: "1.5px solid",
+                            borderColor: goalObj.frequency === f.key ? "#3d6b5e" : "#c4ddd6",
+                            borderRadius: 8, fontSize: 12, fontFamily: "inherit", cursor: "pointer",
+                            background: goalObj.frequency === f.key ? "#3d6b5e" : "white",
+                            color: goalObj.frequency === f.key ? "white" : "#6b8f84",
+                            fontWeight: goalObj.frequency === f.key ? 600 : 400,
+                          }}
+                        >{f.label}</button>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                      <div
+                        onClick={() => updateGoal(o.value, "additive", !goalObj.additive)}
+                        style={{
+                          width: 18, height: 18, borderRadius: 4, border: "2px solid", flexShrink: 0, marginTop: 1,
+                          borderColor: goalObj.additive ? "#3d6b5e" : "#b0bab6",
+                          background: goalObj.additive ? "#3d6b5e" : "white",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {goalObj.additive && <span style={{ color: "white", fontSize: 11, lineHeight: 1 }}>✓</span>}
+                      </div>
+                      <span
+                        onClick={() => updateGoal(o.value, "additive", !goalObj.additive)}
+                        style={{ fontSize: 12, color: "#4a6660", lineHeight: 1.5, cursor: "pointer" }}
+                      >
+                        This is <strong>in addition to</strong> my retirement spending target
+                        {!goalObj.additive && <span style={{ color: "#8a9e98" }}> (currently treated as included in my target)</span>}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </Field>
     </div>
   );
@@ -577,22 +699,6 @@ const GOAL_OPTIONS = [
 ];
 
 function Stage6({ data, set }) {
-  const goals = data.goals || [];
-
-  function toggleGoal(value) {
-    const isSelected = goals.some(g => g.key === value);
-    if (isSelected) {
-      set("goals", goals.filter(g => g.key !== value));
-    } else {
-      const opt = GOAL_OPTIONS.find(o => o.value === value);
-      set("goals", [...goals, { key: value, label: opt?.label || value, amount: "", frequency: "annual", additive: false }]);
-    }
-  }
-
-  function updateGoal(key, field, val) {
-    set("goals", goals.map(g => g.key === key ? { ...g, [field]: val } : g));
-  }
-
   return (
     <div>
       <Field label="What retirement lifestyle are you planning for?">
@@ -630,110 +736,6 @@ function Stage6({ data, set }) {
             { value: "growth", label: "Growth" },
           ]}
         />
-      </Field>
-
-      <Field label="What are your key financial goals?" hint="Select all that apply">
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {GOAL_OPTIONS.map(o => {
-            const goalObj = goals.find(g => g.key === o.value);
-            const isSelected = !!goalObj;
-            return (
-              <div key={o.value} style={{
-                border: "1.5px solid",
-                borderColor: isSelected ? "#3d6b5e" : "#d4ddd9",
-                borderRadius: 10, overflow: "hidden",
-                background: isSelected ? "#eaf2ef" : "#f9faf9",
-                transition: "border-color 0.15s, background 0.15s",
-              }}>
-                <button
-                  onClick={() => toggleGoal(o.value)}
-                  style={{
-                    width: "100%", padding: "10px 14px", border: "none",
-                    background: "transparent", cursor: "pointer", fontFamily: "inherit",
-                    fontSize: 13, color: isSelected ? "#3d6b5e" : "#2d3a35",
-                    textAlign: "left", display: "flex", alignItems: "center", gap: 10,
-                  }}
-                >
-                  <div style={{
-                    width: 18, height: 18, borderRadius: 5, border: "2px solid", flexShrink: 0,
-                    borderColor: isSelected ? "#3d6b5e" : "#d4ddd9",
-                    background: isSelected ? "#3d6b5e" : "white",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    {isSelected && <span style={{ color: "white", fontSize: 11, lineHeight: 1 }}>✓</span>}
-                  </div>
-                  {o.label}
-                </button>
-
-                {isSelected && goalObj && (
-                  <div style={{ padding: "0 14px 14px", borderTop: "1px solid #c4ddd6" }}>
-                    <div style={{ fontSize: 11, color: "#6b8f84", marginBottom: 8, marginTop: 10 }}>
-                      Estimated spend
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                      <div style={{ position: "relative", flex: 1, maxWidth: 140 }}>
-                        <span style={{
-                          position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
-                          fontSize: 13, color: "#8a9e98", pointerEvents: "none",
-                        }}>$</span>
-                        <input
-                          type="number"
-                          value={goalObj.amount}
-                          onChange={e => updateGoal(o.value, "amount", e.target.value)}
-                          placeholder="0"
-                          style={{
-                            width: "100%", padding: "7px 10px 7px 22px",
-                            border: "1.5px solid #c4ddd6", borderRadius: 8,
-                            fontSize: 13, fontFamily: "inherit", background: "white",
-                            outline: "none",
-                          }}
-                        />
-                      </div>
-                      {[
-                        { key: "monthly",   label: "Mo"  },
-                        { key: "quarterly", label: "Qtr" },
-                        { key: "annual",    label: "Yr"  },
-                      ].map(f => (
-                        <button
-                          key={f.key}
-                          onClick={() => updateGoal(o.value, "frequency", f.key)}
-                          style={{
-                            padding: "7px 12px", border: "1.5px solid",
-                            borderColor: goalObj.frequency === f.key ? "#3d6b5e" : "#c4ddd6",
-                            borderRadius: 8, fontSize: 12, fontFamily: "inherit", cursor: "pointer",
-                            background: goalObj.frequency === f.key ? "#3d6b5e" : "white",
-                            color: goalObj.frequency === f.key ? "white" : "#6b8f84",
-                            fontWeight: goalObj.frequency === f.key ? 600 : 400,
-                          }}
-                        >{f.label}</button>
-                      ))}
-                    </div>
-                    <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-                      <div
-                        onClick={() => updateGoal(o.value, "additive", !goalObj.additive)}
-                        style={{
-                          width: 18, height: 18, borderRadius: 4, border: "2px solid", flexShrink: 0, marginTop: 1,
-                          borderColor: goalObj.additive ? "#3d6b5e" : "#b0bab6",
-                          background: goalObj.additive ? "#3d6b5e" : "white",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                        }}
-                      >
-                        {goalObj.additive && <span style={{ color: "white", fontSize: 11, lineHeight: 1 }}>✓</span>}
-                      </div>
-                      <span
-                        onClick={() => updateGoal(o.value, "additive", !goalObj.additive)}
-                        style={{ fontSize: 12, color: "#4a6660", lineHeight: 1.5 }}
-                      >
-                        This is <strong>in addition to</strong> my retirement spending target
-                        {!goalObj.additive && <span style={{ color: "#8a9e98" }}> (currently treated as included in my target)</span>}
-                      </span>
-                    </label>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
       </Field>
 
       <SectionDivider label="Planning scenario & assumptions" />
@@ -1336,7 +1338,7 @@ function AnalysisSummary({ data, engine }) {
     } else {
       const combinedNote = couple && n(data.partnerSuperBalance) > 0
         ? ` (${currency(n(data.superBalance) + n(data.partnerSuperBalance))} combined)` : "";
-      parts.push(`Current super of ${currency(n(data.superBalance))}${combinedNote} is projected to reach ${currency(m?.projectedSuper || 0)} by age ${retireAge}. Enter a retirement spending target in Stage 5 to unlock the full funded-to-age and Monte Carlo analysis.`);
+      parts.push(`Current super of ${currency(n(data.superBalance))}${combinedNote} is projected to reach ${currency(m?.projectedSuper || 0)} by age ${retireAge}. Enter a retirement spending target in the Super & Goals stage to unlock the full funded-to-age and Monte Carlo analysis.`);
     }
     if (concCapHeadroom > 5000) {
       parts.push(`${currency(Math.round(concCapHeadroom))} of concessional contribution capacity remains unused this year — salary sacrifice within this limit reduces taxable income and compounds inside super's lower tax environment.`);
