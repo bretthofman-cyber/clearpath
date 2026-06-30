@@ -126,12 +126,22 @@ function loadData() {
       migrateAsset("otherInvestments","Other investments",     "other");
     }
 
+    // Migrate legacy string-array goals to object-array goals
+    let goals = parsed.goals || [];
+    if (goals.length > 0 && typeof goals[0] === "string") {
+      goals = goals.map(key => {
+        const opt = GOAL_OPTIONS.find(o => o.value === key);
+        return { key, label: opt?.label || key, amount: "", frequency: "annual", additive: false };
+      });
+    }
+
     return {
       ...EMPTY_DATA,
       ...parsed,
       investmentProperties,
       budgetItems,
       assetItems,
+      goals,
       customAssumptions: {
         base: { ...DEFAULT_SCENARIOS.base, ...(parsed.customAssumptions?.base || {}) },
         conservative: { ...DEFAULT_SCENARIOS.conservative, ...(parsed.customAssumptions?.conservative || {}) },
@@ -546,6 +556,15 @@ function ScenarioPanel({ scenarioKey, label, data, set, isActive, isCustom }) {
   );
 }
 
+function goalAnnualAdditive(goals) {
+  return (goals || []).filter(g => g.additive && g.amount).reduce((sum, g) => {
+    const a = parseFloat(String(g.amount).replace(/,/g, "")) || 0;
+    if (g.frequency === "monthly")   return sum + a * 12;
+    if (g.frequency === "quarterly") return sum + a * 4;
+    return sum + a;
+  }, 0);
+}
+
 const GOAL_OPTIONS = [
   { value: "travel", label: "✈️  Travel extensively in retirement" },
   { value: "inheritance", label: "🏡  Leave an inheritance for family" },
@@ -561,10 +580,17 @@ function Stage6({ data, set }) {
   const goals = data.goals || [];
 
   function toggleGoal(value) {
-    const updated = goals.includes(value)
-      ? goals.filter(g => g !== value)
-      : [...goals, value];
-    set("goals", updated);
+    const isSelected = goals.some(g => g.key === value);
+    if (isSelected) {
+      set("goals", goals.filter(g => g.key !== value));
+    } else {
+      const opt = GOAL_OPTIONS.find(o => o.value === value);
+      set("goals", [...goals, { key: value, label: opt?.label || value, amount: "", frequency: "annual", additive: false }]);
+    }
+  }
+
+  function updateGoal(key, field, val) {
+    set("goals", goals.map(g => g.key === key ? { ...g, [field]: val } : g));
   }
 
   return (
@@ -608,32 +634,105 @@ function Stage6({ data, set }) {
 
       <Field label="What are your key financial goals?" hint="Select all that apply">
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {GOAL_OPTIONS.map(o => (
-            <button
-              key={o.value}
-              onClick={() => toggleGoal(o.value)}
-              style={{
-                padding: "10px 14px", border: "1.5px solid",
-                borderColor: goals.includes(o.value) ? "#3d6b5e" : "#d4ddd9",
-                borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-                background: goals.includes(o.value) ? "#eaf2ef" : "#f9faf9",
-                fontSize: 13, color: goals.includes(o.value) ? "#3d6b5e" : "#2d3a35",
-                textAlign: "left", display: "flex", alignItems: "center", gap: 10,
-                transition: "all 0.15s",
-              }}
-            >
-              <div style={{
-                width: 18, height: 18, borderRadius: 5, border: "2px solid",
-                borderColor: goals.includes(o.value) ? "#3d6b5e" : "#d4ddd9",
-                background: goals.includes(o.value) ? "#3d6b5e" : "white",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0,
+          {GOAL_OPTIONS.map(o => {
+            const goalObj = goals.find(g => g.key === o.value);
+            const isSelected = !!goalObj;
+            return (
+              <div key={o.value} style={{
+                border: "1.5px solid",
+                borderColor: isSelected ? "#3d6b5e" : "#d4ddd9",
+                borderRadius: 10, overflow: "hidden",
+                background: isSelected ? "#eaf2ef" : "#f9faf9",
+                transition: "border-color 0.15s, background 0.15s",
               }}>
-                {goals.includes(o.value) && <span style={{ color: "white", fontSize: 11, lineHeight: 1 }}>✓</span>}
+                <button
+                  onClick={() => toggleGoal(o.value)}
+                  style={{
+                    width: "100%", padding: "10px 14px", border: "none",
+                    background: "transparent", cursor: "pointer", fontFamily: "inherit",
+                    fontSize: 13, color: isSelected ? "#3d6b5e" : "#2d3a35",
+                    textAlign: "left", display: "flex", alignItems: "center", gap: 10,
+                  }}
+                >
+                  <div style={{
+                    width: 18, height: 18, borderRadius: 5, border: "2px solid", flexShrink: 0,
+                    borderColor: isSelected ? "#3d6b5e" : "#d4ddd9",
+                    background: isSelected ? "#3d6b5e" : "white",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {isSelected && <span style={{ color: "white", fontSize: 11, lineHeight: 1 }}>✓</span>}
+                  </div>
+                  {o.label}
+                </button>
+
+                {isSelected && goalObj && (
+                  <div style={{ padding: "0 14px 14px", borderTop: "1px solid #c4ddd6" }}>
+                    <div style={{ fontSize: 11, color: "#6b8f84", marginBottom: 8, marginTop: 10 }}>
+                      Estimated spend
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                      <div style={{ position: "relative", flex: 1, maxWidth: 140 }}>
+                        <span style={{
+                          position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
+                          fontSize: 13, color: "#8a9e98", pointerEvents: "none",
+                        }}>$</span>
+                        <input
+                          type="number"
+                          value={goalObj.amount}
+                          onChange={e => updateGoal(o.value, "amount", e.target.value)}
+                          placeholder="0"
+                          style={{
+                            width: "100%", padding: "7px 10px 7px 22px",
+                            border: "1.5px solid #c4ddd6", borderRadius: 8,
+                            fontSize: 13, fontFamily: "inherit", background: "white",
+                            outline: "none",
+                          }}
+                        />
+                      </div>
+                      {[
+                        { key: "monthly",   label: "Mo"  },
+                        { key: "quarterly", label: "Qtr" },
+                        { key: "annual",    label: "Yr"  },
+                      ].map(f => (
+                        <button
+                          key={f.key}
+                          onClick={() => updateGoal(o.value, "frequency", f.key)}
+                          style={{
+                            padding: "7px 12px", border: "1.5px solid",
+                            borderColor: goalObj.frequency === f.key ? "#3d6b5e" : "#c4ddd6",
+                            borderRadius: 8, fontSize: 12, fontFamily: "inherit", cursor: "pointer",
+                            background: goalObj.frequency === f.key ? "#3d6b5e" : "white",
+                            color: goalObj.frequency === f.key ? "white" : "#6b8f84",
+                            fontWeight: goalObj.frequency === f.key ? 600 : 400,
+                          }}
+                        >{f.label}</button>
+                      ))}
+                    </div>
+                    <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                      <div
+                        onClick={() => updateGoal(o.value, "additive", !goalObj.additive)}
+                        style={{
+                          width: 18, height: 18, borderRadius: 4, border: "2px solid", flexShrink: 0, marginTop: 1,
+                          borderColor: goalObj.additive ? "#3d6b5e" : "#b0bab6",
+                          background: goalObj.additive ? "#3d6b5e" : "white",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}
+                      >
+                        {goalObj.additive && <span style={{ color: "white", fontSize: 11, lineHeight: 1 }}>✓</span>}
+                      </div>
+                      <span
+                        onClick={() => updateGoal(o.value, "additive", !goalObj.additive)}
+                        style={{ fontSize: 12, color: "#4a6660", lineHeight: 1.5 }}
+                      >
+                        This is <strong>in addition to</strong> my retirement spending target
+                        {!goalObj.additive && <span style={{ color: "#8a9e98" }}> (currently treated as included in my target)</span>}
+                      </span>
+                    </label>
+                  </div>
+                )}
               </div>
-              {o.label}
-            </button>
-          ))}
+            );
+          })}
         </div>
       </Field>
 
@@ -1166,7 +1265,11 @@ function AnalysisSummary({ data, engine }) {
   const tightMonths = calRows.filter(r => r.net < 0 || (r.annual > 0 && r.net < netMonthly * 0.3));
 
   const hasSuperData = n(data.superBalance) > 0 && n(data.grossIncome) > 0;
-  const hasTarget = n(data.targetRetirementSpending) > 0;
+  const baseSpend = n(data.targetRetirementSpending);
+  const goals = data.goals || [];
+  const additiveGoalAmt = goalAnnualAdditive(goals);
+  const effectiveSpend = baseSpend + additiveGoalAmt;
+  const hasTarget = effectiveSpend > 0;
   const sgContrib = n(data.grossIncome) * ((n(data.employerSgRate) || 12) / 100);
   const concCapHeadroom = Math.max(0, 30000 - sgContrib - n(data.salarySacrifice));
 
@@ -1175,7 +1278,6 @@ function AnalysisSummary({ data, engine }) {
   const hasCreditCard = n(data.creditCardDebt) > 0;
   const hasPersonalLoan = n(data.personalLoanDebt) > 0;
   const existingIPs = allIPs.filter(ip => ip.status === "existing");
-  const goals = data.goals || [];
 
   const sections = [];
 
@@ -1218,7 +1320,10 @@ function AnalysisSummary({ data, engine }) {
   if (hasSuperData) {
     const parts = [];
     if (hasTarget && dd) {
-      parts.push(`Targeting ${lifestyleLabel} retirement at ${currency(n(data.targetRetirementSpending))}/year today, growing to ${currency(dd.futureSpending)}/year by age ${retireAge}.`);
+      const spendDesc = additiveGoalAmt > 0
+        ? `${currency(effectiveSpend)}/year (your ${currency(baseSpend)} target plus ${currency(additiveGoalAmt)}/year in additional goal spending)`
+        : `${currency(effectiveSpend)}/year`;
+      parts.push(`Targeting ${lifestyleLabel} retirement at ${spendDesc} today, growing to ${currency(dd.futureSpending)}/year by age ${retireAge}.`);
       if (m?.lastsToLifeExpectancy) {
         parts.push(`Projected super of ${currency(m.projectedSuper)} is sufficient to fund spending all the way to age ${lifeExp} — the full life expectancy modelled.`);
       } else if (m?.depletionAge) {
@@ -1262,11 +1367,7 @@ function AnalysisSummary({ data, engine }) {
     if (parts.length > 0) sections.push({ title: "Property & debt", color: "#7a5040", text: parts.join(" ") });
   }
 
-  // ── 5. Goals ──
-  if (goals.length > 0) {
-    sections.push({ title: "Goals on your radar", color: "#6b5040",
-      text: `You've flagged: ${goals.join(", ")}. These aren't currently modelled in the projections — a financial adviser can help quantify the cost and timeline for each one.` });
-  }
+  // ── 5. Goals — rendered separately below as JSX (not in sections[]) ──
 
   // ── Adviser discussion points ──
   const adviserPoints = [];
@@ -1319,6 +1420,51 @@ function AnalysisSummary({ data, engine }) {
 
       {sections.map(s => <SectionBlock key={s.title} {...s} />)}
 
+      {goals.length > 0 && (
+        <div style={{ marginBottom: 22 }}>
+          <div style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
+            color: "#6b5040", marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid #6b504030",
+          }}>Goals on your radar</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {goals.map(g => {
+              const amt = parseFloat(String(g.amount || "").replace(/,/g, "")) || 0;
+              const freqLabel = { monthly: "/month", quarterly: "/quarter", annual: "/year" }[g.frequency] || "/year";
+              return (
+                <div key={g.key} style={{
+                  display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+                  padding: "8px 12px", background: "#f9faf9", borderRadius: 8, border: "1px solid #e2eae6",
+                }}>
+                  <div style={{ flex: 1, fontSize: 13, color: "#2d3a35", minWidth: 160 }}>{g.label}</div>
+                  {amt > 0 && (
+                    <div style={{ fontSize: 12, fontWeight: 500, color: "#3d6b5e", whiteSpace: "nowrap" }}>
+                      {currency(amt)}{freqLabel}
+                    </div>
+                  )}
+                  <div style={{
+                    fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase",
+                    color: g.additive ? "#2a5480" : "#6b8f84",
+                    background: g.additive ? "#eaf0f8" : "#f0f4f2",
+                    padding: "3px 8px", borderRadius: 10, whiteSpace: "nowrap",
+                  }}>
+                    {g.additive ? "+ Additional" : "Included in target"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {additiveGoalAmt > 0 ? (
+            <div style={{ marginTop: 8, fontSize: 12, color: "#2a5480", lineHeight: 1.5, padding: "8px 12px", background: "#eaf0f8", borderRadius: 8 }}>
+              {currency(additiveGoalAmt)}/year in additional goal spending is included in the retirement projections above.
+            </div>
+          ) : (
+            <div style={{ marginTop: 8, fontSize: 12, color: "#8a9e98", lineHeight: 1.5 }}>
+              No goals are currently marked as additional to your retirement target. Tick "in addition to" on any goal in Stage 6 to include its cost in the projections.
+            </div>
+          )}
+        </div>
+      )}
+
       {adviserPoints.length > 0 && (
         <div style={{ background: "#f4f7f5", border: "1px solid #e2eae6", borderRadius: 12, padding: "18px 18px 14px" }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6b8f84", marginBottom: 12 }}>
@@ -1340,7 +1486,14 @@ function AnalysisSummary({ data, engine }) {
 }
 
 function AnalysisScreen({ data, set }) {
-  const derivedData = { ...data, ...deriveAssetTotals(data.assetItems) };
+  const aT = deriveAssetTotals(data.assetItems);
+  const baseSpend = parseFloat(String(data.targetRetirementSpending || "").replace(/,/g, "")) || 0;
+  const additiveGoals = goalAnnualAdditive(data.goals);
+  const effectiveSpend = baseSpend + additiveGoals;
+  const derivedData = {
+    ...data, ...aT,
+    targetRetirementSpending: effectiveSpend > 0 ? String(effectiveSpend) : data.targetRetirementSpending,
+  };
   const engine = runEngine(derivedData);
 
   return (
