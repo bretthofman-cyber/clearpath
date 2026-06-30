@@ -1108,8 +1108,8 @@ function NetWorthChart({ engine, data }) {
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block", overflow: "visible" }}>
         <defs>
           <linearGradient id="nwGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#2E4A3D" stopOpacity="0.20" />
-            <stop offset="100%" stopColor="#2E4A3D" stopOpacity="0.02" />
+            <stop offset="0%"   stopColor="var(--chart-networth)" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="var(--chart-networth)" stopOpacity="0.00" />
           </linearGradient>
           <clipPath id="nwClip">
             <rect x={mg.left} y={mg.top - 5} width={cW} height={cH + 10} />
@@ -1119,34 +1119,38 @@ function NetWorthChart({ engine, data }) {
         {yTicks.map(({ nw, y }, i) => (
           <g key={i}>
             <line x1={mg.left} x2={W - mg.right} y1={y} y2={y}
-              stroke={i === 0 ? "#D8D2C4" : "#ECE7DB"} strokeWidth={i === 0 ? 1.5 : 1} />
-            <text x={mg.left - 6} y={y + 3.5} textAnchor="end" fontSize="9.5" fill="#9DB0A1">{fmt(nw)}</text>
+              stroke={i === 0 ? "var(--chart-baseline)" : "var(--chart-gridline)"}
+              strokeWidth={i === 0 ? 1.5 : 1} />
+            <text x={mg.left - 6} y={y + 3.5} textAnchor="end" fontSize="9.5"
+              fill="var(--chart-axis-label)">{fmt(nw)}</text>
           </g>
         ))}
 
         <line x1={retX} x2={retX} y1={mg.top} y2={mg.top + cH}
-          stroke="#2E4A3D" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.4" />
-        <text x={retX + 5} y={mg.top + 12} fontSize="9" fill="#2E4A3D" opacity="0.65">
+          stroke="var(--event-retire)" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.4" />
+        <text x={retX + 5} y={mg.top + 12} fontSize="9"
+          fill="var(--event-retire)" opacity="0.65">
           Retire {retirementAge}
         </text>
 
         <g clipPath="url(#nwClip)">
           <path d={areaPath} fill="url(#nwGrad)" />
-          <path d={linePath} fill="none" stroke="#2E4A3D" strokeWidth="2.5"
+          <path d={linePath} fill="none" stroke="var(--chart-networth)" strokeWidth="2.5"
             strokeLinecap="round" strokeLinejoin="round" />
         </g>
 
         <circle cx={xS(minAge)} cy={yS(trajectory[0].netWorth)} r="3.5"
-          fill="white" stroke="#2E4A3D" strokeWidth="2" />
+          fill="var(--event-ring)" stroke="var(--chart-networth)" strokeWidth="2" />
         {retPoint && (
           <circle cx={retX} cy={yS(retPoint.netWorth)} r="4"
-            fill="#2E4A3D" stroke="white" strokeWidth="2" />
+            fill="var(--event-retire)" stroke="var(--event-ring)" strokeWidth="2" />
         )}
         <circle cx={xS(maxAge)} cy={yS(endPoint.netWorth)} r="3.5"
-          fill="white" stroke="#2E4A3D" strokeWidth="2" />
+          fill="var(--event-ring)" stroke="var(--chart-networth)" strokeWidth="2" />
 
         {[minAge, retirementAge, maxAge].map((age, i) => (
-          <text key={i} x={xS(age)} y={H - 4} textAnchor="middle" fontSize="9.5" fill="#9DB0A1">
+          <text key={i} x={xS(age)} y={H - 4} textAnchor="middle" fontSize="9.5"
+            fill="var(--chart-axis-label)">
             Age {age}
           </text>
         ))}
@@ -1576,6 +1580,32 @@ export default function ClearpathMVP() {
   return (
     <div style={{ minHeight: "100vh", background: "#F5F2EB", fontFamily: "'Albert Sans', sans-serif", display: "flex", flexDirection: "column" }}>
       <style>{"@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Albert+Sans:wght@300;400;500;600&display=swap'); @keyframes bounce { 0%,80%,100% { transform: translateY(0); opacity: .5; } 40% { transform: translateY(-5px); opacity: 1; } } @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } * { box-sizing: border-box; } input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }"}</style>
+      <style>{`:root {
+  --color-pine:#2E4A3D; --color-paper:#F5F2EB; --color-ink:#21241E;
+  --color-gold:#C2A06B; --color-sage:#9DB0A1; --color-stone:#D8D2C4;
+
+  --chart-networth:#2E4A3D; --chart-savings:#6E8A6F; --chart-contributions:#9A7B43;
+  --chart-spending:#A8694E; --chart-tax:#7C7A93; --chart-liabilities:#B0A07C;
+
+  --fill-networth-top:rgba(46,74,61,0.16); --fill-networth-bottom:rgba(46,74,61,0.00);
+  --fill-savings-top:rgba(110,138,111,0.15); --fill-savings-bottom:rgba(110,138,111,0.00);
+  --fill-spending-top:rgba(168,105,78,0.14); --fill-spending-bottom:rgba(168,105,78,0.00);
+  --fill-tax-top:rgba(124,122,147,0.13); --fill-tax-bottom:rgba(124,122,147,0.00);
+
+  --event-goal:#C2A06B; --event-retire:#2E4A3D; --event-family:#A8694E;
+  --event-property:#8A6D3B; --event-career:#6E8A6F; --event-warning:#9E5B4A;
+  --event-ring:#FBFAF6;
+
+  --chart-gridline:rgba(33,36,30,0.06); --chart-axis-label:#8A8270;
+  --chart-baseline:#D8D2C4; --chart-cursor:rgba(33,36,30,0.28);
+  --chart-goal-line:#C2A06B;
+
+  --tooltip-bg:#FBFAF6; --tooltip-border:#ECE7DB;
+  --tooltip-shadow:0 4px 16px rgba(33,36,30,0.10);
+  --tooltip-text:#21241E; --tooltip-label:#6B6655;
+
+  --pine-100:#2E4A3D; --pine-70:#5A7264; --pine-40:#97A89B; --pine-20:#C8D1C9;
+}`}</style>
 
       <header style={{ background: "#FBFAF6", borderBottom: "1px solid #ECE7DB", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
         <div>
