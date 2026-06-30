@@ -30,13 +30,12 @@ const ASSUMPTION_RATIONALE = {
 };
 
 const STAGES = [
-  { id: 1, label: "Profile",  icon: "👤", title: "Household Profile",      subtitle: "Let's start with the basics" },
-  { id: 2, label: "Income",   icon: "💰", title: "Income & Cashflow",       subtitle: "Your earnings and spending" },
-  { id: 3, label: "Assets",   icon: "🏦", title: "Assets & Savings",        subtitle: "What you own and hold" },
-  { id: 4, label: "Property", icon: "🏠", title: "Property & Debt",         subtitle: "Leverage and obligations" },
-  { id: 5, label: "Super",     icon: "📈", title: "Super & Goals",            subtitle: "Retirement engine and priorities" },
-  { id: 6, label: "Scenarios", icon: "🎯", title: "Scenarios",               subtitle: "Planning assumptions" },
-  { id: 7, label: "Analysis", icon: "✦",  title: "Your Financial Picture",  subtitle: "Financial summary & discussion points" },
+  { id: 1, label: "Profile",  icon: "👤", title: "Household Profile",     subtitle: "Let's start with the basics" },
+  { id: 2, label: "Income",   icon: "💰", title: "Income & Cashflow",      subtitle: "Your earnings and spending" },
+  { id: 3, label: "Assets",   icon: "🏦", title: "Assets & Savings",       subtitle: "What you own and hold" },
+  { id: 4, label: "Property", icon: "🏠", title: "Property & Debt",        subtitle: "Leverage and obligations" },
+  { id: 5, label: "Super",    icon: "📈", title: "Super & Goals",           subtitle: "Retirement engine and priorities" },
+  { id: 6, label: "Analysis", icon: "✦",  title: "Your Financial Picture", subtitle: "Scenario, projections & discussion points" },
 ];
 
 
@@ -700,166 +699,9 @@ const GOAL_OPTIONS = [
   { value: "charity", label: "❤️  Give to charity or causes" },
 ];
 
-function Stage6({ data, set }) {
-  return (
-    <div>
-      <Field label="What retirement lifestyle are you planning for?">
-        <div style={{ display: "flex", gap: 8 }}>
-          {[
-            { value: "basic", label: "Basic", desc: "Modest, needs-based" },
-            { value: "comfortable", label: "Comfortable", desc: "ASFA comfortable standard" },
-            { value: "generous", label: "Generous", desc: "Lifestyle-rich" },
-          ].map(o => (
-            <button
-              key={o.value}
-              onClick={() => set("retirementLifestyle", o.value)}
-              style={{
-                flex: 1, padding: "12px 8px", border: "1.5px solid",
-                borderColor: data.retirementLifestyle === o.value ? "#2E4A3D" : "#D8D2C4",
-                borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-                background: data.retirementLifestyle === o.value ? "#EAF0EC" : "#FBFAF6",
-                transition: "all 0.15s",
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 600, color: data.retirementLifestyle === o.value ? "#2E4A3D" : "#21241E", marginBottom: 3 }}>{o.label}</div>
-              <div style={{ fontSize: 11, color: "#8A8270" }}>{o.desc}</div>
-            </button>
-          ))}
-        </div>
-      </Field>
-
-      <Field label="Risk tolerance">
-        <Toggle
-          value={data.riskTolerance}
-          onChange={v => set("riskTolerance", v)}
-          options={[
-            { value: "conservative", label: "Conservative" },
-            { value: "balanced", label: "Balanced" },
-            { value: "growth", label: "Growth" },
-          ]}
-        />
-      </Field>
-
-      <SectionDivider label="Planning scenario & assumptions" />
-
-      <div style={{
-        background: "#F5F2EB", border: "1px solid #ECE7DB", borderRadius: 10,
-        padding: "12px 14px", marginBottom: 16,
-      }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E", marginBottom: 4 }}>
-          How do assumptions work?
-        </div>
-        <div style={{ fontSize: 12, color: "#6B6655", lineHeight: 1.6 }}>
-          Select a scenario below to run your analysis under different market conditions.
-          By default, each scenario uses carefully researched assumptions. If you want to adjust
-          any numbers, turn on custom assumptions — you can always reset back to defaults.
-        </div>
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E" }}>Assumptions mode</div>
-        <button
-          onClick={() => set("useCustomAssumptions", !data.useCustomAssumptions)}
-          style={{
-            display: "flex", alignItems: "center", gap: 8, padding: "6px 12px",
-            border: "1.5px solid", borderColor: data.useCustomAssumptions ? "#2E4A3D" : "#D8D2C4",
-            borderRadius: 20, background: data.useCustomAssumptions ? "#EAF0EC" : "white",
-            cursor: "pointer", fontFamily: "inherit", fontSize: 12,
-            color: data.useCustomAssumptions ? "#2E4A3D" : "#6B6655",
-          }}
-        >
-          <div style={{
-            width: 32, height: 18, borderRadius: 9, background: data.useCustomAssumptions ? "#2E4A3D" : "#D8D2C4",
-            position: "relative", transition: "background 0.2s",
-          }}>
-            <div style={{
-              width: 14, height: 14, borderRadius: "50%", background: "white",
-              position: "absolute", top: 2, left: data.useCustomAssumptions ? 16 : 2,
-              transition: "left 0.2s",
-            }} />
-          </div>
-          {data.useCustomAssumptions ? "Custom assumptions on" : "Using default assumptions"}
-        </button>
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {[
-          { key: "base", label: "Base — most likely case" },
-          { key: "conservative", label: "Conservative — stress test" },
-          { key: "aggressive", label: "Aggressive — upside case" },
-        ].map(s => (
-          <ScenarioPanel
-            key={s.key}
-            scenarioKey={s.key}
-            label={s.label}
-            data={data}
-            set={set}
-            isActive={data.activeScenario === s.key}
-            isCustom={!!data.useCustomAssumptions}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─── ANALYSIS SCREEN ─────────────────────────────────────────────────────────
 
-function ScenarioToggle({ data, set }) {
-  const scenarios = [
-    { key: "base", label: "Base" },
-    { key: "conservative", label: "Conservative" },
-    { key: "aggressive", label: "Aggressive" },
-  ];
-  const assumptions = getActiveAssumptions(data);
-
-  return (
-    <div style={{
-      background: "#F5F2EB", border: "1px solid #ECE7DB", borderRadius: 12,
-      padding: "14px 16px", marginBottom: 20,
-    }}>
-      <div style={{ fontSize: 11, color: "#8A8270", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>
-        Planning scenario
-      </div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-        {scenarios.map(s => (
-          <button
-            key={s.key}
-            onClick={() => set("activeScenario", s.key)}
-            style={{
-              flex: 1, padding: "8px 0", border: "1.5px solid",
-              borderColor: data.activeScenario === s.key ? "#2E4A3D" : "#D8D2C4",
-              borderRadius: 8, fontSize: 13, fontWeight: data.activeScenario === s.key ? 600 : 400,
-              color: data.activeScenario === s.key ? "#2E4A3D" : "#6B6655",
-              background: data.activeScenario === s.key ? "#EAF0EC" : "white",
-              cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
-            }}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-        {[
-          { label: "Return", value: assumptions.returnRate + "% p.a." },
-          { label: "Inflation", value: assumptions.inflation + "% p.a." },
-          { label: "Property", value: assumptions.propertyGrowth + "% p.a." },
-          { label: "Withdrawal", value: assumptions.safeWithdrawal + "%" },
-        ].map((item, i) => (
-          <div key={i}>
-            <div style={{ fontSize: 10, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}</div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E" }}>{item.value}</div>
-          </div>
-        ))}
-        {data.useCustomAssumptions && (
-          <div style={{ marginLeft: "auto", fontSize: 11, color: "#C2A06B", background: "#FBF8F2", padding: "3px 8px", borderRadius: 20, alignSelf: "center" }}>
-            Custom assumptions
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+const LIFESTYLE_SCENARIO = { basic: "conservative", comfortable: "base", generous: "aggressive" };
 
 function MetricsRow({ engine, data }) {
   const { metrics, drawdown, mortgage } = engine;
@@ -1240,9 +1082,10 @@ function ScenarioComparisonRow({ data }) {
 
 function AnalysisSummary({ data, engine }) {
   const n = v => parseFloat(String(v || "").replace(/,/g, "")) || 0;
-  const m    = engine?.metrics;
-  const mort = engine?.mortgage;
-  const dd   = engine?.drawdown;
+  const m           = engine?.metrics;
+  const mort        = engine?.mortgage;
+  const dd          = engine?.drawdown;
+  const assumptions = engine?.assumptions;
   const mc   = engine?.monteCarlo;
 
   const couple = data.hasPartner === "yes";
@@ -1328,10 +1171,15 @@ function AnalysisSummary({ data, engine }) {
   if (hasSuperData) {
     const parts = [];
     if (hasTarget && dd) {
-      const spendDesc = additiveGoalAmt > 0
-        ? `${currency(effectiveSpend)}/year (your ${currency(baseSpend)} target plus ${currency(additiveGoalAmt)}/year in additional goal spending)`
-        : `${currency(effectiveSpend)}/year`;
-      parts.push(`Targeting ${lifestyleLabel} retirement at ${spendDesc} today, growing to ${currency(dd.futureSpending)}/year by age ${retireAge}.`);
+      const inf          = assumptions?.inflation ?? 2.5;
+      const yearsToRetire = Math.max(retireAge - (n(data.age) || 0), 0);
+      const inflationNote = yearsToRetire > 0
+        ? `, inflated at ${inf}% p.a. over ${yearsToRetire} ${yearsToRetire === 1 ? "year" : "years"}`
+        : "";
+      const spendSentence = additiveGoalAmt > 0
+        ? `Targeting ${lifestyleLabel} retirement from age ${retireAge}, spending ${currency(dd.futureSpending)}/year — ${currency(baseSpend)}/year base target plus ${currency(additiveGoalAmt)}/year in additional goal spending (in today's dollars${inflationNote}).`
+        : `Targeting ${lifestyleLabel} retirement from age ${retireAge}, spending ${currency(dd.futureSpending)}/year (${currency(baseSpend)}/year in today's dollars${inflationNote}).`;
+      parts.push(spendSentence);
       if (m?.lastsToLifeExpectancy) {
         parts.push(`Projected super of ${currency(m.projectedSuper)} is sufficient to fund spending all the way to age ${lifeExp} — the full life expectancy modelled.`);
       } else if (m?.depletionAge) {
@@ -1504,9 +1352,116 @@ function AnalysisScreen({ data, set }) {
   };
   const engine = runEngine(derivedData);
 
+  function selectLifestyle(val) {
+    set("retirementLifestyle", val);
+    if (!data.useCustomAssumptions) set("activeScenario", LIFESTYLE_SCENARIO[val] || data.activeScenario);
+  }
+
+  const suggestedScenario = LIFESTYLE_SCENARIO[data.retirementLifestyle];
+
   return (
     <div>
-      <ScenarioToggle data={data} set={set} />
+      {/* ── Preferences ── */}
+      <div style={{ marginBottom: 20 }}>
+        <Field label="What retirement lifestyle are you planning for?">
+          <div style={{ display: "flex", gap: 8 }}>
+            {[
+              { value: "basic", label: "Basic", desc: "Modest, needs-based" },
+              { value: "comfortable", label: "Comfortable", desc: "ASFA comfortable standard" },
+              { value: "generous", label: "Generous", desc: "Lifestyle-rich" },
+            ].map(o => (
+              <button
+                key={o.value}
+                onClick={() => selectLifestyle(o.value)}
+                style={{
+                  flex: 1, padding: "12px 8px", border: "1.5px solid",
+                  borderColor: data.retirementLifestyle === o.value ? "#2E4A3D" : "#D8D2C4",
+                  borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+                  background: data.retirementLifestyle === o.value ? "#EAF0EC" : "#FBFAF6",
+                  transition: "all 0.15s",
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 600, color: data.retirementLifestyle === o.value ? "#2E4A3D" : "#21241E", marginBottom: 3 }}>{o.label}</div>
+                <div style={{ fontSize: 11, color: "#8A8270" }}>{o.desc}</div>
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="Risk appetite">
+          <Toggle
+            value={data.riskTolerance}
+            onChange={v => set("riskTolerance", v)}
+            options={[
+              { value: "conservative", label: "Conservative" },
+              { value: "balanced", label: "Balanced" },
+              { value: "growth", label: "Growth" },
+            ]}
+          />
+        </Field>
+      </div>
+
+      {/* ── Planning scenario ── */}
+      <SectionDivider label="Planning scenario & assumptions" />
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ fontSize: 12, color: "#6B6655" }}>
+          {suggestedScenario
+            ? `Suggested: ${suggestedScenario.charAt(0).toUpperCase() + suggestedScenario.slice(1)} based on your lifestyle choice`
+            : "Select a scenario to run your analysis under different market conditions"}
+        </div>
+        <button
+          onClick={() => set("useCustomAssumptions", !data.useCustomAssumptions)}
+          style={{
+            display: "flex", alignItems: "center", gap: 8, padding: "6px 12px",
+            border: "1.5px solid", borderColor: data.useCustomAssumptions ? "#2E4A3D" : "#D8D2C4",
+            borderRadius: 20, background: data.useCustomAssumptions ? "#EAF0EC" : "white",
+            cursor: "pointer", fontFamily: "inherit", fontSize: 12,
+            color: data.useCustomAssumptions ? "#2E4A3D" : "#6B6655", flexShrink: 0, marginLeft: 12,
+          }}
+        >
+          <div style={{
+            width: 32, height: 18, borderRadius: 9, background: data.useCustomAssumptions ? "#2E4A3D" : "#D8D2C4",
+            position: "relative", transition: "background 0.2s",
+          }}>
+            <div style={{
+              width: 14, height: 14, borderRadius: "50%", background: "white",
+              position: "absolute", top: 2, left: data.useCustomAssumptions ? 16 : 2,
+              transition: "left 0.2s",
+            }} />
+          </div>
+          {data.useCustomAssumptions ? "Custom on" : "Default"}
+        </button>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
+        {[
+          { key: "base", label: "Base — most likely case" },
+          { key: "conservative", label: "Conservative — stress test" },
+          { key: "aggressive", label: "Aggressive — upside case" },
+        ].map(s => (
+          <div key={s.key} style={{ position: "relative" }}>
+            {suggestedScenario === s.key && data.activeScenario !== s.key && (
+              <div style={{
+                position: "absolute", top: 10, right: 10, zIndex: 1,
+                fontSize: 10, color: "#C2A06B", background: "#FBF8F2",
+                border: "1px solid #ECE7DB", padding: "2px 8px", borderRadius: 20,
+              }}>
+                Suggested
+              </div>
+            )}
+            <ScenarioPanel
+              scenarioKey={s.key}
+              label={s.label}
+              data={data}
+              set={set}
+              isActive={data.activeScenario === s.key}
+              isCustom={!!data.useCustomAssumptions}
+            />
+          </div>
+        ))}
+      </div>
+
       <MetricsRow engine={engine} data={data} />
       <MonteCarloCard data={data} engine={engine} />
       <NetWorthChart engine={engine} data={data} />
@@ -1557,10 +1512,10 @@ export default function ClearpathMVP() {
     setTimeout(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, 50);
   }
 
-  function next() { goTo(Math.min(stage + 1, 7)); }
+  function next() { goTo(Math.min(stage + 1, 6)); }
   function back() { goTo(Math.max(stage - 1, 1)); }
 
-  const progress = ((stage - 1) / 6) * 100;
+  const progress = ((stage - 1) / 5) * 100;
   const currentStage = STAGES[stage - 1];
 
   const allIPs = data.investmentProperties || [];
@@ -1663,7 +1618,7 @@ export default function ClearpathMVP() {
       <div style={{ flex: 1, display: "flex", justifyContent: "center", padding: "32px 20px 100px" }}>
         <div style={{ width: "100%", maxWidth: 620 }}>
           <div style={{ marginBottom: 28, animation: "fadeIn 0.3s ease" }}>
-            <div style={{ fontSize: 11, color: "#8A8270", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>Step {stage} of 7</div>
+            <div style={{ fontSize: 11, color: "#8A8270", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>Step {stage} of 6</div>
             <div style={{ fontFamily: "Spectral, serif", fontSize: 28, color: "#21241E", marginBottom: 4 }}>{currentStage.title}</div>
             <div style={{ fontSize: 14, color: "#6B6655" }}>{currentStage.subtitle}</div>
           </div>
@@ -1674,22 +1629,21 @@ export default function ClearpathMVP() {
             {stage === 3 && <AssetStage3 data={data} setMany={setMany} />}
             {stage === 4 && <Stage4 data={data} set={set} />}
             {stage === 5 && <Stage5 data={data} set={set} />}
-            {stage === 6 && <Stage6 data={data} set={set} />}
-            {stage === 7 && <AnalysisScreen data={data} set={set} />}
+            {stage === 6 && <AnalysisScreen data={data} set={set} />}
           </div>
 
-          {stage < 7 && (
+          {stage < 6 && (
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
               {stage > 1 ? (
                 <button onClick={back} style={{ padding: "12px 24px", border: "1.5px solid #D8D2C4", borderRadius: 12, background: "#FBFAF6", fontSize: 14, color: "#6B6655", cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
               ) : <div />}
               <button onClick={next} style={{ padding: "12px 28px", border: "none", borderRadius: 12, background: "#C2A06B", color: "#2A2113", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 12px rgba(194,160,107,0.3)" }}>
-                {stage === 6 ? "View My Analysis →" : "Continue →"}
+                {stage === 5 ? "View My Analysis →" : "Continue →"}
               </button>
             </div>
           )}
 
-          {stage === 7 && (
+          {stage === 6 && (
             <div style={{ marginTop: 20 }}>
               <button onClick={back} style={{ padding: "12px 24px", border: "1.5px solid #D8D2C4", borderRadius: 12, background: "#FBFAF6", fontSize: 14, color: "#6B6655", cursor: "pointer", fontFamily: "inherit" }}>← Edit my details</button>
             </div>
