@@ -701,7 +701,6 @@ const GOAL_OPTIONS = [
 
 // ─── ANALYSIS SCREEN ─────────────────────────────────────────────────────────
 
-const LIFESTYLE_SCENARIO = { basic: "conservative", comfortable: "base", generous: "aggressive" };
 
 function MetricsRow({ engine, data }) {
   const { metrics, drawdown, mortgage } = engine;
@@ -1352,13 +1351,6 @@ function AnalysisScreen({ data, set }) {
   };
   const engine = runEngine(derivedData);
 
-  function selectLifestyle(val) {
-    set("retirementLifestyle", val);
-    if (!data.useCustomAssumptions) set("activeScenario", LIFESTYLE_SCENARIO[val] || data.activeScenario);
-  }
-
-  const suggestedScenario = LIFESTYLE_SCENARIO[data.retirementLifestyle];
-
   return (
     <div>
       {/* ── Preferences ── */}
@@ -1372,7 +1364,7 @@ function AnalysisScreen({ data, set }) {
             ].map(o => (
               <button
                 key={o.value}
-                onClick={() => selectLifestyle(o.value)}
+                onClick={() => set("retirementLifestyle", o.value)}
                 style={{
                   flex: 1, padding: "12px 8px", border: "1.5px solid",
                   borderColor: data.retirementLifestyle === o.value ? "#2E4A3D" : "#D8D2C4",
@@ -1406,9 +1398,7 @@ function AnalysisScreen({ data, set }) {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div style={{ fontSize: 12, color: "#6B6655" }}>
-          {suggestedScenario
-            ? `Suggested: ${suggestedScenario.charAt(0).toUpperCase() + suggestedScenario.slice(1)} based on your lifestyle choice`
-            : "Select a scenario to run your analysis under different market conditions"}
+          Model different market conditions — conservative stress-tests a poor return sequence, aggressive models strong growth.
         </div>
         <button
           onClick={() => set("useCustomAssumptions", !data.useCustomAssumptions)}
@@ -1440,16 +1430,7 @@ function AnalysisScreen({ data, set }) {
           { key: "conservative", label: "Conservative — stress test" },
           { key: "aggressive", label: "Aggressive — upside case" },
         ].map(s => (
-          <div key={s.key} style={{ position: "relative" }}>
-            {suggestedScenario === s.key && data.activeScenario !== s.key && (
-              <div style={{
-                position: "absolute", top: 10, right: 10, zIndex: 1,
-                fontSize: 10, color: "#C2A06B", background: "#FBF8F2",
-                border: "1px solid #ECE7DB", padding: "2px 8px", borderRadius: 20,
-              }}>
-                Suggested
-              </div>
-            )}
+          <div key={s.key}>
             <ScenarioPanel
               scenarioKey={s.key}
               label={s.label}
