@@ -438,6 +438,42 @@ function Stage5({ data, set }) {
           <Input value={data.salarySacrifice} onChange={v => set("salarySacrifice", v)} placeholder="0" prefix="$" />
         </Field>
       </TwoCol>
+      {(() => {
+        const gross = parseFloat(String(data.grossIncome || "").replace(/,/g, "")) || 0;
+        if (!gross) return null;
+        const sgRate = (parseFloat(data.employerSgRate) || 12) / 100;
+        const employerSG = gross * sgRate;
+        const capRoom = Math.max(0, 30000 - employerSG);
+        const currentSS = parseFloat(String(data.salarySacrifice || "").replace(/,/g, "")) || 0;
+        const isMaxed = capRoom > 0 && Math.abs(currentSS - capRoom) < 1;
+        return (
+          <div style={{
+            background: "#F5F2EB", border: "1px solid #ECE7DB", borderRadius: 10,
+            padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center",
+            justifyContent: "space-between", gap: 12,
+          }}>
+            <div style={{ fontSize: 12, color: "#6B6655", lineHeight: 1.5 }}>
+              <span style={{ color: "#21241E", fontWeight: 500 }}>Concessional cap</span> $30,000/yr
+              {" · "}Employer SG {currency(employerSG)}/yr
+              {" · "}Room to salary sacrifice <span style={{ color: "#2E4A3D", fontWeight: 500 }}>{currency(capRoom)}/yr</span>
+            </div>
+            <button
+              onClick={() => set("salarySacrifice", String(Math.round(capRoom)))}
+              disabled={isMaxed || capRoom === 0}
+              style={{
+                flexShrink: 0, fontSize: 11, padding: "5px 12px",
+                border: "1.5px solid", borderColor: isMaxed ? "#D8D2C4" : "#2E4A3D",
+                borderRadius: 20, cursor: isMaxed || capRoom === 0 ? "default" : "pointer",
+                background: isMaxed ? "#FBFAF6" : "#EAF0EC",
+                color: isMaxed ? "#9DB0A1" : "#2E4A3D",
+                fontFamily: "inherit", fontWeight: 500,
+              }}
+            >
+              {isMaxed ? "Maxed ✓" : "Max it"}
+            </button>
+          </div>
+        );
+      })()}
       <Field label="Insurance inside super?">
         <Toggle value={data.insuranceInSuper} onChange={v => set("insuranceInSuper", v)}
           options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }, { value: "unsure", label: "Not sure" }]} />
@@ -609,7 +645,7 @@ function AssumptionRow({ fieldKey, value, defaultValue, onChange, isCustom }) {
   );
 }
 
-function ScenarioPanel({ scenarioKey, label, data, set, isActive, isCustom }) {
+function ScenarioPanel({ scenarioKey, label, data, set, isActive, isExpanded, onToggle, isCustom }) {
   const assumptions = isCustom
     ? (data.customAssumptions?.[scenarioKey] || DEFAULT_SCENARIOS[scenarioKey])
     : DEFAULT_SCENARIOS[scenarioKey];
@@ -638,7 +674,7 @@ function ScenarioPanel({ scenarioKey, label, data, set, isActive, isCustom }) {
       borderRadius: 12, overflow: "hidden", transition: "border-color 0.2s",
     }}>
       <button
-        onClick={() => set("activeScenario", scenarioKey)}
+        onClick={onToggle}
         style={{
           width: "100%", padding: "12px 16px", background: isActive ? c.bg : "white",
           border: "none", cursor: "pointer", display: "flex", alignItems: "center",
@@ -661,7 +697,7 @@ function ScenarioPanel({ scenarioKey, label, data, set, isActive, isCustom }) {
         </div>
       </button>
 
-      {isActive && (
+      {isExpanded && (
         <div style={{ padding: "16px", background: "white", borderTop: "1px solid", borderColor: c.border }}>
           {Object.keys(ASSUMPTION_RATIONALE).map(key => (
             <AssumptionRow
@@ -1093,7 +1129,6 @@ function AnalysisSummary({ data, engine }) {
   const scenarioLabel = { base: "Base", conservative: "Conservative", aggressive: "Aggressive" }[data.activeScenario || "base"];
   const retireAge = n(data.retirementAge) || 65;
   const lifeExp = n(data.lifeExpectancy) || 90;
-  const lifestyleLabel = { basic: "a basic", comfortable: "a comfortable", generous: "a generous, lifestyle-rich" }[data.retirementLifestyle] || "a comfortable";
 
   const aT = deriveAssetTotals(data.assetItems || []);
   const liquidTotal = aT.cashSavings + aT.sharesEtfs + aT.managedFunds + aT.crypto + aT.otherInvestments;
@@ -1176,8 +1211,8 @@ function AnalysisSummary({ data, engine }) {
         ? `, inflated at ${inf}% p.a. over ${yearsToRetire} ${yearsToRetire === 1 ? "year" : "years"}`
         : "";
       const spendSentence = additiveGoalAmt > 0
-        ? `Targeting ${lifestyleLabel} retirement from age ${retireAge}, spending ${currency(dd.futureSpending)}/year — ${currency(baseSpend)}/year base target plus ${currency(additiveGoalAmt)}/year in additional goal spending (in today's dollars${inflationNote}).`
-        : `Targeting ${lifestyleLabel} retirement from age ${retireAge}, spending ${currency(dd.futureSpending)}/year (${currency(baseSpend)}/year in today's dollars${inflationNote}).`;
+        ? `Targeting retirement from age ${retireAge}, spending ${currency(dd.futureSpending)}/year — ${currency(baseSpend)}/year base target plus ${currency(additiveGoalAmt)}/year in additional goal spending (in today's dollars${inflationNote}).`
+        : `Targeting retirement from age ${retireAge}, spending ${currency(dd.futureSpending)}/year (${currency(baseSpend)}/year in today's dollars${inflationNote}).`;
       parts.push(spendSentence);
       if (m?.lastsToLifeExpectancy) {
         parts.push(`Projected super of ${currency(m.projectedSuper)} is sufficient to fund spending all the way to age ${lifeExp} — the full life expectancy modelled.`);
@@ -1341,6 +1376,8 @@ function AnalysisSummary({ data, engine }) {
 }
 
 function AnalysisScreen({ data, set }) {
+  const [expandedKey, setExpandedKey] = useState(data.activeScenario || "base");
+
   const aT = deriveAssetTotals(data.assetItems);
   const baseSpend = parseFloat(String(data.targetRetirementSpending || "").replace(/,/g, "")) || 0;
   const additiveGoals = goalAnnualAdditive(data.goals);
@@ -1351,47 +1388,29 @@ function AnalysisScreen({ data, set }) {
   };
   const engine = runEngine(derivedData);
 
+  function handleScenarioToggle(key) {
+    if (data.activeScenario !== key) {
+      set("activeScenario", key);
+      setExpandedKey(key);
+    } else {
+      setExpandedKey(prev => prev === key ? null : key);
+    }
+  }
+
   return (
     <div>
-      {/* ── Preferences ── */}
-      <div style={{ marginBottom: 20 }}>
-        <Field label="What retirement lifestyle are you planning for?">
-          <div style={{ display: "flex", gap: 8 }}>
-            {[
-              { value: "basic", label: "Basic", desc: "Modest, needs-based" },
-              { value: "comfortable", label: "Comfortable", desc: "ASFA comfortable standard" },
-              { value: "generous", label: "Generous", desc: "Lifestyle-rich" },
-            ].map(o => (
-              <button
-                key={o.value}
-                onClick={() => set("retirementLifestyle", o.value)}
-                style={{
-                  flex: 1, padding: "12px 8px", border: "1.5px solid",
-                  borderColor: data.retirementLifestyle === o.value ? "#2E4A3D" : "#D8D2C4",
-                  borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-                  background: data.retirementLifestyle === o.value ? "#EAF0EC" : "#FBFAF6",
-                  transition: "all 0.15s",
-                }}
-              >
-                <div style={{ fontSize: 13, fontWeight: 600, color: data.retirementLifestyle === o.value ? "#2E4A3D" : "#21241E", marginBottom: 3 }}>{o.label}</div>
-                <div style={{ fontSize: 11, color: "#8A8270" }}>{o.desc}</div>
-              </button>
-            ))}
-          </div>
-        </Field>
-
-        <Field label="Risk appetite">
-          <Toggle
-            value={data.riskTolerance}
-            onChange={v => set("riskTolerance", v)}
-            options={[
-              { value: "conservative", label: "Conservative" },
-              { value: "balanced", label: "Balanced" },
-              { value: "growth", label: "Growth" },
-            ]}
-          />
-        </Field>
-      </div>
+      {/* ── Risk appetite ── */}
+      <Field label="Risk appetite">
+        <Toggle
+          value={data.riskTolerance}
+          onChange={v => set("riskTolerance", v)}
+          options={[
+            { value: "conservative", label: "Conservative" },
+            { value: "balanced", label: "Balanced" },
+            { value: "growth", label: "Growth" },
+          ]}
+        />
+      </Field>
 
       {/* ── Planning scenario ── */}
       <SectionDivider label="Planning scenario & assumptions" />
@@ -1430,16 +1449,17 @@ function AnalysisScreen({ data, set }) {
           { key: "conservative", label: "Conservative — stress test" },
           { key: "aggressive", label: "Aggressive — upside case" },
         ].map(s => (
-          <div key={s.key}>
-            <ScenarioPanel
-              scenarioKey={s.key}
-              label={s.label}
-              data={data}
-              set={set}
-              isActive={data.activeScenario === s.key}
-              isCustom={!!data.useCustomAssumptions}
-            />
-          </div>
+          <ScenarioPanel
+            key={s.key}
+            scenarioKey={s.key}
+            label={s.label}
+            data={data}
+            set={set}
+            isActive={data.activeScenario === s.key}
+            isExpanded={expandedKey === s.key}
+            onToggle={() => handleScenarioToggle(s.key)}
+            isCustom={!!data.useCustomAssumptions}
+          />
         ))}
       </div>
 
