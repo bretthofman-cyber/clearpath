@@ -84,7 +84,8 @@ export function projectSuper(data, assumptions) {
   const r             = assumptions.returnRate / 100;
 
   const balance        = p(data.superBalance) + (data.hasPartner === "yes" ? p(data.partnerSuperBalance) : 0);
-  const grossIncome    = p(data.grossIncome)  + (data.hasPartner === "yes" ? p(data.partnerIncome) : 0);
+  const grossIncome    = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome)
+                       + (data.hasPartner === "yes" ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0);
   const sgRate         = (p(data.employerSgRate) || 12) / 100;
   const annualContribs = grossIncome * sgRate + p(data.salarySacrifice);
 
@@ -156,8 +157,14 @@ export function debtFreeDate(data) {
   const balance     = p(data.mortgageBalance);
   const annualRate  = p(data.mortgageRate);
   const loanType    = data.loanType || "pi";
-  const LOAN_MONTHS = 360;
   const currentYear = new Date().getFullYear();
+
+  // Derive remaining term from start year + tenure, falling back to 30-year default
+  const startYear    = p(data.mortgageStartYear) || currentYear;
+  const tenure       = p(data.mortgageTenure) || 30;
+  const elapsed      = Math.max(0, currentYear - startYear);
+  const remainingYrs = Math.max(1, tenure - elapsed);
+  const LOAN_MONTHS  = remainingYrs * 12;
 
   // PPOR
   let pporResult = null;
@@ -233,7 +240,10 @@ export function netWorthTrajectory(data, assumptions) {
   let superBal = p(data.superBalance) + (data.hasPartner === "yes" ? p(data.partnerSuperBalance) : 0);
   let ppor     = p(data.ppOrValue);
   let mortgage = p(data.mortgageBalance);
-  let otherDebt = p(data.creditCardDebt) + p(data.personalLoanDebt) + p(data.hecsDebt);
+  let otherDebt = p(data.creditCardDebt) + p(data.personalLoanDebt) + p(data.hecsDebt)
+               + (data.hasPartner === "yes"
+                  ? p(data.partnerCreditCardDebt) + p(data.partnerPersonalLoanDebt) + p(data.partnerHecsDebt)
+                  : 0);
 
   // Aggregate existing investment properties
   const existingIPs = (data.investmentProperties || []).filter(ip => ip.status === "existing");
@@ -256,7 +266,8 @@ export function netWorthTrajectory(data, assumptions) {
   );
 
   const annualSavings = p(data.savingsPerMonth) * 12;
-  const grossIncome   = p(data.grossIncome) + (data.hasPartner === "yes" ? p(data.partnerIncome) : 0);
+  const grossIncome   = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome)
+                      + (data.hasPartner === "yes" ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0);
   const sgRate        = (p(data.employerSgRate) || 12) / 100;
   const annualSuperIn = grossIncome * sgRate + p(data.salarySacrifice);
   const targetSpending = p(data.targetRetirementSpending);

@@ -42,22 +42,29 @@ const STAGES = [
 const EMPTY_DATA = {
   // Stage 1
   firstName: "", age: "", partnerAge: "", partnerRetirementAge: "", hasPartner: "no",
+  partnerName: "",
   dependants: "0", location: "", employmentStatus: "full-time",
   retirementAge: "65", lifeExpectancy: "90", homeOwnership: "owner",
   // Stage 2
   grossIncome: "", partnerIncome: "", bonusIncome: "", otherIncome: "",
+  partnerBonusIncome: "", partnerOtherIncome: "",
+  insuranceAnnualPremium: "",
   monthlyExpenses: "", annualIrregular: "", savingsPerMonth: "",
   budgetItems: [],
   // Stage 3
   assetItems: [],
   emergencyFund: "",
   // Stage 4
-  ppOrValue: "", mortgageBalance: "", mortgageRate: "", loanType: "pi",
+  ppOrValue: "", ppOrOwnershipPct: "100",
+  mortgageBalance: "", mortgageRate: "", loanType: "pi",
+  mortgageStartYear: "", mortgageTenure: "30",
   hasInvestmentProperty: "no", ipValue: "", ipMortgage: "", ipRate: "",
-  ipWeeklyRent: "", creditCardDebt: "", personalLoanDebt: "", hecsDebt: "",
+  ipWeeklyRent: "",
+  creditCardDebt: "", personalLoanDebt: "", hecsDebt: "",
+  partnerCreditCardDebt: "", partnerPersonalLoanDebt: "", partnerHecsDebt: "",
   // Stage 5
   superBalance: "", partnerSuperBalance: "", employerSgRate: "12",
-  salarySacrifice: "", insuranceInSuper: "yes", targetRetirementSpending: "",
+  salarySacrifice: "", targetRetirementSpending: "",
   // Stage 6
   retirementLifestyle: "comfortable",
   goals: [],
@@ -184,7 +191,10 @@ function Stage1({ data, set }) {
           options={[{ value: "no", label: "Single" }, { value: "yes", label: "Couple" }]} />
       </Field>
       {data.hasPartner === "yes" && (
-        <Field label="Partner's age"><Input value={data.partnerAge} onChange={v => set("partnerAge", v)} placeholder="e.g. 32" type="number" /></Field>
+        <TwoCol>
+          <Field label="Partner's first name"><Input value={data.partnerName} onChange={v => set("partnerName", v)} placeholder="e.g. Sam" /></Field>
+          <Field label="Partner's age"><Input value={data.partnerAge} onChange={v => set("partnerAge", v)} placeholder="e.g. 32" type="number" /></Field>
+        </TwoCol>
       )}
       <TwoCol>
         <Field label="Dependants">
@@ -233,7 +243,7 @@ function Stage1({ data, set }) {
 
 // ─── PROPERTY PORTFOLIO COMPONENTS ──────────────────────────────────────────
 
-function PropertyCard({ ip, onChange, onClone, onRemove }) {
+function PropertyCard({ ip, onChange, onClone, onRemove, isCouple }) {
   const [expanded, setExpanded] = useState(false);
   const ipVal  = parseFloat(String(ip.value).replace(/,/g, "")) || 0;
   const ipMort = parseFloat(String(ip.mortgageBalance).replace(/,/g, "")) || 0;
@@ -291,8 +301,15 @@ function PropertyCard({ ip, onChange, onClone, onRemove }) {
           <SectionDivider label="Property details" />
           <TwoCol>
             <Field label="Estimated value"><Input value={ip.value} onChange={v => upd("value", v)} placeholder="750,000" prefix="$" /></Field>
-            <Field label="Mortgage balance"><Input value={ip.mortgageBalance} onChange={v => upd("mortgageBalance", v)} placeholder="450,000" prefix="$" /></Field>
+            {isCouple ? (
+              <Field label="Your ownership share" hint="% you own">
+                <Input value={ip.ownershipPct ?? "50"} onChange={v => upd("ownershipPct", v)} placeholder="50" suffix="%" />
+              </Field>
+            ) : <Field label="Mortgage balance"><Input value={ip.mortgageBalance} onChange={v => upd("mortgageBalance", v)} placeholder="450,000" prefix="$" /></Field>}
           </TwoCol>
+          {isCouple && (
+            <Field label="Mortgage balance"><Input value={ip.mortgageBalance} onChange={v => upd("mortgageBalance", v)} placeholder="450,000" prefix="$" /></Field>
+          )}
           <TwoCol>
             <Field label="Interest rate"><Input value={ip.mortgageRate} onChange={v => upd("mortgageRate", v)} placeholder="6.5" suffix="%" /></Field>
             <Field label="Loan type">
@@ -334,7 +351,7 @@ function PropertyCard({ ip, onChange, onClone, onRemove }) {
   );
 }
 
-function PropertyPortfolio({ ips, onChange }) {
+function PropertyPortfolio({ ips, onChange, isCouple }) {
   function addProperty() {
     onChange([...ips, newProperty(`Investment Property ${ips.length + 1}`)]);
   }
@@ -361,6 +378,7 @@ function PropertyPortfolio({ ips, onChange }) {
               onChange={updated => updateAt(i, updated)}
               onClone={() => cloneAt(i)}
               onRemove={() => removeAt(i)}
+              isCouple={isCouple}
             />
           ))}
           <button onClick={addProperty} style={{ width: "100%", padding: "10px", border: "1.5px dashed #D8D2C4", borderRadius: 10, background: "#FBFAF6", fontSize: 13, color: "#2E4A3D", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -373,34 +391,73 @@ function PropertyPortfolio({ ips, onChange }) {
 }
 
 function Stage4({ data, set }) {
+  const partner = data.partnerName || "Partner";
+  const isCouple = data.hasPartner === "yes";
   return (
     <div>
       {(data.homeOwnership === "mortgage" || data.homeOwnership === "owner") && (
         <>
           <TwoCol>
             <Field label="PPOR estimated value"><Input value={data.ppOrValue} onChange={v => set("ppOrValue", v)} placeholder="850,000" prefix="$" /></Field>
-            <Field label="Mortgage balance"><Input value={data.mortgageBalance} onChange={v => set("mortgageBalance", v)} placeholder="450,000" prefix="$" /></Field>
+            {isCouple ? (
+              <Field label="Your ownership share" hint="% you own — remainder is partner's">
+                <Input value={data.ppOrOwnershipPct} onChange={v => set("ppOrOwnershipPct", v)} placeholder="50" suffix="%" />
+              </Field>
+            ) : <div />}
           </TwoCol>
           <TwoCol>
+            <Field label="Mortgage balance"><Input value={data.mortgageBalance} onChange={v => set("mortgageBalance", v)} placeholder="450,000" prefix="$" /></Field>
             <Field label="Interest rate"><Input value={data.mortgageRate} onChange={v => set("mortgageRate", v)} placeholder="6.2" suffix="%" /></Field>
+          </TwoCol>
+          <TwoCol>
             <Field label="Loan type">
               <Select value={data.loanType} onChange={v => set("loanType", v)}
                 options={[{ value: "pi", label: "Principal & Interest" }, { value: "io", label: "Interest Only" }]} />
             </Field>
+            <Field label="Loan tenure" hint="Original term in years">
+              <Input value={data.mortgageTenure} onChange={v => set("mortgageTenure", v)} placeholder="30" suffix="yrs" type="number" />
+            </Field>
           </TwoCol>
+          <Field label="Mortgage start year" hint="Year the loan was taken out — used to calculate remaining term">
+            <Input value={data.mortgageStartYear} onChange={v => set("mortgageStartYear", v)} placeholder={String(new Date().getFullYear())} type="number" />
+          </Field>
         </>
       )}
       <SectionDivider label="Investment properties" />
       <PropertyPortfolio
         ips={data.investmentProperties || []}
         onChange={newIPs => set("investmentProperties", newIPs)}
+        isCouple={isCouple}
       />
       <SectionDivider label="Other debts" />
-      <TwoCol>
-        <Field label="Credit card debt"><Input value={data.creditCardDebt} onChange={v => set("creditCardDebt", v)} placeholder="0" prefix="$" /></Field>
-        <Field label="Personal loans"><Input value={data.personalLoanDebt} onChange={v => set("personalLoanDebt", v)} placeholder="0" prefix="$" /></Field>
-      </TwoCol>
-      <Field label="HECS / HELP debt"><Input value={data.hecsDebt} onChange={v => set("hecsDebt", v)} placeholder="0" prefix="$" /></Field>
+      {isCouple ? (
+        <>
+          <div style={{ fontSize: 11, color: "#8A8270", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
+            Your debts
+          </div>
+          <TwoCol>
+            <Field label="Credit card"><Input value={data.creditCardDebt} onChange={v => set("creditCardDebt", v)} placeholder="0" prefix="$" /></Field>
+            <Field label="Personal loans"><Input value={data.personalLoanDebt} onChange={v => set("personalLoanDebt", v)} placeholder="0" prefix="$" /></Field>
+          </TwoCol>
+          <Field label="HECS / HELP"><Input value={data.hecsDebt} onChange={v => set("hecsDebt", v)} placeholder="0" prefix="$" /></Field>
+          <div style={{ fontSize: 11, color: "#8A8270", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10, marginTop: 16 }}>
+            {partner}'s debts
+          </div>
+          <TwoCol>
+            <Field label="Credit card"><Input value={data.partnerCreditCardDebt} onChange={v => set("partnerCreditCardDebt", v)} placeholder="0" prefix="$" /></Field>
+            <Field label="Personal loans"><Input value={data.partnerPersonalLoanDebt} onChange={v => set("partnerPersonalLoanDebt", v)} placeholder="0" prefix="$" /></Field>
+          </TwoCol>
+          <Field label="HECS / HELP"><Input value={data.partnerHecsDebt} onChange={v => set("partnerHecsDebt", v)} placeholder="0" prefix="$" /></Field>
+        </>
+      ) : (
+        <>
+          <TwoCol>
+            <Field label="Credit card debt"><Input value={data.creditCardDebt} onChange={v => set("creditCardDebt", v)} placeholder="0" prefix="$" /></Field>
+            <Field label="Personal loans"><Input value={data.personalLoanDebt} onChange={v => set("personalLoanDebt", v)} placeholder="0" prefix="$" /></Field>
+          </TwoCol>
+          <Field label="HECS / HELP debt"><Input value={data.hecsDebt} onChange={v => set("hecsDebt", v)} placeholder="0" prefix="$" /></Field>
+        </>
+      )}
     </div>
   );
 }
@@ -427,7 +484,7 @@ function Stage5({ data, set }) {
       <TwoCol>
         <Field label="Your super balance"><Input value={data.superBalance} onChange={v => set("superBalance", v)} placeholder="68,000" prefix="$" /></Field>
         {data.hasPartner === "yes" && (
-          <Field label="Partner's super balance"><Input value={data.partnerSuperBalance} onChange={v => set("partnerSuperBalance", v)} placeholder="55,000" prefix="$" /></Field>
+          <Field label={`${data.partnerName || "Partner"}'s super balance`}><Input value={data.partnerSuperBalance} onChange={v => set("partnerSuperBalance", v)} placeholder="55,000" prefix="$" /></Field>
         )}
       </TwoCol>
       <TwoCol>
@@ -474,10 +531,6 @@ function Stage5({ data, set }) {
           </div>
         );
       })()}
-      <Field label="Insurance inside super?">
-        <Toggle value={data.insuranceInSuper} onChange={v => set("insuranceInSuper", v)}
-          options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }, { value: "unsure", label: "Not sure" }]} />
-      </Field>
 
       <SectionDivider label="Retirement target & goals" />
       <Field label="Target annual retirement spending" hint="In today's dollars — what lifestyle do you want in retirement?">
@@ -728,7 +781,6 @@ const GOAL_OPTIONS = [
   { value: "travel", label: "✈️  Travel extensively in retirement" },
   { value: "inheritance", label: "🏡  Leave an inheritance for family" },
   { value: "education", label: "🎓  Fund children's education" },
-  { value: "property", label: "🏠  Buy another property" },
   { value: "payoff-home", label: "🔑  Pay off home before retiring" },
   { value: "early-retire", label: "⏰  Retire earlier than planned" },
   { value: "business", label: "💼  Start or invest in a business" },
@@ -1125,6 +1177,7 @@ function AnalysisSummary({ data, engine }) {
 
   const couple = data.hasPartner === "yes";
   const firstName = data.firstName || "";
+  const partnerFirstName = data.partnerName || "Partner";
   const possessive = firstName ? `${firstName}'s` : (couple ? "Your household's" : "Your");
   const scenarioLabel = { base: "Base", conservative: "Conservative", aggressive: "Aggressive" }[data.activeScenario || "base"];
   const retireAge = n(data.retirementAge) || 65;
@@ -1137,6 +1190,9 @@ function AnalysisSummary({ data, engine }) {
     n(data.superBalance), couple ? n(data.partnerSuperBalance) : 0, n(data.ppOrValue),
     ...allIPs.map(ip => n(ip.value))].reduce((s, v) => s + v, 0);
   const totalDebts = [n(data.mortgageBalance), n(data.creditCardDebt), n(data.personalLoanDebt), n(data.hecsDebt),
+    couple ? n(data.partnerCreditCardDebt) : 0,
+    couple ? n(data.partnerPersonalLoanDebt) : 0,
+    couple ? n(data.partnerHecsDebt) : 0,
     ...allIPs.map(ip => n(ip.mortgageBalance))].reduce((s, v) => s + v, 0);
   const netWorth = totalAssets - totalDebts;
 

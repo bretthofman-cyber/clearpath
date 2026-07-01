@@ -117,8 +117,11 @@ export function estimateNetMonthly(data) {
   const g2 = data.hasPartner === "yes" ? n(data.partnerIncome) : 0;
   const net1 = g1 - annualTax(g1);
   const net2 = g2 - annualTax(g2);
-  const bonus = (n(data.bonusIncome) + n(data.otherIncome)) * 0.75;
-  return Math.max(0, Math.round((net1 + net2 + bonus) / 12));
+  const bonus1 = (n(data.bonusIncome) + n(data.otherIncome)) * 0.75;
+  const bonus2 = data.hasPartner === "yes"
+    ? (n(data.partnerBonusIncome) + n(data.partnerOtherIncome)) * 0.75
+    : 0;
+  return Math.max(0, Math.round((net1 + net2 + bonus1 + bonus2) / 12));
 }
 
 export function itemMonthly(item) {
@@ -848,26 +851,39 @@ export default function Stage2({ data, setMany }) {
   const savings    = n(data.savingsPerMonth);
   const surplus    = netMonthly - expenses - savings;
 
+  const partner = data.partnerName || "Partner";
+  const isCouple = data.hasPartner === "yes";
+
   return (
     <div>
       <TwoCol>
         <Field label="Your gross annual income" hint="Before tax">
           <Input value={data.grossIncome} onChange={v => setMany({ grossIncome: v })} placeholder="95,000" prefix="$" />
         </Field>
-        {data.hasPartner === "yes" ? (
-          <Field label="Partner's gross income" hint="Before tax">
+        {isCouple ? (
+          <Field label={`${partner}'s gross income`} hint="Before tax">
             <Input value={data.partnerIncome} onChange={v => setMany({ partnerIncome: v })} placeholder="80,000" prefix="$" />
           </Field>
         ) : <div />}
       </TwoCol>
       <TwoCol>
-        <Field label="Annual bonus / incentives" hint="Leave blank if none">
+        <Field label="Your annual bonus / incentives" hint="Leave blank if none">
           <Input value={data.bonusIncome} onChange={v => setMany({ bonusIncome: v })} placeholder="0" prefix="$" />
         </Field>
-        <Field label="Other income" hint="Rental, side income, dividends">
+        <Field label="Your other income" hint="Rental, side income, dividends">
           <Input value={data.otherIncome} onChange={v => setMany({ otherIncome: v })} placeholder="0" prefix="$" />
         </Field>
       </TwoCol>
+      {isCouple && (
+        <TwoCol>
+          <Field label={`${partner}'s annual bonus / incentives`} hint="Leave blank if none">
+            <Input value={data.partnerBonusIncome} onChange={v => setMany({ partnerBonusIncome: v })} placeholder="0" prefix="$" />
+          </Field>
+          <Field label={`${partner}'s other income`} hint="Rental, side income, dividends">
+            <Input value={data.partnerOtherIncome} onChange={v => setMany({ partnerOtherIncome: v })} placeholder="0" prefix="$" />
+          </Field>
+        </TwoCol>
+      )}
 
       <SectionDivider label="Monthly Budget" />
 
@@ -915,6 +931,9 @@ export default function Stage2({ data, setMany }) {
           <Input value={data.savingsPerMonth} onChange={v => setMany({ savingsPerMonth: v })} placeholder="1,200" prefix="$" />
         </Field>
       </TwoCol>
+      <Field label="Life / TPD insurance annual premium" hint="Total household premium — enter 0 if fully inside super at no out-of-pocket cost">
+        <Input value={data.insuranceAnnualPremium} onChange={v => setMany({ insuranceAnnualPremium: v })} placeholder="0" prefix="$" />
+      </Field>
     </div>
   );
 }
