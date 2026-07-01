@@ -166,13 +166,33 @@ export function debtFreeDate(data) {
   const remainingYrs = Math.max(1, tenure - elapsed);
   const LOAN_MONTHS  = remainingYrs * 12;
 
+  const loanEndYear = startYear + tenure;
+  const monthlyRate = annualRate / 100 / 12;
+
   // PPOR
   let pporResult = null;
   if (balance) {
     if (loanType === "io") {
-      pporResult = { type: "io", monthsToPayoff: null, debtFreeYear: null, monthlyPayment: null };
+      const ioExpiryYear = p(data.mortgageIoExpiryYear);
+      const ioActive = ioExpiryYear > 0 && ioExpiryYear < loanEndYear;
+      const ioMonthlyPayment = monthlyRate > 0 ? Math.round(balance * monthlyRate) : 0;
+      if (ioActive) {
+        // After IO period: P&I on remaining balance for remaining loan term
+        const piYears = Math.max(1, loanEndYear - ioExpiryYear);
+        const piMonths = piYears * 12;
+        const piPmt = monthlyRate > 0
+          ? monthlyPayment(balance, monthlyRate, piMonths)
+          : balance / piMonths;
+        pporResult = {
+          type: "io", ioExpiryYear, loanEndYear,
+          debtFreeYear: loanEndYear,
+          monthlyPayment: ioMonthlyPayment,
+          piMonthlyPayment: Math.round(piPmt),
+        };
+      } else {
+        pporResult = { type: "io", ioExpiryYear: null, loanEndYear: null, debtFreeYear: null, monthlyPayment: ioMonthlyPayment };
+      }
     } else {
-      const monthlyRate = annualRate / 100 / 12;
       const pmt = monthlyRate > 0
         ? monthlyPayment(balance, monthlyRate, LOAN_MONTHS)
         : balance / LOAN_MONTHS;
@@ -198,9 +218,28 @@ export function debtFreeDate(data) {
       const ipBal         = p(ip.mortgageBalance);
       const ipMonthlyRate = p(ip.mortgageRate) / 100 / 12;
       if (ip.loanType === "io") {
+        const ipIoExpiry = p(ip.ioExpiryYear);
+        const ipStartYr  = p(ip.purchaseYear) || currentYear;
+        const ipEndYear  = ipStartYr + 30;
+        const ipIoMonthly = ipMonthlyRate > 0 ? Math.round(ipBal * ipMonthlyRate) : 0;
+        const ipIoActive  = ipIoExpiry > 0 && ipIoExpiry < ipEndYear;
+        if (ipIoActive) {
+          const piYrs  = Math.max(1, ipEndYear - ipIoExpiry);
+          const piMths = piYrs * 12;
+          const piPmt  = ipMonthlyRate > 0
+            ? monthlyPayment(ipBal, ipMonthlyRate, piMths)
+            : ipBal / piMths;
+          return {
+            id: ip.id, label: ip.label || "IP", type: "io",
+            ioExpiryYear: ipIoExpiry, loanEndYear: ipEndYear,
+            debtFreeYear: ipEndYear,
+            monthlyPayment: ipIoMonthly,
+            piMonthlyPayment: Math.round(piPmt),
+          };
+        }
         return {
           id: ip.id, label: ip.label || "IP", type: "io",
-          debtFreeYear: null, monthlyPayment: Math.round(ipBal * ipMonthlyRate),
+          debtFreeYear: null, monthlyPayment: ipIoMonthly,
         };
       }
       const pmt = ipMonthlyRate > 0

@@ -57,7 +57,7 @@ const EMPTY_DATA = {
   // Stage 4
   ppOrValue: "", ppOrOwnershipPct: "100",
   mortgageBalance: "", mortgageRate: "", loanType: "pi",
-  mortgageStartYear: "", mortgageTenure: "30",
+  mortgageStartYear: "", mortgageTenure: "30", mortgageIoExpiryYear: "",
   hasInvestmentProperty: "no", ipValue: "", ipMortgage: "", ipRate: "",
   ipWeeklyRent: "",
   creditCardDebt: "", personalLoanDebt: "", hecsDebt: "",
@@ -165,7 +165,7 @@ function newProperty(label) {
     label: label || "Investment Property",
     status: "existing",
     purchaseYear: String(new Date().getFullYear() + 2),
-    value: "", mortgageBalance: "", mortgageRate: "", loanType: "pi",
+    value: "", mortgageBalance: "", mortgageRate: "", loanType: "pi", ioExpiryYear: "",
     weeklyRent: "", vacancyRate: "4", managementFee: "8",
     councilRates: "", insurance: "", bodyCorpAdmin: "", bodyCorpCapital: "",
     maintenance: "", depreciation: "",
@@ -317,6 +317,25 @@ function PropertyCard({ ip, onChange, onClone, onRemove, isCouple }) {
                 options={[{ value: "pi", label: "Principal & Interest" }, { value: "io", label: "Interest Only" }]} />
             </Field>
           </TwoCol>
+          {ip.loanType === "io" && (() => {
+            const expiryYear = parseInt(ip.ioExpiryYear);
+            const ipStartYear = parseInt(ip.purchaseYear) || new Date().getFullYear();
+            const ipTenure = 30;
+            const endYear = ipStartYear + ipTenure;
+            const showInfo = !isNaN(expiryYear) && expiryYear > 0 && !isNaN(endYear) && endYear > expiryYear;
+            return (
+              <>
+                <Field label="Interest only period ends" hint="Year the loan reverts to Principal & Interest">
+                  <Input value={ip.ioExpiryYear} onChange={v => upd("ioExpiryYear", v)} placeholder={String(new Date().getFullYear() + 3)} type="number" />
+                </Field>
+                {showInfo && (
+                  <div style={{ fontSize: 12, color: "#5a6e5e", background: "#EAF0EC", border: "1px solid #C8D8CC", borderRadius: 8, padding: "8px 12px", marginBottom: 16 }}>
+                    Interest only until <strong>{expiryYear}</strong> — reverts to P&I repayments from {expiryYear} until loan end in <strong>{endYear}</strong>.
+                  </div>
+                )}
+              </>
+            );
+          })()}
           <SectionDivider label="Rental income" />
           <TwoCol>
             <Field label="Weekly rent"><Input value={ip.weeklyRent} onChange={v => upd("weeklyRent", v)} placeholder="550" prefix="$" /></Field>
@@ -421,6 +440,23 @@ function Stage4({ data, set }) {
           <Field label="Mortgage start year" hint="Year the loan was taken out — used to calculate remaining term">
             <Input value={data.mortgageStartYear} onChange={v => set("mortgageStartYear", v)} placeholder={String(new Date().getFullYear())} type="number" />
           </Field>
+          {data.loanType === "io" && (() => {
+            const expiryYear = parseInt(data.mortgageIoExpiryYear);
+            const endYear = parseInt(data.mortgageStartYear) + parseInt(data.mortgageTenure || "30");
+            const showInfo = !isNaN(expiryYear) && expiryYear > 0 && !isNaN(endYear) && endYear > expiryYear;
+            return (
+              <>
+                <Field label="Interest only period ends" hint="Year the loan reverts to Principal & Interest">
+                  <Input value={data.mortgageIoExpiryYear} onChange={v => set("mortgageIoExpiryYear", v)} placeholder={String(new Date().getFullYear() + 3)} type="number" />
+                </Field>
+                {showInfo && (
+                  <div style={{ fontSize: 12, color: "#5a6e5e", background: "#EAF0EC", border: "1px solid #C8D8CC", borderRadius: 8, padding: "8px 12px", marginBottom: 16 }}>
+                    Interest only until <strong>{expiryYear}</strong> — reverts to P&I repayments from {expiryYear} until loan end in <strong>{endYear}</strong>.
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </>
       )}
       <SectionDivider label="Investment properties" />
@@ -1295,7 +1331,9 @@ function AnalysisSummary({ data, engine }) {
     const parts = [];
     if (hasMortgage && mort) {
       parts.push(mort.type === "io"
-        ? `The PPOR mortgage of ${currency(n(data.mortgageBalance))} is interest-only — the principal doesn't reduce and will need to be managed before or at maturity.`
+        ? mort.ioExpiryYear
+          ? `The PPOR mortgage of ${currency(n(data.mortgageBalance))} is interest-only until ${mort.ioExpiryYear}, then reverts to P&I at ${currency(mort.piMonthlyPayment)}/month until ${mort.loanEndYear}.`
+          : `The PPOR mortgage of ${currency(n(data.mortgageBalance))} is interest-only — the principal doesn't reduce and will need to be managed before or at maturity.`
         : mort.debtFreeYear
           ? `The PPOR mortgage of ${currency(n(data.mortgageBalance))} is on track to be cleared by ${mort.debtFreeYear} (${mort.yearsToPayoff} years remaining at ${currency(mort.monthlyPayment)}/month), freeing up meaningful cashflow once gone.`
           : `Mortgage of ${currency(n(data.mortgageBalance))} is recorded.`);
@@ -1324,7 +1362,9 @@ function AnalysisSummary({ data, engine }) {
   if (hasMortgage && mort?.type === "pi")
     adviserPoints.push("Offset account vs extra repayments vs investing the surplus — the right call depends on your mortgage rate vs expected after-tax returns");
   if (hasMortgage && mort?.type === "io")
-    adviserPoints.push("Interest-only exit strategy — how to manage the transition when the IO period ends");
+    adviserPoints.push(mort.ioExpiryYear
+      ? `Interest-only expiry in ${mort.ioExpiryYear} — plan for the payment step-up to ${currency(mort.piMonthlyPayment)}/month and whether to refinance or pay down principal before then`
+      : "Interest-only exit strategy — how to manage the transition when the IO period ends");
   if (hasCreditCard || hasPersonalLoan)
     adviserPoints.push("High-interest debt elimination — repaying credit cards and personal loans typically beats investing the same money");
   if (hasHecs)
