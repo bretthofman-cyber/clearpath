@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
-import { DEFAULT_SCENARIOS, getActiveAssumptions, runEngine, propertyAnnualCashflow, runMonteCarlo } from "./engine.js";
+import { DEFAULT_SCENARIOS, runEngine } from "./engine.js";
+import { LIFE_EVENT_TYPES, newLifeEvent } from "./lifeEvents.js";
+import { generateWarnings } from "./warnings.js";
 import { currency, Field, Input, Select, Toggle, TwoCol, SectionDivider } from "./ui.jsx";
 import Stage2, { BUDGET_CATS, budgetTotal, itemMonthly, estimateNetMonthly, CashflowCalendar, buildCashflowCalendar } from "./BudgetStage.jsx";
 import AssetStage3, { deriveAssetTotals } from "./AssetStage.jsx";
@@ -45,6 +47,7 @@ const EMPTY_DATA = {
   partnerName: "",
   dependants: "0", location: "", employmentStatus: "full-time",
   retirementAge: "65", lifeExpectancy: "90", homeOwnership: "owner",
+  privateHealthInsurance: "yes", partnerPrivateHealthInsurance: "yes",
   // Stage 2
   grossIncome: "", partnerIncome: "", bonusIncome: "", otherIncome: "",
   partnerBonusIncome: "", partnerOtherIncome: "",
@@ -58,16 +61,19 @@ const EMPTY_DATA = {
   ppOrValue: "", ppOrOwnershipPct: "100",
   mortgageBalance: "", mortgageRate: "", loanType: "pi",
   mortgageStartYear: "", mortgageTenure: "30", mortgageIoExpiryYear: "",
+  ppOrOffsetBalance: "",
   hasInvestmentProperty: "no", ipValue: "", ipMortgage: "", ipRate: "",
   ipWeeklyRent: "",
   creditCardDebt: "", personalLoanDebt: "", hecsDebt: "",
   partnerCreditCardDebt: "", partnerPersonalLoanDebt: "", partnerHecsDebt: "",
   // Stage 5
   superBalance: "", partnerSuperBalance: "", employerSgRate: "12",
-  salarySacrifice: "", targetRetirementSpending: "",
+  partnerEmployerSgRate: "12", salarySacrifice: "", partnerSalarySacrifice: "0",
+  targetRetirementSpending: "",
   // Stage 6
   retirementLifestyle: "comfortable",
   goals: [],
+  lifeEvents: [],
   investmentProperties: [],
   riskTolerance: "balanced",
   activeScenario: "base",
@@ -234,6 +240,17 @@ function Stage1({ data, set }) {
       <Field label="Life expectancy assumption">
         <Input value={data.lifeExpectancy} onChange={v => set("lifeExpectancy", v)} placeholder="90" type="number" />
       </Field>
+      <SectionDivider label="Private health insurance" />
+      <Field label={data.hasPartner === "yes" ? "Your hospital cover" : "Hospital-level private health cover"} hint="Affects Medicare Levy Surcharge — 1–1.5% extra if no cover">
+        <Toggle value={data.privateHealthInsurance} onChange={v => set("privateHealthInsurance", v)}
+          options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No cover" }]} />
+      </Field>
+      {data.hasPartner === "yes" && (
+        <Field label={`${data.partnerName || "Partner"}'s hospital cover`}>
+          <Toggle value={data.partnerPrivateHealthInsurance} onChange={v => set("partnerPrivateHealthInsurance", v)}
+            options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No cover" }]} />
+        </Field>
+      )}
     </div>
   );
 }
@@ -440,6 +457,9 @@ function Stage4({ data, set }) {
           <Field label="Mortgage start year" hint="Year the loan was taken out — used to calculate remaining term">
             <Input value={data.mortgageStartYear} onChange={v => set("mortgageStartYear", v)} placeholder={String(new Date().getFullYear())} type="number" />
           </Field>
+          <Field label="Offset account balance" hint="Reduces effective mortgage interest — enter your current offset balance">
+            <Input value={data.ppOrOffsetBalance} onChange={v => set("ppOrOffsetBalance", v)} placeholder="0" prefix="$" />
+          </Field>
           {data.loanType === "io" && (() => {
             const expiryYear = parseInt(data.mortgageIoExpiryYear);
             const endYear = parseInt(data.mortgageStartYear) + parseInt(data.mortgageTenure || "30");
@@ -524,13 +544,23 @@ function Stage5({ data, set }) {
         )}
       </TwoCol>
       <TwoCol>
-        <Field label="Employer SG rate" hint="Currently 12% for most employees">
+        <Field label="Your employer SG rate" hint="Currently 12% for most employees">
           <Input value={data.employerSgRate} onChange={v => set("employerSgRate", v)} placeholder="12" suffix="%" />
         </Field>
-        <Field label="Salary sacrifice (annual)" hint="Extra contributions above SG">
+        <Field label="Your salary sacrifice (annual)" hint="Extra contributions above SG">
           <Input value={data.salarySacrifice} onChange={v => set("salarySacrifice", v)} placeholder="0" prefix="$" />
         </Field>
       </TwoCol>
+      {data.hasPartner === "yes" && (
+        <TwoCol>
+          <Field label={`${data.partnerName || "Partner"}'s SG rate`} hint="Currently 12% for most employees">
+            <Input value={data.partnerEmployerSgRate} onChange={v => set("partnerEmployerSgRate", v)} placeholder="12" suffix="%" />
+          </Field>
+          <Field label={`${data.partnerName || "Partner"}'s salary sacrifice`} hint="Annual extra contributions">
+            <Input value={data.partnerSalarySacrifice} onChange={v => set("partnerSalarySacrifice", v)} placeholder="0" prefix="$" />
+          </Field>
+        </TwoCol>
+      )}
       {(() => {
         const gross = parseFloat(String(data.grossIncome || "").replace(/,/g, "")) || 0;
         if (!gross) return null;
@@ -572,6 +602,8 @@ function Stage5({ data, set }) {
       <Field label="Target annual retirement spending" hint="In today's dollars — what lifestyle do you want in retirement?">
         <Input value={data.targetRetirementSpending} onChange={v => set("targetRetirementSpending", v)} placeholder="65,000" prefix="$" />
       </Field>
+
+      <LifeEventsPanel data={data} set={set} />
 
       <Field label="What else are you planning for?" hint="Select any goals and add an estimated cost — we'll factor them into your projections">
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -823,6 +855,333 @@ const GOAL_OPTIONS = [
   { value: "charity", label: "❤️  Give to charity or causes" },
 ];
 
+// ─── WARNINGS PANEL ───────────────────────────────────────────────────────────
+
+const SEVERITY_COLORS = {
+  critical: { bg: "#fdf0ed", border: "#e8a090", text: "#7a2510", badge: "#c0392b", badgeFg: "white" },
+  high:     { bg: "#fef8ed", border: "#e8c47a", text: "#7a5010", badge: "#C2A06B", badgeFg: "#2A2113" },
+  medium:   { bg: "#f0f4fa", border: "#b8cde0", text: "#2a4060", badge: "#3a5a8a", badgeFg: "white"  },
+  info:     { bg: "#EAF0EC", border: "#C8D8CC", text: "#2E4A3D", badge: "#2E4A3D", badgeFg: "white"  },
+};
+
+function WarningsPanel({ data, engine }) {
+  const [expanded, setExpanded] = useState(null);
+  const warnings = generateWarnings(data, engine);
+  if (warnings.length === 0) return null;
+
+  const criticalCount = warnings.filter(w => w.severity === "critical").length;
+  const highCount     = warnings.filter(w => w.severity === "high").length;
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 10 }}>
+        Scenario Flags
+        {criticalCount > 0 && (
+          <span style={{ marginLeft: 8, background: "#c0392b", color: "white", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>
+            {criticalCount} critical
+          </span>
+        )}
+        {highCount > 0 && (
+          <span style={{ marginLeft: 6, background: "#C2A06B", color: "#2A2113", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>
+            {highCount} high
+          </span>
+        )}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {warnings.map(w => {
+          const c = SEVERITY_COLORS[w.severity] || SEVERITY_COLORS.info;
+          const isOpen = expanded === w.id;
+          return (
+            <div key={w.id} style={{ background: c.bg, border: `1.5px solid ${c.border}`, borderRadius: 10, overflow: "hidden" }}>
+              <button
+                onClick={() => setExpanded(isOpen ? null : w.id)}
+                style={{ width: "100%", padding: "10px 14px", border: "none", background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", display: "flex", alignItems: "center", gap: 10 }}
+              >
+                <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 8px", borderRadius: 10, background: c.badge, color: c.badgeFg, flexShrink: 0 }}>
+                  {w.severity}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: c.text, flex: 1 }}>{w.title}</span>
+                <span style={{ fontSize: 11, color: c.text, opacity: 0.6 }}>{isOpen ? "▲" : "▼"}</span>
+              </button>
+              {isOpen && (
+                <div style={{ padding: "0 14px 14px", borderTop: `1px solid ${c.border}` }}>
+                  <p style={{ fontSize: 13, color: c.text, lineHeight: 1.6, margin: "10px 0 0" }}>{w.message}</p>
+                  {w.hint && (
+                    <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(255,255,255,0.6)", borderRadius: 8, fontSize: 12, color: c.text, lineHeight: 1.5, opacity: 0.85 }}>
+                      {w.hint}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── LIFE EVENTS PANEL ────────────────────────────────────────────────────────
+
+function LifeEventsPanel({ data, set }) {
+  const [showPicker, setShowPicker] = useState(false);
+  const events = data.lifeEvents || [];
+  const partner = data.partnerName || "Partner";
+  const isCouple = data.hasPartner === "yes";
+
+  function addEvent(type) {
+    const evt = newLifeEvent(type);
+    set("lifeEvents", [...events, evt]);
+    setShowPicker(false);
+  }
+
+  function updateEvent(id, field, val) {
+    set("lifeEvents", events.map(e => e.id === id ? { ...e, [field]: val } : e));
+  }
+
+  function removeEvent(id) {
+    set("lifeEvents", events.filter(e => e.id !== id));
+  }
+
+  const personOptions = [
+    { value: "primary", label: data.firstName || "You" },
+    ...(isCouple ? [{ value: "partner", label: partner }, { value: "both", label: "Both" }] : []),
+  ];
+
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <SectionDivider label="Life events & milestones" />
+      <div style={{ fontSize: 12, color: "#8A8270", marginBottom: 14 }}>
+        Add events that will affect your cashflow, income, or assets at a specific point in time. They are layered on top of your base scenario.
+      </div>
+
+      {events.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+          {events.map(evt => {
+            const meta = LIFE_EVENT_TYPES[evt.type] || {};
+            const needsAmount   = ["windfall","major_expense","school_fees","redundancy","extra_repayment","downsize"].includes(evt.type);
+            const needsDuration = ["career_break","part_time","school_fees"].includes(evt.type);
+            const needsReduction = ["career_break","part_time"].includes(evt.type);
+            const needsPause    = evt.type === "redundancy";
+            const needsPerson   = !!meta.personed && isCouple;
+            const needsLabel    = evt.type === "major_expense";
+
+            return (
+              <div key={evt.id} style={{ border: "1.5px solid #D8D2C4", borderRadius: 10, overflow: "hidden", background: "#FBFAF6" }}>
+                <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>{meta.icon || "📅"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E" }}>{meta.label || evt.type}</div>
+                    {evt.customLabel && <div style={{ fontSize: 11, color: "#8A8270" }}>{evt.customLabel}</div>}
+                  </div>
+                  <button onClick={() => removeEvent(evt.id)} style={{ fontSize: 11, color: "#9a3922", background: "none", border: "1px solid #f0d0c4", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>Remove</button>
+                </div>
+
+                <div style={{ padding: "0 14px 14px", borderTop: "1px solid #ECE7DB", display: "flex", flexWrap: "wrap", gap: 10, marginTop: 0 }}>
+                  <div style={{ paddingTop: 12, display: "contents" }}>
+                    <Field label="Year" hint="Calendar year">
+                      <Input value={evt.year} onChange={v => updateEvent(evt.id, "year", v)} placeholder="2028" type="number" />
+                    </Field>
+                    {needsLabel && (
+                      <Field label="Description">
+                        <Input value={evt.customLabel} onChange={v => updateEvent(evt.id, "customLabel", v)} placeholder="e.g. Home renovation" />
+                      </Field>
+                    )}
+                    {needsPerson && (
+                      <Field label="Applies to">
+                        <Select value={evt.person} onChange={v => updateEvent(evt.id, "person", v)} options={personOptions} />
+                      </Field>
+                    )}
+                    {needsAmount && (
+                      <Field label="Amount">
+                        <Input value={evt.amount} onChange={v => updateEvent(evt.id, "amount", v)} prefix="$" placeholder="50,000" />
+                      </Field>
+                    )}
+                    {needsDuration && (
+                      <Field label="Duration">
+                        <Input value={evt.durationYears} onChange={v => updateEvent(evt.id, "durationYears", v)} suffix="yrs" placeholder="2" type="number" />
+                      </Field>
+                    )}
+                    {needsReduction && (
+                      <Field label="Income reduction">
+                        <Input value={evt.incomeReductionPct} onChange={v => updateEvent(evt.id, "incomeReductionPct", v)} suffix="%" placeholder="100" type="number" />
+                      </Field>
+                    )}
+                    {needsPause && (
+                      <Field label="Income pause">
+                        <Input value={evt.pauseMonths} onChange={v => updateEvent(evt.id, "pauseMonths", v)} suffix="mo" placeholder="6" type="number" />
+                      </Field>
+                    )}
+                  </div>
+                </div>
+                {meta.hint && (
+                  <div style={{ padding: "0 14px 12px", fontSize: 11, color: "#8A8270", lineHeight: 1.5 }}>{meta.hint}</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showPicker ? (
+        <div style={{ border: "1.5px solid #D8D2C4", borderRadius: 10, overflow: "hidden", background: "white" }}>
+          <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #ECE7DB" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#21241E" }}>Choose event type</div>
+            <button onClick={() => setShowPicker(false)} style={{ fontSize: 12, color: "#8A8270", background: "none", border: "none", cursor: "pointer" }}>✕</button>
+          </div>
+          <div style={{ padding: "8px" }}>
+            {Object.entries(LIFE_EVENT_TYPES).map(([key, meta]) => (
+              <button
+                key={key}
+                onClick={() => addEvent(key)}
+                style={{ width: "100%", padding: "9px 12px", border: "none", background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", borderRadius: 6, display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 2 }}
+                onMouseEnter={e => e.currentTarget.style.background = "#EAF0EC"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{meta.icon}</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E" }}>{meta.label}</div>
+                  <div style={{ fontSize: 11, color: "#8A8270" }}>{meta.description}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowPicker(true)}
+          style={{ width: "100%", padding: "10px", border: "1.5px dashed #D8D2C4", borderRadius: 10, background: "#FBFAF6", fontSize: 13, color: "#2E4A3D", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+        >
+          + Add life event
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── FIRE PANEL ───────────────────────────────────────────────────────────────
+
+function FIREPanel({ engine, data }) {
+  const fire    = engine?.fire;
+  const metrics = engine?.metrics;
+  const hasTarget = parseFloat(String(data.targetRetirementSpending || "").replace(/,/g, "")) > 0;
+
+  if (!fire || !hasTarget) return null;
+
+  const retirementAge = parseInt(data.retirementAge) || 65;
+  const currentAge    = parseInt(data.age) || 0;
+
+  const cards = [
+    {
+      label: "FIRE Number",
+      value: fire.fireNumber > 0 ? currency(fire.fireNumber) : "—",
+      sub: `${engine.assumptions?.safeWithdrawal ?? 4}% safe withdrawal rate`,
+      ok: null,
+    },
+    {
+      label: "Coast FIRE Number",
+      value: fire.coastFireNumber > 0 ? currency(fire.coastFireNumber) : "—",
+      sub: fire.isCoastFIRE ? "Already at Coast FIRE" : `Balance needed today to stop contributing`,
+      ok: fire.isCoastFIRE ? true : null,
+    },
+    {
+      label: "Years to FI",
+      value: fire.yearsToFI !== null ? (fire.yearsToFI === 0 ? "Now" : `${fire.yearsToFI} yrs`) : "—",
+      sub: fire.projectedFIAge ? `Age ${fire.projectedFIAge}` : "Increase savings rate to calculate",
+      ok: fire.projectedFIAge && fire.projectedFIAge < retirementAge ? true : null,
+    },
+    ...(fire.bridgeYears > 0 ? [{
+      label: "Bridge Fund Needed",
+      value: currency(fire.bridgeFundNeeded),
+      sub: `${fire.bridgeYears} yrs before super access (age 60)`,
+      ok: false,
+    }] : []),
+  ];
+
+  const subColor = ok => ok === true ? "#2E4A3D" : ok === false ? "#9a3922" : "#8A8270";
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 10 }}>
+        FIRE Analysis
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+        {cards.map((card, i) => (
+          <div key={i} style={{ background: "#FBFAF6", border: "1.5px solid #ECE7DB", borderRadius: 12, padding: "14px 16px" }}>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 4 }}>{card.label}</div>
+            <div style={{ fontSize: 19, fontWeight: 500, color: "#21241E", fontFamily: "Spectral, serif", marginBottom: 4 }}>{card.value}</div>
+            <div style={{ fontSize: 11, color: subColor(card.ok), fontWeight: 500 }}>{card.sub}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 8, fontSize: 11, color: "#9DB0A1", lineHeight: 1.5, padding: "6px 12px", background: "#F5F2EB", borderRadius: 8 }}>
+        FIRE figures are scenario estimates based on the assumptions above. They do not constitute advice and are not guaranteed. Tax on investment income, sequence-of-returns risk, and inflation variability are material factors not fully captured in these simplified numbers.
+      </div>
+    </div>
+  );
+}
+
+// ─── PROJECTION TABLE ─────────────────────────────────────────────────────────
+
+function ProjectionTable({ engine, data }) {
+  const [open, setOpen] = useState(false);
+  const traj = engine?.trajectory;
+  if (!traj || traj.length < 2) return null;
+
+  const rows = traj.filter((_, i) => i % 1 === 0); // every year
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ width: "100%", padding: "10px 14px", background: "#F5F2EB", border: "1px solid #ECE7DB", borderRadius: 10, fontFamily: "inherit", fontSize: 12, color: "#6B6655", cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+      >
+        <span style={{ fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", fontSize: 10, color: "#8A8270" }}>Year-by-Year Projection</span>
+        <span>{open ? "Collapse ▲" : "Expand ▼"}</span>
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 8, background: "white", border: "1.5px solid #ECE7DB", borderRadius: 10, overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: "#F5F2EB", borderBottom: "1.5px solid #D8D2C4" }}>
+                  {["Age","Year","Super","Liquid","Property","Total Debt","Net Worth","Events"].map(h => (
+                    <th key={h} style={{ padding: "8px 10px", textAlign: h === "Age" || h === "Year" ? "center" : "right", fontWeight: 600, color: "#6B6655", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => (
+                  <tr key={row.age} style={{ background: row.isRetired ? "#EAF0EC" : i % 2 === 0 ? "white" : "#FBFAF6", borderBottom: "1px solid #F0ECE4" }}>
+                    <td style={{ padding: "7px 10px", textAlign: "center", color: "#21241E", fontFamily: "Spectral, serif", fontWeight: 500 }}>{row.age}</td>
+                    <td style={{ padding: "7px 10px", textAlign: "center", color: "#8A8270" }}>{row.year}</td>
+                    <td style={{ padding: "7px 10px", textAlign: "right", color: "#21241E" }}>{row.superBalance != null ? currency(row.superBalance) : "—"}</td>
+                    <td style={{ padding: "7px 10px", textAlign: "right", color: "#21241E" }}>{row.liquidAssets != null ? currency(row.liquidAssets) : "—"}</td>
+                    <td style={{ padding: "7px 10px", textAlign: "right", color: "#21241E" }}>{row.propertyValue != null ? currency(row.propertyValue) : "—"}</td>
+                    <td style={{ padding: "7px 10px", textAlign: "right", color: "#9a3922" }}>{row.totalDebt != null ? currency(row.totalDebt) : "—"}</td>
+                    <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 600, color: row.netWorth >= 0 ? "#2E4A3D" : "#9a3922" }}>{currency(row.netWorth)}</td>
+                    <td style={{ padding: "7px 10px", textAlign: "left", color: "#8A8270", fontSize: 10 }}>
+                      {row.isRetired && <span style={{ background: "#EAF0EC", color: "#2E4A3D", padding: "1px 5px", borderRadius: 4, marginRight: 4 }}>Retired</span>}
+                      {(row.eventTypes || []).map(t => {
+                        const meta = LIFE_EVENT_TYPES[t] || {};
+                        return <span key={t} title={meta.label || t} style={{ marginRight: 4 }}>{meta.icon || "📅"}</span>;
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ padding: "8px 14px", fontSize: 10, color: "#9DB0A1", borderTop: "1px solid #F0ECE4" }}>
+            Nominal dollars. Property value includes PPOR and investment properties. Debt includes all modelled liabilities. Retirement highlighted in green. Life event icons shown in the Events column — hover for label. General information only.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── ANALYSIS SCREEN ─────────────────────────────────────────────────────────
 
 
@@ -869,6 +1228,21 @@ function MetricsRow({ engine, data }) {
   // Card 4 — Net worth at retirement
   const nwOk = metrics.retirementNetWorth > 0;
 
+  // Card 5 — FIRE number
+  const fireValue  = metrics.fireNumber > 0 ? currency(metrics.fireNumber) : "—";
+  const fireSub2   = metrics.fireNumber > 0 ? `at ${engine.assumptions?.safeWithdrawal ?? 4}% withdrawal rate` : null;
+  const fireSub    = metrics.fireNumber > 0
+    ? (metrics.projectedSuper >= metrics.fireNumber
+        ? `On track — super exceeds target`
+        : `${currency(metrics.fireNumber - metrics.projectedSuper)} gap`)
+    : "Enter spending target";
+
+  // Card 6 — Annual household tax
+  const hasTax     = metrics.annualHouseholdTax > 0;
+  const taxValue   = hasTax ? currency(metrics.annualHouseholdTax) : "—";
+  const taxSub     = hasTax ? `${currency(metrics.annualAfterTax)}/yr after tax` : null;
+  const taxSub2    = hasTax ? "total household tax" : null;
+
   const cards = [
     {
       label: "Projected Super",
@@ -897,6 +1271,20 @@ function MetricsRow({ engine, data }) {
       value: currency(metrics.retirementNetWorth),
       sub: null,
       ok: nwOk,
+    },
+    {
+      label: "FIRE Number",
+      sub2: fireSub2,
+      value: fireValue,
+      sub: hasSpendingTarget ? fireSub : "Enter spending target",
+      ok: hasSpendingTarget ? (metrics.projectedSuper >= metrics.fireNumber ? true : false) : null,
+    },
+    {
+      label: "Annual Tax",
+      sub2: taxSub2,
+      value: taxValue,
+      sub: taxSub,
+      ok: null,
     },
   ];
 
@@ -1293,6 +1681,32 @@ function AnalysisSummary({ data, engine }) {
     sections.push({ title: "Income & cashflow", color: "#2a5480", text: parts.join(" ") });
   }
 
+  // ── 2b. Tax breakdown ──
+  const ht = engine?.householdTax;
+  if (ht && ht.totalHouseholdTax > 0) {
+    const parts = [];
+    const p1 = ht.person1;
+    const p2 = ht.person2;
+    let taxLine = couple && p2
+      ? `${firstName || "You"} pays ${currency(p1.totalTax)}/yr tax (${Math.round(p1.effectiveRate * 100)}% effective) on ${currency(p1.taxableIncome)} taxable income; ${partnerFirstName} pays ${currency(p2.totalTax)}/yr (${Math.round(p2.effectiveRate * 100)}%) on ${currency(p2.taxableIncome)}.`
+      : `Estimated income tax is ${currency(p1.totalTax)}/year — ${Math.round(p1.effectiveRate * 100)}% effective rate on ${currency(p1.taxableIncome)} taxable income.`;
+    parts.push(taxLine);
+    if (p1.mls > 0 || (p2?.mls ?? 0) > 0) {
+      const mlsAmount = p1.mls + (p2?.mls ?? 0);
+      parts.push(`Medicare Levy Surcharge of ${currency(mlsAmount)}/yr applies due to no hospital-level private health cover — taking out hospital cover could eliminate this charge.`);
+    }
+    if (p1.hecsRepayment > 0 || (p2?.hecsRepayment ?? 0) > 0) {
+      parts.push(`HECS-HELP compulsory repayments total ${currency(p1.hecsRepayment + (p2?.hecsRepayment ?? 0))}/yr, deducted automatically via the tax system.`);
+    }
+    if (p1.division293 > 0 || (p2?.division293 ?? 0) > 0) {
+      parts.push(`Division 293 tax of ${currency(p1.division293 + (p2?.division293 ?? 0))}/yr applies — income plus super contributions exceed $250k.`);
+    }
+    if (ht.negativeGearingBenefit > 0) {
+      parts.push(`Negative gearing on investment property reduces household tax by ${currency(ht.negativeGearingBenefit)}/yr.`);
+    }
+    sections.push({ title: "Income tax breakdown", color: "#4a4870", text: parts.join(" ") });
+  }
+
   // ── 3. Super & retirement ──
   if (hasSuperData) {
     const parts = [];
@@ -1309,7 +1723,7 @@ function AnalysisSummary({ data, engine }) {
       if (m?.lastsToLifeExpectancy) {
         parts.push(`Projected super of ${currency(m.projectedSuper)} is sufficient to fund spending all the way to age ${lifeExp} — the full life expectancy modelled.`);
       } else if (m?.depletionAge) {
-        parts.push(`Projected super of ${currency(m.projectedSuper)} would run out at age ${m.depletionAge}, ${m.depletionAge - retireAge} years into retirement. Closing the ${currency(Math.abs(m?.superSurplus || 0))} gap is worth modelling with an adviser.`);
+        parts.push(`This scenario projects super of ${currency(m.projectedSuper)} exhausted at age ${m.depletionAge} — ${m.depletionAge - retireAge} years into retirement. The modelled gap is ${currency(Math.abs(m?.superSurplus || 0))}. Adjusting the scenario assumptions, contributions, or spending target will change this outcome.`);
       }
       if (mc) {
         const confidence = mc.successRate >= 85 ? "a strong result" : mc.successRate >= 70 ? "a zone worth monitoring" : "an area that needs attention";
@@ -1322,6 +1736,18 @@ function AnalysisSummary({ data, engine }) {
     }
     if (concCapHeadroom > 5000) {
       parts.push(`${currency(Math.round(concCapHeadroom))} of concessional contribution capacity remains unused this year — salary sacrifice within this limit reduces taxable income and compounds inside super's lower tax environment.`);
+    }
+    // Age Pension
+    const ap = engine?.agePension;
+    if (ap) {
+      if (ap.eligible && ap.estimatedAnnual > 0) {
+        parts.push(`Based on projected assets at retirement, there may be partial Age Pension eligibility of approximately ${currency(ap.estimatedAnnual)}/yr — primarily limited by the ${ap.limitingTest === "assets" ? "assets test" : "income test"}. This is illustrative only; actual entitlement requires Services Australia assessment.`);
+      } else if (retireAge < 67) {
+        parts.push(`Age Pension becomes available from age 67 — a ${67 - retireAge}-year gap from planned retirement at ${retireAge} needs to be bridged by super and other savings.`);
+      }
+    }
+    if (m?.capExceeded) {
+      parts.push(`Projected super of ${currency(m.projectedSuper)} exceeds the Transfer Balance Cap ($1.9M) — the excess stays in accumulation phase (earnings taxed at 15%). Pension-phase structuring above the Transfer Balance Cap is a specialist area — an AFSL-licensed adviser can model strategies specific to your circumstances.`);
     }
     sections.push({ title: "Superannuation & retirement", color: "#5a7840", text: parts.join(" ") });
   }
@@ -1359,6 +1785,10 @@ function AnalysisSummary({ data, engine }) {
     adviserPoints.push(`Salary sacrifice and concessional contributions — ${currency(Math.round(concCapHeadroom))} of unused cap this year`);
   if (hasSuperData && m && !m.onTrack && hasTarget)
     adviserPoints.push(`Strategies to close the ${currency(Math.abs(m.superSurplus))} retirement gap — contributions timing, retirement age, or spending adjustments`);
+  if (engine?.householdTax?.person1?.mls > 0 || engine?.householdTax?.person2?.mls > 0)
+    adviserPoints.push("Medicare Levy Surcharge — taking out hospital-level private health cover would eliminate this charge and may be cost-effective");
+  if (engine?.householdTax?.person1?.division293 > 0 || engine?.householdTax?.person2?.division293 > 0)
+    adviserPoints.push("Division 293 tax — salary packaging strategies and super fund payment options for this high-income super tax");
   if (hasMortgage && mort?.type === "pi")
     adviserPoints.push("Offset account vs extra repayments vs investing the surplus — the right call depends on your mortgage rate vs expected after-tax returns");
   if (hasMortgage && mort?.type === "io")
@@ -1371,6 +1801,10 @@ function AnalysisSummary({ data, engine }) {
     adviserPoints.push("HECS-HELP voluntary repayment — there's no interest charged, so it's rarely the priority, but it does affect borrowing capacity");
   if (existingIPs.length > 0)
     adviserPoints.push("Investment property tax position — depreciation schedule, negative gearing benefits, and CGT implications on eventual sale");
+  if (engine?.agePension?.estimatedAnnual > 0)
+    adviserPoints.push(`Age Pension strategies — assets test and income test thresholds, and how to structure drawdown to maximise the estimated ${currency(engine.agePension.estimatedAnnual)}/yr entitlement`);
+  if (m?.capExceeded)
+    adviserPoints.push("Transfer Balance Cap management — pension-phase drawdown structuring and super fund strategy above the $1.9M cap");
   if (n(data.superBalance) > 0)
     adviserPoints.push("Insurance review — life and income protection coverage inside and outside of super");
   adviserPoints.push("Estate planning — will, super beneficiary nominations, and enduring power of attorney");
@@ -1546,9 +1980,12 @@ function AnalysisScreen({ data, set }) {
         ))}
       </div>
 
+      <WarningsPanel data={data} engine={engine} />
       <MetricsRow engine={engine} data={data} />
       <MonteCarloCard data={data} engine={engine} />
+      <FIREPanel engine={engine} data={data} />
       <NetWorthChart engine={engine} data={data} />
+      <ProjectionTable engine={engine} data={data} />
       <ScenarioComparisonRow data={data} />
       {(data.budgetItems || []).length > 0 && (() => {
         const netMo = estimateNetMonthly(data);

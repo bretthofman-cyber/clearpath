@@ -1,5 +1,26 @@
-// Clearpath calculation engine — mirrors Excel workbook logic
-// All monetary inputs are strings; parse with p() before arithmetic.
+/**
+ * Clearpath Calculation Engine
+ *
+ * All monetary inputs are strings; parse with p() before arithmetic.
+ * Australian-specific thresholds live in ausConfig.js — update there annually.
+ *
+ * Simplifications to be aware of:
+ *   • Tax projections use current-year rates; brackets are not inflation-adjusted forward.
+ *   • Super returns are pre-tax (accumulation phase 15% earnings tax is not explicitly modelled
+ *     — it is implicitly lower than after-tax returns and the user can adjust the return rate).
+ *   • Age Pension estimates use current rules and ignore future policy changes.
+ *   • HECS debt does not index in projections (indexation paused/capped; conservative approach).
+ *   • Carry-forward concessional contributions are not modelled.
+ *   • CGT events on property sale are not modelled.
+ */
+
+import {
+  INCOME_TAX_BRACKETS, LITO, MEDICARE, MLS_BRACKETS,
+  HELP_THRESHOLDS, DIV_293, SUPER, ABP_DRAWDOWN, AGE_PENSION,
+} from "./ausConfig.js";
+import { indexEventsByYear, getYearEventAdjustments } from "./lifeEvents.js";
+
+// ── PLANNING SCENARIOS ────────────────────────────────────────────────────────
 
 export const DEFAULT_SCENARIOS = {
   base:         { returnRate: 6.5, inflation: 2.5, propertyGrowth: 4.5, rentalGrowth: 3.0, safeWithdrawal: 4.0 },
@@ -15,7 +36,7 @@ export function getActiveAssumptions(data) {
   return DEFAULT_SCENARIOS[scenario];
 }
 
-// ─── INTERNAL HELPERS ─────────────────────────────────────────────────────────
+// ── INTERNAL HELPERS ──────────────────────────────────────────────────────────
 
 function p(val) {
   return parseFloat(String(val ?? "").replace(/,/g, "")) || 0;
@@ -36,167 +57,395 @@ function monthlyPayment(balance, monthlyRate, remainingMonths) {
     (Math.pow(1 + monthlyRate, remainingMonths) - 1);
 }
 
-// ─── PROPERTY CASHFLOW ────────────────────────────────────────────────────────
+// ── INCOME TAX ────────────────────────────────────────────────────────────────
 
+/**
+ * Comprehensive Australian income tax for one person — FY2026-27.
+ *
+ * @param {number} taxableIncome  Assessable income after salary sacrifice (salary + rental income/loss, etc.)
+ * @param {object} opts
+ *   superConcessional {number}  Total concessional contributions this year (SG + SS) — used for Div 293 test
+ *   hasPrivateHealth  {boolean} Hospital-level private health insurance — exempts from MLS
+ *   hecsDebt          {number}  Outstanding HELP/HECS balance (>0 triggers compulsory repayment)
+ * @returns Detailed tax breakdown object
+ */
+export function calculatePersonTax(taxableIncome, {
+  superConcessional = 0,
+  hasPrivateHealth  = true,
+  hecsDebt          = 0,
+} = {}) {
+  const g = Math.max(0, taxableIncome);
+  const zero = { taxableIncome: 0, incomeTax: 0, medicareLevy: 0, mls: 0, hecsRepayment: 0, division293: 0, totalTax: 0, afterTax: 0, effectiveRate: 0 };
+  if (!g && !superConcessional) return zero;
+
+  // 1. Bracket income tax
+  let incomeTax = 0;
+  for (const b of INCOME_TAX_BRACKETS) {
+    if (g > b.from) {
+      incomeTax += (Math.min(g, b.to) - b.from) * b.rate;
+    }
+  }
+
+  // 2. Low Income Tax Offset
+  let lito = 0;
+  if (g <= LITO.phase1UpTo) {
+    lito = LITO.maxOffset;
+  } else if (g <= 45000) {
+    lito = Math.max(0, LITO.maxOffset - (g - LITO.phase1UpTo) * LITO.phase1Rate);
+  } else if (g <= LITO.phase2UpTo) {
+    lito = Math.max(0, 325 - (g - LITO.phase2From) * LITO.phase2Rate);
+  }
+  incomeTax = Math.max(0, incomeTax - lito);
+
+  // 3. Medicare Levy (simplified: 2% above shade-in threshold)
+  const medicareLevy = g > MEDICARE.shadeInThreshold ? g * MEDICARE.levyRate : 0;
+
+  // 4. Medicare Levy Surcharge (no private hospital cover)
+  let mls = 0;
+  if (!hasPrivateHealth) {
+    for (let i = MLS_BRACKETS.length - 1; i >= 0; i--) {
+      if (g > MLS_BRACKETS[i].above) { mls = g * MLS_BRACKETS[i].rate; break; }
+    }
+  }
+
+  // 5. HELP/HECS compulsory repayment (cash outflow, not income tax, but tracked here)
+  let hecsRepayment = 0;
+  if (hecsDebt > 0 && g > 0) {
+    for (let i = HELP_THRESHOLDS.length - 1; i >= 0; i--) {
+      if (g >= HELP_THRESHOLDS[i].from) {
+        hecsRepayment = Math.min(g * HELP_THRESHOLDS[i].rate, hecsDebt);
+        break;
+      }
+    }
+  }
+
+  // 6. Division 293 — additional 15% on concessional contributions for high earners
+  // Bill sent to individual (not deducted from fund); modelled as a cash outflow.
+  let division293 = 0;
+  if (superConcessional > 0) {
+    const d293Base = g + superConcessional;
+    if (d293Base > DIV_293.threshold) {
+      const excess  = d293Base - DIV_293.threshold;
+      const subject = Math.min(superConcessional, excess);
+      division293   = subject * DIV_293.rate;
+    }
+  }
+
+  const totalTax    = Math.round(incomeTax + medicareLevy + mls + hecsRepayment + division293);
+  const afterTax    = Math.round(Math.max(0, g - totalTax));
+  const effectiveRate = g > 0 ? totalTax / g : 0;
+
+  return {
+    taxableIncome:  Math.round(g),
+    incomeTax:      Math.round(incomeTax),
+    medicareLevy:   Math.round(medicareLevy),
+    mls:            Math.round(mls),
+    hecsRepayment:  Math.round(hecsRepayment),
+    division293:    Math.round(division293),
+    totalTax,
+    afterTax,
+    effectiveRate:  Math.round(effectiveRate * 10000) / 10000,
+  };
+}
+
+/**
+ * Household tax model — per-person tax with rental income/loss allocated by ownership %.
+ * Returns individual tax details and household aggregate.
+ */
+export function calculateHouseholdTax(data, ipCashflows) {
+  const isCouple = data.hasPartner === "yes";
+
+  // Allocate rental income/loss per person by IP ownership %
+  let rentalPerson1 = 0;
+  let rentalPerson2 = 0;
+  for (const cf of (ipCashflows || [])) {
+    const ip = (data.investmentProperties || []).find(x => x.id === cf.id);
+    const ownerPct = isCouple
+      ? Math.min(100, Math.max(0, p(ip?.ownershipPct ?? "50"))) / 100
+      : 1;
+    rentalPerson1 += cf.taxableIncome * ownerPct;
+    rentalPerson2 += isCouple ? cf.taxableIncome * (1 - ownerPct) : 0;
+  }
+
+  const ss1    = p(data.salarySacrifice);
+  const ss2    = isCouple ? p(data.partnerSalarySacrifice) : 0;
+  const gross1 = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome);
+  const gross2 = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0;
+
+  // Taxable income = gross salary - salary sacrifice + rental income/loss
+  const taxable1 = Math.max(-999999, gross1 - ss1 + rentalPerson1);
+  const taxable2 = isCouple ? Math.max(-999999, gross2 - ss2 + rentalPerson2) : 0;
+
+  // Concessional contributions (used for Div 293 test)
+  const sgRate1  = (p(data.employerSgRate) || SUPER.sgRate * 100) / 100;
+  const sgRate2  = isCouple ? (p(data.partnerEmployerSgRate) || SUPER.sgRate * 100) / 100 : 0;
+  const concess1 = gross1 * sgRate1 + ss1;
+  const concess2 = isCouple ? gross2 * sgRate2 + ss2 : 0;
+
+  const health1 = data.privateHealthInsurance !== "no";
+  const health2 = isCouple ? data.partnerPrivateHealthInsurance !== "no" : true;
+  const hecs1   = p(data.hecsDebt);
+  const hecs2   = isCouple ? p(data.partnerHecsDebt) : 0;
+
+  const p1Tax = calculatePersonTax(taxable1, { superConcessional: concess1, hasPrivateHealth: health1, hecsDebt: hecs1 });
+  const p2Tax = isCouple ? calculatePersonTax(taxable2, { superConcessional: concess2, hasPrivateHealth: health2, hecsDebt: hecs2 }) : null;
+
+  // Negative gearing tax benefit: how much less tax because of rental losses
+  const negGearBenefit1 = rentalPerson1 < 0
+    ? calculatePersonTax(taxable1 - rentalPerson1, { superConcessional: concess1, hasPrivateHealth: health1, hecsDebt: 0 }).incomeTax - p1Tax.incomeTax
+    : 0;
+  const negGearBenefit2 = (isCouple && rentalPerson2 < 0)
+    ? calculatePersonTax(taxable2 - rentalPerson2, { superConcessional: concess2, hasPrivateHealth: health2, hecsDebt: 0 }).incomeTax - p2Tax.incomeTax
+    : 0;
+
+  return {
+    person1: {
+      grossIncome:    Math.round(gross1),
+      taxableIncome:  Math.round(taxable1),
+      rentalShare:    Math.round(rentalPerson1),
+      ...p1Tax,
+    },
+    person2: p2Tax ? {
+      grossIncome:    Math.round(gross2),
+      taxableIncome:  Math.round(taxable2),
+      rentalShare:    Math.round(rentalPerson2),
+      ...p2Tax,
+    } : null,
+    totalHouseholdTax:    p1Tax.totalTax + (p2Tax?.totalTax || 0),
+    totalAfterTax:        p1Tax.afterTax + (p2Tax?.afterTax || 0),
+    negativeGearingBenefit: Math.round(Math.max(0, negGearBenefit1 + negGearBenefit2)),
+    rentalIncomeLoss:     Math.round(rentalPerson1 + rentalPerson2),
+  };
+}
+
+// ── PROPERTY CASHFLOW ─────────────────────────────────────────────────────────
+
+/**
+ * Annual cashflow for one investment property.
+ * offsetBalance reduces the effective loan balance for interest calculation
+ * (and therefore reduces deductible interest — important for ATO compliance).
+ */
 export function propertyAnnualCashflow(ip) {
   const vacancyRate  = (p(ip.vacancyRate)  || 4) / 100;
   const mgmtFeeRate  = (p(ip.managementFee) || 8) / 100;
 
-  const grossRent      = p(ip.weeklyRent) * 52 * (1 - vacancyRate);
-  const mgmtFee        = grossRent * mgmtFeeRate;
-  const councilRates   = p(ip.councilRates);
-  const insurance      = p(ip.insurance);
-  const bodyCorpAdmin  = p(ip.bodyCorpAdmin);
-  const bodyCorpCap    = p(ip.bodyCorpCapital);
-  const maintenance    = p(ip.maintenance);
-  const depreciation   = p(ip.depreciation);
-  const annualInterest = p(ip.mortgageBalance) * (p(ip.mortgageRate) / 100);
+  const grossRent     = p(ip.weeklyRent) * 52 * (1 - vacancyRate);
+  const mgmtFee       = grossRent * mgmtFeeRate;
+  const councilRates  = p(ip.councilRates);
+  const insurance     = p(ip.insurance);
+  const bodyCorpAdmin = p(ip.bodyCorpAdmin);
+  const bodyCorpCap   = p(ip.bodyCorpCapital);
+  const maintenance   = p(ip.maintenance);
+  const depreciation  = p(ip.depreciation);
 
-  const totalExpenses = mgmtFee + councilRates + insurance + bodyCorpAdmin +
-                        bodyCorpCap + maintenance + annualInterest;
-  const netCashflow   = grossRent - totalExpenses;
+  // Offset account reduces deductible interest (ATO: s8-1 ITAA 1997)
+  const offsetBal      = p(ip.offsetBalance || "0");
+  const effectiveDebt  = Math.max(0, p(ip.mortgageBalance) - offsetBal);
+  const annualInterest = effectiveDebt * (p(ip.mortgageRate) / 100);
+
+  const totalExpenses  = mgmtFee + councilRates + insurance + bodyCorpAdmin +
+                         bodyCorpCap + maintenance + annualInterest;
+  const netCashflow    = grossRent - totalExpenses;
   // Taxable income adds depreciation as a further deduction (non-cash)
-  const taxableIncome = netCashflow - depreciation;
+  const taxableIncome  = netCashflow - depreciation;
 
   return {
-    grossRent:        Math.round(grossRent),
-    mgmtFee:          Math.round(mgmtFee),
-    councilRates:     Math.round(councilRates),
-    insurance:        Math.round(insurance),
-    bodyCorpAdmin:    Math.round(bodyCorpAdmin),
-    bodyCorpCap:      Math.round(bodyCorpCap),
-    maintenance:      Math.round(maintenance),
-    annualInterest:   Math.round(annualInterest),
-    depreciation:     Math.round(depreciation),
-    totalExpenses:    Math.round(totalExpenses),
-    netCashflow:      Math.round(netCashflow),
-    taxableIncome:    Math.round(taxableIncome),
+    grossRent:          Math.round(grossRent),
+    mgmtFee:            Math.round(mgmtFee),
+    councilRates:       Math.round(councilRates),
+    insurance:          Math.round(insurance),
+    bodyCorpAdmin:      Math.round(bodyCorpAdmin),
+    bodyCorpCap:        Math.round(bodyCorpCap),
+    maintenance:        Math.round(maintenance),
+    annualInterest:     Math.round(annualInterest),
+    depreciation:       Math.round(depreciation),
+    totalExpenses:      Math.round(totalExpenses),
+    netCashflow:        Math.round(netCashflow),
+    taxableIncome:      Math.round(taxableIncome),
     isNegativelyGeared: taxableIncome < 0,
+    offsetBalance:      Math.round(offsetBal),
   };
 }
 
-// ─── 1. SUPER PROJECTION ──────────────────────────────────────────────────────
+// ── SUPER ACCUMULATION ────────────────────────────────────────────────────────
 
-export function projectSuper(data, assumptions) {
-  const currentAge    = p(data.age);
-  const retirementAge = p(data.retirementAge) || 65;
-  const years         = Math.max(retirementAge - currentAge, 0);
-  const r             = assumptions.returnRate / 100;
+/**
+ * Project super balance for one person to their retirement age.
+ * Deducts 15% contributions tax from all concessional contributions.
+ * Also models Division 293 if applicable (as a separate cash flow, not super reduction).
+ */
+function projectOnePerson(balance, grossIncome, sgRate, salarySacrifice, currentAge, retirementAge, returnRate) {
+  const years          = Math.max(retirementAge - currentAge, 0);
+  const r              = returnRate;
+  const sgAmount       = grossIncome * sgRate;
+  const ssAmount       = salarySacrifice;
+  const concessional   = Math.min(sgAmount + ssAmount, SUPER.concessionalCap);
+  // 15% contributions tax reduces net amount entering fund
+  const netContribs    = concessional * (1 - SUPER.contribTaxRate);
 
-  const balance        = p(data.superBalance) + (data.hasPartner === "yes" ? p(data.partnerSuperBalance) : 0);
-  const grossIncome    = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome)
-                       + (data.hasPartner === "yes" ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0);
-  const sgRate         = (p(data.employerSgRate) || 12) / 100;
-  const annualContribs = grossIncome * sgRate + p(data.salarySacrifice);
-
-  const projectedBalance = fvLump(balance, r, years) + fvAnnuity(annualContribs, r, years);
+  const projectedBalance = fvLump(balance, r, years) + fvAnnuity(netContribs, r, years);
 
   const trajectory = [];
   let bal = balance;
   for (let y = 0; y <= years; y++) {
     trajectory.push({ age: currentAge + y, balance: Math.round(bal) });
-    bal = bal * (1 + r) + annualContribs;
+    bal = bal * (1 + r) + netContribs;
   }
 
   return {
     projectedBalance: Math.round(projectedBalance),
     yearsToRetirement: years,
-    annualContribs: Math.round(annualContribs),
+    annualConcessional: Math.round(concessional),
+    annualNetContribs:  Math.round(netContribs),
     trajectory,
   };
 }
 
-// ─── 2. RETIREMENT DRAWDOWN ───────────────────────────────────────────────────
+export function projectSuper(data, assumptions) {
+  const r             = assumptions.returnRate / 100;
+  const currentAge    = p(data.age);
+  const retirementAge = p(data.retirementAge) || 65;
+  const isCouple      = data.hasPartner === "yes";
 
-export function retirementDrawdown(data, assumptions, projectedSuperBalance) {
-  const currentAge        = p(data.age);
-  const retirementAge     = p(data.retirementAge) || 65;
-  const lifeExp           = p(data.lifeExpectancy) || 90;
-  const yearsInRetirement = Math.max(lifeExp - retirementAge, 0);
-  const yearsToRetirement = Math.max(retirementAge - currentAge, 0);
+  const sgRate1   = (p(data.employerSgRate) || 12) / 100;
+  const sgRate2   = isCouple ? (p(data.partnerEmployerSgRate) || 12) / 100 : 0;
+  const gross1    = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome);
+  const gross2    = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0;
+  const ss1       = p(data.salarySacrifice);
+  const ss2       = isCouple ? p(data.partnerSalarySacrifice) : 0;
+  const partnerRetirementAge = isCouple ? (p(data.partnerRetirementAge) || retirementAge) : retirementAge;
+  const partnerAge = isCouple ? p(data.partnerAge) : 0;
 
-  const targetSpendingToday = p(data.targetRetirementSpending);
-  const r   = assumptions.returnRate / 100;
-  const inf = assumptions.inflation / 100;
-  const swr = assumptions.safeWithdrawal / 100;
+  const person1 = projectOnePerson(p(data.superBalance), gross1, sgRate1, ss1, currentAge, retirementAge, r);
+  const person2 = isCouple
+    ? projectOnePerson(p(data.partnerSuperBalance), gross2, sgRate2, ss2, partnerAge, partnerRetirementAge, r)
+    : null;
 
-  const futureSpending  = targetSpendingToday * Math.pow(1 + inf, yearsToRetirement);
-  const requiredBalance = swr > 0 ? Math.round(futureSpending / swr) : 0;
-
-  let balance = projectedSuperBalance;
-  let depletionAge = null;
-  const trajectory = [];
-
-  for (let y = 0; y < yearsInRetirement; y++) {
-    const age        = retirementAge + y;
-    const withdrawal = futureSpending * Math.pow(1 + inf, y);
-    balance          = balance * (1 + r) - withdrawal;
-    if (balance <= 0 && depletionAge === null) {
-      depletionAge = age;
-      trajectory.push({ age, balance: 0 });
-      break;
-    }
-    trajectory.push({ age, balance: Math.round(balance) });
-  }
+  // Combined balance at retirement (use primary person's retirement age for joint view)
+  const person2AtSameAge = person2
+    ? (person2.trajectory.find(t => t.age === partnerAge + (retirementAge - currentAge)) || person2.trajectory[person2.trajectory.length - 1])
+    : null;
+  const combinedAtRetirement = Math.round(person1.projectedBalance + (person2AtSameAge?.balance || 0));
 
   return {
-    projectedSuperBalance: Math.round(projectedSuperBalance),
-    requiredBalance,
-    surplus:              Math.round(projectedSuperBalance - requiredBalance),
-    onTrack:              projectedSuperBalance >= requiredBalance,
-    depletionAge,
-    lastsToLifeExpectancy: depletionAge === null,
-    futureSpending:       Math.round(futureSpending),
-    trajectory,
+    person1,
+    person2,
+    projectedBalance:  combinedAtRetirement,
+    yearsToRetirement: person1.yearsToRetirement,
+    annualContribs:    Math.round(person1.annualNetContribs + (person2?.annualNetContribs || 0)),
+    trajectory: person1.trajectory,
   };
 }
 
-// ─── 3. DEBT-FREE DATE ────────────────────────────────────────────────────────
+// ── ACCOUNT-BASED PENSION ─────────────────────────────────────────────────────
+
+/** Minimum annual drawdown from an account-based pension at a given age. */
+export function abpMinDrawdown(balance, age) {
+  const rule = ABP_DRAWDOWN.find(r => age >= r.minAge && age <= r.maxAge);
+  return rule ? Math.round(balance * rule.rate) : 0;
+}
+
+// ── AGE PENSION ESTIMATE ──────────────────────────────────────────────────────
+
+/**
+ * Estimate annual Age Pension entitlement.
+ * Uses the lower of the assets test result and the income test result.
+ *
+ * IMPORTANT: This is a simplified estimate for planning purposes only.
+ * Actual entitlement requires assessment by Services Australia.
+ * Does not model: deeming rates on financial assets, grandfathered rules,
+ * work bonus, rent assistance, or non-assessable assets (PPOR is excluded).
+ *
+ * @param {boolean} isCouple
+ * @param {boolean} isHomeowner  PPOR is not counted in assets test
+ * @param {number}  assessableAssets  Total net assets excluding PPOR
+ * @param {number}  assessableIncome  Annual income (excluding AP itself; financial assets deemed)
+ * @param {number}  age  Current age (must be ≥ eligibilityAge to receive)
+ */
+export function estimateAgePension(isCouple, isHomeowner, assessableAssets, assessableIncome, age) {
+  if (age < AGE_PENSION.eligibilityAge) {
+    return { eligible: false, estimatedAnnual: 0, reason: "Below eligibility age" };
+  }
+
+  const fullRate = isCouple ? AGE_PENSION.coupleRate : AGE_PENSION.singleRate;
+
+  // Assets test
+  const freeArea = isCouple
+    ? (isHomeowner ? AGE_PENSION.assetsFree.coupleHome    : AGE_PENSION.assetsFree.coupleNonHome)
+    : (isHomeowner ? AGE_PENSION.assetsFree.singleHome    : AGE_PENSION.assetsFree.singleNonHome);
+  const assetsExcess    = Math.max(0, assessableAssets - freeArea);
+  const assetsReduction = (assetsExcess / 1000) * AGE_PENSION.assetsTaperPerThousand;
+  const pensionByAssets = Math.max(0, fullRate - assetsReduction);
+
+  // Income test
+  const incomeFreeLine = isCouple ? AGE_PENSION.incomeFree.couple : AGE_PENSION.incomeFree.single;
+  const incomeExcess    = Math.max(0, assessableIncome - incomeFreeLine);
+  const incomeReduction = incomeExcess * AGE_PENSION.incomeTaperRate;
+  const pensionByIncome = Math.max(0, fullRate - incomeReduction);
+
+  // Lower of the two tests (assets and income) determines entitlement
+  const estimatedAnnual = Math.round(Math.min(pensionByAssets, pensionByIncome));
+  const eligible        = estimatedAnnual > 0;
+
+  return {
+    eligible,
+    estimatedAnnual,
+    fullRate,
+    pensionByAssets:   Math.round(pensionByAssets),
+    pensionByIncome:   Math.round(pensionByIncome),
+    limitingTest:      pensionByAssets < pensionByIncome ? "assets" : "income",
+    assetsExcess:      Math.round(assetsExcess),
+    incomeExcess:      Math.round(incomeExcess),
+    reason: eligible
+      ? (estimatedAnnual >= fullRate * 0.99 ? "Full pension" : "Part pension")
+      : "Exceeds both assets and income test limits",
+  };
+}
+
+// ── DEBT-FREE DATE ────────────────────────────────────────────────────────────
 
 export function debtFreeDate(data) {
-  const balance     = p(data.mortgageBalance);
-  const annualRate  = p(data.mortgageRate);
-  const loanType    = data.loanType || "pi";
+  const balance    = p(data.mortgageBalance);
+  const annualRate = p(data.mortgageRate);
+  const loanType   = data.loanType || "pi";
   const currentYear = new Date().getFullYear();
 
-  // Derive remaining term from start year + tenure, falling back to 30-year default
   const startYear    = p(data.mortgageStartYear) || currentYear;
   const tenure       = p(data.mortgageTenure) || 30;
   const elapsed      = Math.max(0, currentYear - startYear);
   const remainingYrs = Math.max(1, tenure - elapsed);
   const LOAN_MONTHS  = remainingYrs * 12;
+  const loanEndYear  = startYear + tenure;
+  const monthlyRate  = annualRate / 100 / 12;
 
-  const loanEndYear = startYear + tenure;
-  const monthlyRate = annualRate / 100 / 12;
+  // PPOR offset reduces effective balance for payment calculation
+  const offsetBal       = p(data.ppOrOffsetBalance || "0");
+  const effectiveBalance = Math.max(0, balance - offsetBal);
 
-  // PPOR
   let pporResult = null;
   if (balance) {
     if (loanType === "io") {
       const ioExpiryYear = p(data.mortgageIoExpiryYear);
-      const ioActive = ioExpiryYear > 0 && ioExpiryYear < loanEndYear;
-      const ioMonthlyPayment = monthlyRate > 0 ? Math.round(balance * monthlyRate) : 0;
+      const ioActive     = ioExpiryYear > 0 && ioExpiryYear < loanEndYear;
+      const ioMonthlyPmt = monthlyRate > 0 ? Math.round(effectiveBalance * monthlyRate) : 0;
       if (ioActive) {
-        // After IO period: P&I on remaining balance for remaining loan term
-        const piYears = Math.max(1, loanEndYear - ioExpiryYear);
+        const piYears  = Math.max(1, loanEndYear - ioExpiryYear);
         const piMonths = piYears * 12;
-        const piPmt = monthlyRate > 0
-          ? monthlyPayment(balance, monthlyRate, piMonths)
-          : balance / piMonths;
+        const piPmt    = monthlyRate > 0
+          ? monthlyPayment(effectiveBalance, monthlyRate, piMonths)
+          : effectiveBalance / piMonths;
         pporResult = {
-          type: "io", ioExpiryYear, loanEndYear,
-          debtFreeYear: loanEndYear,
-          monthlyPayment: ioMonthlyPayment,
-          piMonthlyPayment: Math.round(piPmt),
+          type: "io", ioExpiryYear, loanEndYear, debtFreeYear: loanEndYear,
+          monthlyPayment: ioMonthlyPmt, piMonthlyPayment: Math.round(piPmt),
         };
       } else {
-        pporResult = { type: "io", ioExpiryYear: null, loanEndYear: null, debtFreeYear: null, monthlyPayment: ioMonthlyPayment };
+        pporResult = { type: "io", ioExpiryYear: null, loanEndYear: null, debtFreeYear: null, monthlyPayment: ioMonthlyPmt };
       }
     } else {
       const pmt = monthlyRate > 0
-        ? monthlyPayment(balance, monthlyRate, LOAN_MONTHS)
-        : balance / LOAN_MONTHS;
-      let bal = balance, months = 0;
+        ? monthlyPayment(effectiveBalance, monthlyRate, LOAN_MONTHS)
+        : effectiveBalance / LOAN_MONTHS;
+      let bal = effectiveBalance, months = 0;
       while (bal > 0.01 && months < LOAN_MONTHS + 1) {
         bal -= pmt - bal * monthlyRate;
         months++;
@@ -216,36 +465,31 @@ export function debtFreeDate(data) {
     .filter(ip => ip.status === "existing" && p(ip.mortgageBalance) > 0)
     .map(ip => {
       const ipBal         = p(ip.mortgageBalance);
+      const ipOffset      = p(ip.offsetBalance || "0");
+      const ipEffective   = Math.max(0, ipBal - ipOffset);
       const ipMonthlyRate = p(ip.mortgageRate) / 100 / 12;
       if (ip.loanType === "io") {
-        const ipIoExpiry = p(ip.ioExpiryYear);
-        const ipStartYr  = p(ip.purchaseYear) || currentYear;
-        const ipEndYear  = ipStartYr + 30;
-        const ipIoMonthly = ipMonthlyRate > 0 ? Math.round(ipBal * ipMonthlyRate) : 0;
+        const ipIoExpiry  = p(ip.ioExpiryYear);
+        const ipStartYr   = p(ip.purchaseYear) || currentYear;
+        const ipEndYear   = ipStartYr + 30;
+        const ipIoMonthly = ipMonthlyRate > 0 ? Math.round(ipEffective * ipMonthlyRate) : 0;
         const ipIoActive  = ipIoExpiry > 0 && ipIoExpiry < ipEndYear;
         if (ipIoActive) {
           const piYrs  = Math.max(1, ipEndYear - ipIoExpiry);
           const piMths = piYrs * 12;
-          const piPmt  = ipMonthlyRate > 0
-            ? monthlyPayment(ipBal, ipMonthlyRate, piMths)
-            : ipBal / piMths;
+          const piPmt  = ipMonthlyRate > 0 ? monthlyPayment(ipEffective, ipMonthlyRate, piMths) : ipEffective / piMths;
           return {
             id: ip.id, label: ip.label || "IP", type: "io",
-            ioExpiryYear: ipIoExpiry, loanEndYear: ipEndYear,
-            debtFreeYear: ipEndYear,
-            monthlyPayment: ipIoMonthly,
-            piMonthlyPayment: Math.round(piPmt),
+            ioExpiryYear: ipIoExpiry, loanEndYear: ipEndYear, debtFreeYear: ipEndYear,
+            monthlyPayment: ipIoMonthly, piMonthlyPayment: Math.round(piPmt),
           };
         }
-        return {
-          id: ip.id, label: ip.label || "IP", type: "io",
-          debtFreeYear: null, monthlyPayment: ipIoMonthly,
-        };
+        return { id: ip.id, label: ip.label || "IP", type: "io", debtFreeYear: null, monthlyPayment: ipIoMonthly };
       }
       const pmt = ipMonthlyRate > 0
-        ? monthlyPayment(ipBal, ipMonthlyRate, LOAN_MONTHS)
-        : ipBal / LOAN_MONTHS;
-      let bal = ipBal, months = 0;
+        ? monthlyPayment(ipEffective, ipMonthlyRate, LOAN_MONTHS)
+        : ipEffective / LOAN_MONTHS;
+      let bal = ipEffective, months = 0;
       while (bal > 0.01 && months < LOAN_MONTHS + 1) {
         bal -= pmt - bal * ipMonthlyRate;
         months++;
@@ -262,75 +506,269 @@ export function debtFreeDate(data) {
   return { ...(pporResult || { type: null }), ips: ipResults };
 }
 
-// ─── 4. NET WORTH TRAJECTORY ──────────────────────────────────────────────────
+// ── RETIREMENT DRAWDOWN ───────────────────────────────────────────────────────
 
-export function netWorthTrajectory(data, assumptions) {
+export function retirementDrawdown(data, assumptions, projectedSuperBalance) {
+  const currentAge        = p(data.age);
+  const retirementAge     = p(data.retirementAge) || 65;
+  const lifeExp           = p(data.lifeExpectancy) || 90;
+  const yearsInRetirement = Math.max(lifeExp - retirementAge, 0);
+  const yearsToRetirement = Math.max(retirementAge - currentAge, 0);
+
+  const targetSpendingToday = p(data.targetRetirementSpending);
+  const r   = assumptions.returnRate / 100;
+  const inf = assumptions.inflation / 100;
+  const swr = assumptions.safeWithdrawal / 100;
+
+  const futureSpending  = targetSpendingToday * Math.pow(1 + inf, yearsToRetirement);
+  const requiredBalance = swr > 0 ? Math.round(futureSpending / swr) : 0;
+
+  // Transfer Balance Cap: super above TBC stays in accumulation phase (taxed on earnings)
+  // Simplified: cap total pension balance at TBC; model excess as general investment
+  const pensionBalance  = Math.min(projectedSuperBalance, SUPER.transferBalanceCap);
+  const excessAccum     = Math.max(0, projectedSuperBalance - SUPER.transferBalanceCap);
+
+  let balance = pensionBalance;
+  let excessBal = excessAccum;
+  let depletionAge = null;
+  const trajectory = [];
+
+  for (let y = 0; y < yearsInRetirement; y++) {
+    const age        = retirementAge + y;
+    const withdrawal = futureSpending * Math.pow(1 + inf, y);
+
+    // Minimum drawdown check — must draw at least the legislated minimum from pension account
+    const minDraw    = abpMinDrawdown(balance, age);
+    const actualDraw = Math.max(withdrawal, minDraw);
+
+    balance = balance * (1 + r) - actualDraw;
+
+    // If pension depleted, drawdown from excess accumulation balance
+    if (balance < 0 && excessBal > 0) {
+      excessBal = Math.max(0, excessBal + balance); // balance is negative here
+      balance   = 0;
+    }
+
+    const totalBal = balance + excessBal;
+
+    if (totalBal <= 0 && depletionAge === null) {
+      depletionAge = age;
+      trajectory.push({ age, balance: 0 });
+      break;
+    }
+    trajectory.push({ age, balance: Math.round(totalBal) });
+
+    // Excess accumulation grows at same return rate
+    if (excessBal > 0) excessBal = excessBal * (1 + r);
+  }
+
+  return {
+    projectedSuperBalance: Math.round(projectedSuperBalance),
+    pensionBalance:        Math.round(pensionBalance),
+    excessAccumulation:    Math.round(excessAccum),
+    requiredBalance,
+    surplus:               Math.round(projectedSuperBalance - requiredBalance),
+    onTrack:               projectedSuperBalance >= requiredBalance,
+    depletionAge,
+    lastsToLifeExpectancy: depletionAge === null,
+    futureSpending:        Math.round(futureSpending),
+    transferBalanceCap:    SUPER.transferBalanceCap,
+    capExceeded:           projectedSuperBalance > SUPER.transferBalanceCap,
+    trajectory,
+  };
+}
+
+// ── FIRE CALCULATOR ───────────────────────────────────────────────────────────
+
+/**
+ * FIRE-specific calculations: FIRE number, Coast FIRE, bridge fund, years to FI.
+ * All figures in nominal dollars (not inflation-adjusted) for consistency with trajectory.
+ */
+export function fireCalc(data, assumptions) {
+  const r             = assumptions.returnRate / 100;
+  const currentAge    = p(data.age);
+  const retirementAge = p(data.retirementAge) || 65;
+  const targetSpend   = p(data.targetRetirementSpending);
+  const swr           = assumptions.safeWithdrawal / 100;
+
+  if (!targetSpend || !currentAge) return null;
+
+  const fireNumber     = swr > 0 ? Math.round(targetSpend / swr) : 0;
+  const yearsToRetire  = Math.max(0, retirementAge - currentAge);
+
+  // Coast FIRE: balance needed today that grows to fireNumber by retirement with no further contributions
+  const coastFireNumber = yearsToRetire > 0
+    ? Math.round(fireNumber / Math.pow(1 + r, yearsToRetire))
+    : fireNumber;
+
+  const isCouple = data.hasPartner === "yes";
+
+  // Current investable assets (super only — most reliable pre-retirement asset)
+  const currentSuper = p(data.superBalance) + (isCouple ? p(data.partnerSuperBalance) : 0);
+
+  const isCoastFIRE  = currentSuper >= coastFireNumber;
+
+  // Annual investment into super (post contributions tax)
+  const gross1    = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome);
+  const gross2    = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0;
+  const sgRate1   = (p(data.employerSgRate) || 12) / 100;
+  const sgRate2   = isCouple ? (p(data.partnerEmployerSgRate) || 12) / 100 : 0;
+  const ss1       = p(data.salarySacrifice);
+  const ss2       = isCouple ? p(data.partnerSalarySacrifice) : 0;
+  const concess1  = Math.min(gross1 * sgRate1 + ss1, SUPER.concessionalCap);
+  const concess2  = isCouple ? Math.min(gross2 * sgRate2 + ss2, SUPER.concessionalCap) : 0;
+  const netContribs = (concess1 + concess2) * (1 - SUPER.contribTaxRate);
+  const annualSavings = p(data.savingsPerMonth) * 12;
+  const totalAnnualInvest = netContribs + annualSavings;
+
+  // Years to FI: numerically solve for the year when total invested assets reach fireNumber
+  let yearsToFI = null;
+  if (totalAnnualInvest > 0 && r > 0) {
+    let bal = currentSuper;
+    let y = 0;
+    while (bal < fireNumber && y < 100) {
+      bal = bal * (1 + r) + totalAnnualInvest;
+      y++;
+    }
+    yearsToFI = bal >= fireNumber ? y : null;
+  } else if (currentSuper >= fireNumber) {
+    yearsToFI = 0;
+  }
+
+  const projectedFIAge = yearsToFI !== null ? currentAge + yearsToFI : null;
+
+  // Bridge fund: liquid capital needed outside super to cover spending from ER to preservation age 60
+  const bridgeYears      = retirementAge < SUPER.preservationAge ? SUPER.preservationAge - retirementAge : 0;
+  // Simplified: present value of spending stream at real return rate
+  const realRate         = Math.max(0, r - assumptions.inflation / 100);
+  const bridgeFundNeeded = bridgeYears > 0 && targetSpend > 0
+    ? (realRate > 0
+        ? Math.round(targetSpend * (1 - Math.pow(1 + realRate, -bridgeYears)) / realRate)
+        : Math.round(targetSpend * bridgeYears))
+    : 0;
+
+  return {
+    fireNumber,
+    coastFireNumber,
+    isCoastFIRE,
+    yearsToFI,
+    projectedFIAge,
+    bridgeYears,
+    bridgeFundNeeded,
+    currentInvestableAssets: Math.round(currentSuper),
+    annualInvestment: Math.round(totalAnnualInvest),
+  };
+}
+
+// ── NET WORTH TRAJECTORY ──────────────────────────────────────────────────────
+
+export function netWorthTrajectory(data, assumptions, householdTax) {
   const currentAge    = p(data.age);
   const retirementAge = p(data.retirementAge) || 65;
   const lifeExp       = p(data.lifeExpectancy) || 90;
   const yearsTotal    = Math.max(lifeExp - currentAge, 0);
+  const isCouple      = data.hasPartner === "yes";
 
   const r          = assumptions.returnRate / 100;
   const propGrowth = assumptions.propertyGrowth / 100;
   const inf        = assumptions.inflation / 100;
+  const currentYear = new Date().getFullYear();
 
-  let liquid   = p(data.cashSavings) + p(data.offsetBalance) + p(data.sharesEtfs) +
-                 p(data.managedFunds) + p(data.crypto) + p(data.otherInvestments);
-  let superBal = p(data.superBalance) + (data.hasPartner === "yes" ? p(data.partnerSuperBalance) : 0);
+  // Pre-index life events by calendar year
+  const eventMap = indexEventsByYear(data.lifeEvents || []);
+
+  // Income ratio for partner-specific events (primary person's share of gross income)
+  const gross1 = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome);
+  const gross2 = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0;
+  const incRatio = (gross1 + gross2) > 0 ? gross1 / (gross1 + gross2) : 0.5;
+
+  // Callers spread deriveAssetTotals() flat onto data — read fields directly
+  let liquid   = p(data.cashSavings) + p(data.sharesEtfs) + p(data.managedFunds) +
+                 p(data.crypto) + p(data.otherInvestments);
+  let superBal = p(data.superBalance) + (isCouple ? p(data.partnerSuperBalance) : 0);
   let ppor     = p(data.ppOrValue);
-  let mortgage = p(data.mortgageBalance);
+  let mortgage  = Math.max(0, p(data.mortgageBalance) - p(data.ppOrOffsetBalance || "0"));
   let otherDebt = p(data.creditCardDebt) + p(data.personalLoanDebt) + p(data.hecsDebt)
-               + (data.hasPartner === "yes"
-                  ? p(data.partnerCreditCardDebt) + p(data.partnerPersonalLoanDebt) + p(data.partnerHecsDebt)
-                  : 0);
+                + (isCouple ? p(data.partnerCreditCardDebt) + p(data.partnerPersonalLoanDebt) + p(data.partnerHecsDebt) : 0);
 
-  // Aggregate existing investment properties
-  const existingIPs = (data.investmentProperties || []).filter(ip => ip.status === "existing");
-  let ipTotal     = existingIPs.reduce((sum, ip) => sum + p(ip.value), 0);
-  let ipMortTotal = existingIPs.reduce((sum, ip) => sum + p(ip.mortgageBalance), 0);
+  const existingIPs   = (data.investmentProperties || []).filter(ip => ip.status === "existing");
+  let ipTotal         = existingIPs.reduce((sum, ip) => sum + p(ip.value), 0);
+  let ipMortTotal     = existingIPs.reduce((sum, ip) => sum + p(ip.mortgageBalance), 0);
 
-  // Weighted average IP mortgage rate for aggregate amortisation
   const ipWeightedRate = ipMortTotal > 0
     ? existingIPs.filter(ip => p(ip.mortgageBalance) > 0)
         .reduce((sum, ip) => sum + p(ip.mortgageRate) * p(ip.mortgageBalance), 0) / ipMortTotal
     : 0;
   const ipMonthlyRate = ipWeightedRate / 100 / 12;
   const ipPmt = (ipMortTotal > 0 && ipMonthlyRate > 0)
-    ? monthlyPayment(ipMortTotal, ipMonthlyRate, 360)
-    : 0;
+    ? monthlyPayment(ipMortTotal, ipMonthlyRate, 360) : 0;
 
-  // Net annual cashflow from all existing IPs (rental income minus all running costs)
-  const ipNetAnnualCF = existingIPs.reduce(
-    (sum, ip) => sum + propertyAnnualCashflow(ip).netCashflow, 0
-  );
+  // Net cashflow from IPs: rental minus running costs, PLUS negative gearing tax benefit
+  const ipNetAnnualCF = existingIPs.reduce((sum, ip) => sum + propertyAnnualCashflow(ip).netCashflow, 0);
+  const negGearBenefit = householdTax?.negativeGearingBenefit || 0;
 
   const annualSavings = p(data.savingsPerMonth) * 12;
-  const grossIncome   = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome)
-                      + (data.hasPartner === "yes" ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0);
-  const sgRate        = (p(data.employerSgRate) || 12) / 100;
-  const annualSuperIn = grossIncome * sgRate + p(data.salarySacrifice);
+  const sgRate1       = (p(data.employerSgRate) || 12) / 100;
+  const sgRate2       = isCouple ? (p(data.partnerEmployerSgRate) || 12) / 100 : 0;
+  const ss1           = p(data.salarySacrifice);
+  const ss2           = isCouple ? p(data.partnerSalarySacrifice) : 0;
+  // Net super contributions after 15% contributions tax
+  const sg1           = gross1 * sgRate1;
+  const sg2           = isCouple ? gross2 * sgRate2 : 0;
+  const concess1      = Math.min(sg1 + ss1, SUPER.concessionalCap);
+  const concess2      = isCouple ? Math.min(sg2 + ss2, SUPER.concessionalCap) : 0;
+  const annualSuperIn = (concess1 + concess2) * (1 - SUPER.contribTaxRate);
+
   const targetSpending = p(data.targetRetirementSpending);
 
   const mortgageMonthlyRate = p(data.mortgageRate) / 100 / 12;
   const mortgagePmt = (mortgage > 0 && mortgageMonthlyRate > 0 && data.loanType === "pi")
-    ? monthlyPayment(mortgage, mortgageMonthlyRate, 360)
-    : 0;
+    ? monthlyPayment(mortgage, mortgageMonthlyRate, 360) : 0;
   const annualMortgagePmt = mortgagePmt * 12;
 
   const trajectory = [];
 
   for (let y = 0; y <= yearsTotal; y++) {
     const age       = currentAge + y;
+    const calYear   = currentYear + y;
     const isRetired = age >= retirementAge;
     const nw = liquid + superBal + ppor + ipTotal - mortgage - ipMortTotal - Math.max(otherDebt, 0);
-    trajectory.push({ age, netWorth: Math.round(nw), isRetired });
+
+    // Life events active in this calendar year
+    const { eventTypes } = getYearEventAdjustments(calYear, eventMap, incRatio);
+
+    trajectory.push({
+      age,
+      year: calYear,
+      netWorth:     Math.round(nw),
+      superBalance: Math.round(superBal),
+      liquidAssets: Math.round(liquid),
+      propertyValue: Math.round(ppor + ipTotal),
+      totalDebt:    Math.round(Math.max(0, mortgage + ipMortTotal + Math.max(0, otherDebt))),
+      isRetired,
+      eventTypes,   // string[] of event type keys active this year
+    });
 
     if (y === yearsTotal) break;
 
     if (!isRetired) {
-      // IP net cashflow flows into liquid savings (negative = cash drain)
-      liquid   = liquid * (1 + r) + annualSavings + ipNetAnnualCF;
-      superBal = superBal * (1 + r) + annualSuperIn;
+      // Apply life events for the UPCOMING year (y+1) — adjustments to cashflows
+      const nextCalYear = currentYear + y + 1;
+      const adj = getYearEventAdjustments(nextCalYear, eventMap, incRatio);
+
+      const effectiveSavings  = annualSavings * adj.incomeMult;
+      const effectiveSuperIn  = annualSuperIn * adj.incomeMult;
+
+      // Lump-sum adjustments
+      liquid += adj.lumpIn - adj.lumpOut;
+      // Extra mortgage repayments
+      if (adj.extraMortgageRepay > 0) {
+        mortgage = Math.max(0, mortgage - adj.extraMortgageRepay);
+      }
+
+      // IP net cashflow + negative gearing tax benefit flow into liquid savings
+      liquid   = liquid * (1 + r) + effectiveSavings + ipNetAnnualCF + negGearBenefit;
+      superBal = superBal * (1 + r) + effectiveSuperIn;
     } else {
       const withdrawal = targetSpending * Math.pow(1 + inf, y - (retirementAge - currentAge));
       if (superBal >= withdrawal) {
@@ -340,20 +778,18 @@ export function netWorthTrajectory(data, assumptions) {
         superBal = 0;
         liquid   = Math.max(0, liquid * (1 + r) - remainder);
       }
-      liquid = liquid > 0 ? liquid * (1 + r) : 0;
+      if (liquid > 0) liquid = liquid * (1 + r);
     }
 
     ppor    = ppor    > 0 ? ppor    * (1 + propGrowth) : 0;
     ipTotal = ipTotal > 0 ? ipTotal * (1 + propGrowth) : 0;
 
-    // Amortise PPOR mortgage (annual approximation)
     if (mortgage > 0 && data.loanType === "pi") {
       const interest  = mortgage * (p(data.mortgageRate) / 100);
       const principal = Math.min(annualMortgagePmt - interest, mortgage);
       mortgage = Math.max(0, mortgage - principal);
     }
 
-    // Amortise IP mortgages (weighted aggregate)
     if (ipMortTotal > 0) {
       const ipInterest  = ipMortTotal * (ipWeightedRate / 100);
       const ipPrincipal = Math.min(ipPmt * 12 - ipInterest, ipMortTotal);
@@ -366,12 +802,11 @@ export function netWorthTrajectory(data, assumptions) {
   return trajectory;
 }
 
-// ─── 5. MONTE CARLO SIMULATION ────────────────────────────────────────────────
-// Volatility by scenario (annual std dev of returns)
+// ── MONTE CARLO SIMULATION ────────────────────────────────────────────────────
+
 const SCENARIO_VOLATILITY = { base: 0.10, conservative: 0.08, aggressive: 0.14 };
 
 function normalRandom(mean, sd) {
-  // Box-Muller transform
   let u, v;
   do { u = Math.random(); } while (u === 0);
   do { v = Math.random(); } while (v === 0);
@@ -385,15 +820,22 @@ export function runMonteCarlo(data, assumptions, iterations = 1000) {
   const yearsToRetire = Math.max(retirementAge - currentAge, 0);
   const yearsInRetire = Math.max(lifeExp - retirementAge, 0);
 
-  const meanReturn     = assumptions.returnRate / 100;
-  const inf            = assumptions.inflation / 100;
-  const scenario       = data.activeScenario || "base";
-  const stdDev         = SCENARIO_VOLATILITY[scenario] ?? 0.10;
+  const meanReturn = assumptions.returnRate / 100;
+  const inf        = assumptions.inflation / 100;
+  const scenario   = data.activeScenario || "base";
+  const stdDev     = SCENARIO_VOLATILITY[scenario] ?? 0.10;
 
-  const superBal       = p(data.superBalance) + (data.hasPartner === "yes" ? p(data.partnerSuperBalance) : 0);
-  const grossIncome    = p(data.grossIncome)  + (data.hasPartner === "yes" ? p(data.partnerIncome) : 0);
-  const sgRate         = (p(data.employerSgRate) || 12) / 100;
-  const annualContribs = grossIncome * sgRate + p(data.salarySacrifice);
+  const isCouple   = data.hasPartner === "yes";
+  const superBal   = p(data.superBalance) + (isCouple ? p(data.partnerSuperBalance) : 0);
+  const gross1     = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome);
+  const gross2     = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0;
+  const sgRate1    = (p(data.employerSgRate) || 12) / 100;
+  const sgRate2    = isCouple ? (p(data.partnerEmployerSgRate) || 12) / 100 : 0;
+  const ss1        = p(data.salarySacrifice);
+  const ss2        = isCouple ? p(data.partnerSalarySacrifice) : 0;
+  const concess    = Math.min(gross1 * sgRate1 + ss1, SUPER.concessionalCap) +
+                     (isCouple ? Math.min(gross2 * sgRate2 + ss2, SUPER.concessionalCap) : 0);
+  const annualContribs = concess * (1 - SUPER.contribTaxRate);
   const targetSpending = p(data.targetRetirementSpending);
 
   if (!targetSpending || yearsToRetire <= 0) return null;
@@ -405,20 +847,19 @@ export function runMonteCarlo(data, assumptions, iterations = 1000) {
   const finalBals      = [];
 
   for (let i = 0; i < iterations; i++) {
-    // Accumulation phase
     let bal = superBal;
     for (let y = 0; y < yearsToRetire; y++) {
       const r = normalRandom(meanReturn, stdDev);
-      bal = bal * (1 + Math.max(r, -0.5)) + annualContribs; // floor at -50% loss
+      bal = bal * (1 + Math.max(r, -0.5)) + annualContribs;
     }
     retirementBals.push(bal);
 
-    // Drawdown phase
     let drawBal  = bal;
     let depleted = false;
     for (let y = 0; y < yearsInRetire; y++) {
+      const age        = retirementAge + y;
       const r          = normalRandom(meanReturn, stdDev);
-      const withdrawal = futureSpending * Math.pow(1 + inf, y);
+      const withdrawal = Math.max(futureSpending * Math.pow(1 + inf, y), abpMinDrawdown(drawBal, age));
       drawBal = drawBal * (1 + Math.max(r, -0.5)) - withdrawal;
       if (drawBal <= 0) { depleted = true; break; }
     }
@@ -436,50 +877,70 @@ export function runMonteCarlo(data, assumptions, iterations = 1000) {
     iterations,
     stdDev,
     retirementBalance: {
-      p10: pct(retirementBals, 10),
-      p25: pct(retirementBals, 25),
-      p50: pct(retirementBals, 50),
-      p75: pct(retirementBals, 75),
+      p10: pct(retirementBals, 10), p25: pct(retirementBals, 25),
+      p50: pct(retirementBals, 50), p75: pct(retirementBals, 75),
       p90: pct(retirementBals, 90),
     },
     finalBalance: {
-      p10: pct(finalBals, 10),
-      p25: pct(finalBals, 25),
-      p50: pct(finalBals, 50),
+      p10: pct(finalBals, 10), p25: pct(finalBals, 25), p50: pct(finalBals, 50),
     },
   };
 }
 
-// ─── MAIN ENTRY POINT ─────────────────────────────────────────────────────────
+// ── MAIN ENTRY POINT ──────────────────────────────────────────────────────────
 
 export function runEngine(data) {
   const assumptions = getActiveAssumptions(data);
 
-  const superResult  = projectSuper(data, assumptions);
-  const drawdown     = retirementDrawdown(data, assumptions, superResult.projectedBalance);
-  const mortgage     = debtFreeDate(data);
-  const trajectory   = netWorthTrajectory(data, assumptions);
-  const monteCarlo   = runMonteCarlo(data, assumptions);
-
-  const retirementAge = p(data.retirementAge) || 65;
-  const atRetirement  = trajectory.find(t => t.age === retirementAge);
-  const atEnd         = trajectory[trajectory.length - 1];
-
   const propertyCashflows = (data.investmentProperties || []).map(ip => ({
-    id:     ip.id,
-    label:  ip.label,
-    status: ip.status,
+    id: ip.id, label: ip.label, status: ip.status,
     ...propertyAnnualCashflow(ip),
   }));
 
+  const householdTax = calculateHouseholdTax(data, propertyCashflows.filter(cf => cf.status === "existing"));
+
+  const superResult  = projectSuper(data, assumptions);
+  const drawdown     = retirementDrawdown(data, assumptions, superResult.projectedBalance);
+  const mortgage     = debtFreeDate(data);
+  const trajectory   = netWorthTrajectory(data, assumptions, householdTax);
+  const monteCarlo   = runMonteCarlo(data, assumptions);
+
+  const retirementAge    = p(data.retirementAge) || 65;
+  const atRetirement     = trajectory.find(t => t.age === retirementAge);
+  const atEnd            = trajectory[trajectory.length - 1];
+
+  // Age Pension estimate at retirement age
+  // Assessable assets = net worth minus PPOR (excluded from assets test)
+  const lifeExp          = p(data.lifeExpectancy) || 90;
+  const isCouple         = data.hasPartner === "yes";
+  const isHomeowner      = data.homeOwnership === "owner" || data.homeOwnership === "mortgage";
+  const atRetirementNW   = atRetirement?.netWorth || 0;
+  const ppOrVal          = p(data.ppOrValue);
+  const retirementAssets = Math.max(0, atRetirementNW + p(data.mortgageBalance) - ppOrVal);
+  // Assessable income at retirement = drawdown target (conservative)
+  const assessableIncome = p(data.targetRetirementSpending);
+  const agePension       = estimateAgePension(isCouple, isHomeowner, retirementAssets, assessableIncome, retirementAge);
+  // Also estimate at Age Pension eligibility age (67) if different from retirement
+  const agePensionAt67   = retirementAge < AGE_PENSION.eligibilityAge
+    ? estimateAgePension(isCouple, isHomeowner, retirementAssets, assessableIncome, AGE_PENSION.eligibilityAge)
+    : agePension;
+
+  // FIRE calculations
+  const fire       = fireCalc(data, assumptions);
+  const fireNumber = fire?.fireNumber || 0;
+
   return {
     assumptions,
-    super: superResult,
+    super:          superResult,
     drawdown,
     mortgage,
     trajectory,
     monteCarlo,
     propertyCashflows,
+    householdTax,
+    agePension:     agePensionAt67,
+    fire,
+    fireNumber,
     metrics: {
       retirementNetWorth:    atRetirement?.netWorth  ?? 0,
       finalNetWorth:         atEnd?.netWorth          ?? 0,
@@ -490,6 +951,18 @@ export function runEngine(data) {
       debtFreeYear:          mortgage?.debtFreeYear   ?? null,
       projectedSuper:        superResult.projectedBalance,
       requiredSuper:         drawdown.requiredBalance,
+      annualHouseholdTax:    householdTax.totalHouseholdTax,
+      annualAfterTax:        householdTax.totalAfterTax,
+      negativeGearingBenefit: householdTax.negativeGearingBenefit,
+      fireNumber,
+      coastFireNumber:       fire?.coastFireNumber     ?? 0,
+      isCoastFIRE:           fire?.isCoastFIRE         ?? false,
+      yearsToFI:             fire?.yearsToFI           ?? null,
+      projectedFIAge:        fire?.projectedFIAge      ?? null,
+      bridgeYears:           fire?.bridgeYears         ?? 0,
+      bridgeFundNeeded:      fire?.bridgeFundNeeded    ?? 0,
+      estimatedAgePension:   agePensionAt67.estimatedAnnual,
+      capExceeded:           drawdown.capExceeded,
     },
   };
 }
