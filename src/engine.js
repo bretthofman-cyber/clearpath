@@ -70,9 +70,10 @@ function monthlyPayment(balance, monthlyRate, remainingMonths) {
  * @returns Detailed tax breakdown object
  */
 export function calculatePersonTax(taxableIncome, {
-  superConcessional = 0,
-  hasPrivateHealth  = true,
-  hecsDebt          = 0,
+  superConcessional    = 0,
+  hasPrivateHealth     = true,
+  hecsDebt             = 0,
+  excessConcessional   = 0,   // amount above $30k cap — already in taxableIncome; credit 15% offset here
 } = {}) {
   const g = Math.max(0, taxableIncome);
   const zero = { taxableIncome: 0, incomeTax: 0, medicareLevy: 0, mls: 0, hecsRepayment: 0, division293: 0, totalTax: 0, afterTax: 0, effectiveRate: 0 };
@@ -86,6 +87,10 @@ export function calculatePersonTax(taxableIncome, {
     }
   }
 
+  // 1b. Excess concessional contributions included in assessable income — apply 15% offset credit
+  // (fund already paid 15% contributions tax; ATO credits this against the marginal tax on excess)
+  const excessConcessionalCredit = excessConcessional > 0 ? excessConcessional * 0.15 : 0;
+
   // 2. Low Income Tax Offset
   let lito = 0;
   if (g <= LITO.phase1UpTo) {
@@ -95,7 +100,7 @@ export function calculatePersonTax(taxableIncome, {
   } else if (g <= LITO.phase2UpTo) {
     lito = Math.max(0, 325 - (g - LITO.phase2From) * LITO.phase2Rate);
   }
-  incomeTax = Math.max(0, incomeTax - lito);
+  incomeTax = Math.max(0, incomeTax - lito - excessConcessionalCredit);
 
   // 3. Medicare Levy (simplified: 2% above shade-in threshold)
   const medicareLevy = g > MEDICARE.shadeInThreshold ? g * MEDICARE.levyRate : 0;
@@ -136,15 +141,16 @@ export function calculatePersonTax(taxableIncome, {
   const effectiveRate = g > 0 ? totalTax / g : 0;
 
   return {
-    taxableIncome:  Math.round(g),
-    incomeTax:      Math.round(incomeTax),
-    medicareLevy:   Math.round(medicareLevy),
-    mls:            Math.round(mls),
-    hecsRepayment:  Math.round(hecsRepayment),
-    division293:    Math.round(division293),
+    taxableIncome:       Math.round(g),
+    incomeTax:           Math.round(incomeTax),
+    medicareLevy:        Math.round(medicareLevy),
+    mls:                 Math.round(mls),
+    hecsRepayment:       Math.round(hecsRepayment),
+    division293:         Math.round(division293),
+    excessConcessional:  Math.round(excessConcessional),
     totalTax,
     afterTax,
-    effectiveRate:  Math.round(effectiveRate * 10000) / 10000,
+    effectiveRate:       Math.round(effectiveRate * 10000) / 10000,
   };
 }
 
@@ -172,23 +178,27 @@ export function calculateHouseholdTax(data, ipCashflows) {
   const gross1 = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome);
   const gross2 = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0;
 
-  // Taxable income = gross salary - salary sacrifice + rental income/loss
-  const taxable1 = Math.max(-999999, gross1 - ss1 + rentalPerson1);
-  const taxable2 = isCouple ? Math.max(-999999, gross2 - ss2 + rentalPerson2) : 0;
-
-  // Concessional contributions (used for Div 293 test)
+  // Concessional contributions (used for Div 293 test and excess cap detection)
   const sgRate1  = (p(data.employerSgRate) || SUPER.sgRate * 100) / 100;
   const sgRate2  = isCouple ? (p(data.partnerEmployerSgRate) || SUPER.sgRate * 100) / 100 : 0;
   const concess1 = gross1 * sgRate1 + ss1;
   const concess2 = isCouple ? gross2 * sgRate2 + ss2 : 0;
+
+  // Excess concessional: amount above $30k cap is added back to assessable income
+  const excessConc1 = Math.max(0, concess1 - SUPER.concessionalCap);
+  const excessConc2 = isCouple ? Math.max(0, concess2 - SUPER.concessionalCap) : 0;
+
+  // Taxable income = gross salary - salary sacrifice + rental income/loss + excess concessional (added back)
+  const taxable1 = Math.max(-999999, gross1 - ss1 + rentalPerson1 + excessConc1);
+  const taxable2 = isCouple ? Math.max(-999999, gross2 - ss2 + rentalPerson2 + excessConc2) : 0;
 
   const health1 = data.privateHealthInsurance !== "no";
   const health2 = isCouple ? data.partnerPrivateHealthInsurance !== "no" : true;
   const hecs1   = p(data.hecsDebt);
   const hecs2   = isCouple ? p(data.partnerHecsDebt) : 0;
 
-  const p1Tax = calculatePersonTax(taxable1, { superConcessional: concess1, hasPrivateHealth: health1, hecsDebt: hecs1 });
-  const p2Tax = isCouple ? calculatePersonTax(taxable2, { superConcessional: concess2, hasPrivateHealth: health2, hecsDebt: hecs2 }) : null;
+  const p1Tax = calculatePersonTax(taxable1, { superConcessional: concess1, hasPrivateHealth: health1, hecsDebt: hecs1, excessConcessional: excessConc1 });
+  const p2Tax = isCouple ? calculatePersonTax(taxable2, { superConcessional: concess2, hasPrivateHealth: health2, hecsDebt: hecs2, excessConcessional: excessConc2 }) : null;
 
   // Negative gearing tax benefit: how much less tax because of rental losses
   const negGearBenefit1 = rentalPerson1 < 0

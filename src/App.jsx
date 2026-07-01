@@ -69,6 +69,7 @@ const EMPTY_DATA = {
   // Stage 5
   superBalance: "", partnerSuperBalance: "", employerSgRate: "12",
   partnerEmployerSgRate: "12", salarySacrifice: "", partnerSalarySacrifice: "0",
+  salarySacrificeMaxed: false, partnerSalarySacrificeMaxed: false,
   targetRetirementSpending: "",
   // Stage 6
   retirementLifestyle: "comfortable",
@@ -141,13 +142,11 @@ function loadData() {
     // Migrate legacy string-array goals to object-array goals
     let goals = parsed.goals || [];
     if (goals.length > 0 && typeof goals[0] === "string") {
-      goals = goals.map(key => {
-        const opt = GOAL_OPTIONS.find(o => o.value === key);
-        return { key, label: opt?.label || key, amount: "", frequency: "annual", additive: false };
-      });
+      goals = goals.map(key => ({ key, label: key, amount: "", frequency: "annual", additive: false }));
     }
-    // Remove corrupted goal entries where key or label is not a string
-    goals = goals.filter(g => typeof g.key === "string" && g.key.length > 0 && typeof g.label === "string");
+    // Remove corrupted goal entries and goals that have been migrated to life events
+    const removedGoalKeys = new Set(["payoff-home", "early-retire", "travel", "inheritance", "business", "charity", "education"]);
+    goals = goals.filter(g => typeof g.key === "string" && g.key.length > 0 && !removedGoalKeys.has(g.key));
 
     return {
       ...EMPTY_DATA,
@@ -518,23 +517,69 @@ function Stage4({ data, set }) {
   );
 }
 
+// Reusable salary-sacrifice row with max toggle and cap warning
+function SalarySacrificeRow({ label, grossIncome, sgRate, ssValue, ssMaxed, onSsChange, onMaxedChange, hint }) {
+  const pf = v => parseFloat(String(v ?? "").replace(/,/g, "")) || 0;
+  const gross = pf(grossIncome);
+  const sg = gross * ((pf(sgRate) || 12) / 100);
+  const capRoom = Math.max(0, 30000 - sg);
+  const currentSS = pf(ssValue);
+  const effectiveSS = ssMaxed ? Math.round(capRoom) : currentSS;
+  const isOverCap = !ssMaxed && currentSS > 0 && currentSS > capRoom;
+  const displayVal = ssMaxed ? String(Math.round(capRoom)) : (ssValue || "");
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E" }}>{label}</div>
+          {hint && <div style={{ fontSize: 11, color: "#8A8270", marginTop: 1 }}>{hint}</div>}
+        </div>
+        {gross > 0 && (
+          <button
+            onClick={() => onMaxedChange(!ssMaxed)}
+            style={{
+              display: "flex", alignItems: "center", gap: 6, padding: "4px 10px",
+              border: "1.5px solid", borderColor: ssMaxed ? "#2E4A3D" : "#D8D2C4",
+              borderRadius: 20, background: ssMaxed ? "#EAF0EC" : "white",
+              cursor: "pointer", fontFamily: "inherit", fontSize: 11,
+              color: ssMaxed ? "#2E4A3D" : "#6B6655", flexShrink: 0,
+            }}
+          >
+            <div style={{
+              width: 26, height: 15, borderRadius: 8,
+              background: ssMaxed ? "#2E4A3D" : "#D8D2C4",
+              position: "relative", transition: "background 0.2s", flexShrink: 0,
+            }}>
+              <div style={{
+                width: 11, height: 11, borderRadius: "50%", background: "white",
+                position: "absolute", top: 2, left: ssMaxed ? 13 : 2,
+                transition: "left 0.2s",
+              }} />
+            </div>
+            {ssMaxed ? "Maxed to cap" : "Max to cap"}
+          </button>
+        )}
+      </div>
+      <Input
+        value={displayVal}
+        onChange={v => { if (!ssMaxed) onSsChange(v); }}
+        placeholder="0"
+        prefix="$"
+        disabled={ssMaxed}
+      />
+      {gross > 0 && (
+        <div style={{ fontSize: 11, color: isOverCap ? "#9a3922" : "#8A8270", marginTop: 5, lineHeight: 1.5 }}>
+          {isOverCap
+            ? `Warning: ${currency(currentSS)}/yr exceeds the ${currency(capRoom)}/yr cap room — excess concessional contributions are taxed at your marginal rate (less a 15% offset).`
+            : `SG ${currency(Math.round(sg))}/yr · cap room ${currency(Math.round(capRoom))}/yr · cap $30,000/yr`}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Stage5({ data, set }) {
-  const goals = data.goals || [];
-
-  function toggleGoal(value) {
-    const isSelected = goals.some(g => g.key === value);
-    if (isSelected) {
-      set("goals", goals.filter(g => g.key !== value));
-    } else {
-      const opt = GOAL_OPTIONS.find(o => o.value === value);
-      set("goals", [...goals, { key: value, label: opt?.label || value, amount: "", frequency: "annual", additive: false }]);
-    }
-  }
-
-  function updateGoal(key, field, val) {
-    set("goals", goals.map(g => g.key === key ? { ...g, [field]: val } : g));
-  }
-
   return (
     <div>
       <TwoCol>
@@ -543,172 +588,49 @@ function Stage5({ data, set }) {
           <Field label={`${data.partnerName || "Partner"}'s super balance`}><Input value={data.partnerSuperBalance} onChange={v => set("partnerSuperBalance", v)} placeholder="55,000" prefix="$" /></Field>
         )}
       </TwoCol>
+
+      <SectionDivider label="Salary sacrifice" />
       <TwoCol>
         <Field label="Your employer SG rate" hint="Currently 12% for most employees">
           <Input value={data.employerSgRate} onChange={v => set("employerSgRate", v)} placeholder="12" suffix="%" />
         </Field>
-        <Field label="Your salary sacrifice (annual)" hint="Extra contributions above SG">
-          <Input value={data.salarySacrifice} onChange={v => set("salarySacrifice", v)} placeholder="0" prefix="$" />
-        </Field>
-      </TwoCol>
-      {data.hasPartner === "yes" && (
-        <TwoCol>
+        {data.hasPartner === "yes" && (
           <Field label={`${data.partnerName || "Partner"}'s SG rate`} hint="Currently 12% for most employees">
             <Input value={data.partnerEmployerSgRate} onChange={v => set("partnerEmployerSgRate", v)} placeholder="12" suffix="%" />
           </Field>
-          <Field label={`${data.partnerName || "Partner"}'s salary sacrifice`} hint="Annual extra contributions">
-            <Input value={data.partnerSalarySacrifice} onChange={v => set("partnerSalarySacrifice", v)} placeholder="0" prefix="$" />
-          </Field>
-        </TwoCol>
-      )}
-      {(() => {
-        const gross = parseFloat(String(data.grossIncome || "").replace(/,/g, "")) || 0;
-        if (!gross) return null;
-        const sgRate = (parseFloat(data.employerSgRate) || 12) / 100;
-        const employerSG = gross * sgRate;
-        const capRoom = Math.max(0, 30000 - employerSG);
-        const currentSS = parseFloat(String(data.salarySacrifice || "").replace(/,/g, "")) || 0;
-        const isMaxed = capRoom > 0 && Math.abs(currentSS - capRoom) < 1;
-        return (
-          <div style={{
-            background: "#F5F2EB", border: "1px solid #ECE7DB", borderRadius: 10,
-            padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center",
-            justifyContent: "space-between", gap: 12,
-          }}>
-            <div style={{ fontSize: 12, color: "#6B6655", lineHeight: 1.5 }}>
-              <span style={{ color: "#21241E", fontWeight: 500 }}>Concessional cap</span> $30,000/yr
-              {" · "}Employer SG {currency(employerSG)}/yr
-              {" · "}Room to salary sacrifice <span style={{ color: "#2E4A3D", fontWeight: 500 }}>{currency(capRoom)}/yr</span>
-            </div>
-            <button
-              onClick={() => set("salarySacrifice", String(Math.round(capRoom)))}
-              disabled={isMaxed || capRoom === 0}
-              style={{
-                flexShrink: 0, fontSize: 11, padding: "5px 12px",
-                border: "1.5px solid", borderColor: isMaxed ? "#D8D2C4" : "#2E4A3D",
-                borderRadius: 20, cursor: isMaxed || capRoom === 0 ? "default" : "pointer",
-                background: isMaxed ? "#FBFAF6" : "#EAF0EC",
-                color: isMaxed ? "#9DB0A1" : "#2E4A3D",
-                fontFamily: "inherit", fontWeight: 500,
-              }}
-            >
-              {isMaxed ? "Maxed ✓" : "Max it"}
-            </button>
-          </div>
-        );
-      })()}
+        )}
+      </TwoCol>
 
-      <SectionDivider label="Retirement target & goals" />
+      <SalarySacrificeRow
+        label="Your salary sacrifice (annual)"
+        hint="Pre-tax contributions above SG"
+        grossIncome={data.grossIncome}
+        sgRate={data.employerSgRate}
+        ssValue={data.salarySacrifice}
+        ssMaxed={!!data.salarySacrificeMaxed}
+        onSsChange={v => set("salarySacrifice", v)}
+        onMaxedChange={v => set("salarySacrificeMaxed", v)}
+      />
+
+      {data.hasPartner === "yes" && (
+        <SalarySacrificeRow
+          label={`${data.partnerName || "Partner"}'s salary sacrifice (annual)`}
+          hint="Pre-tax contributions above SG"
+          grossIncome={data.partnerIncome}
+          sgRate={data.partnerEmployerSgRate}
+          ssValue={data.partnerSalarySacrifice}
+          ssMaxed={!!data.partnerSalarySacrificeMaxed}
+          onSsChange={v => set("partnerSalarySacrifice", v)}
+          onMaxedChange={v => set("partnerSalarySacrificeMaxed", v)}
+        />
+      )}
+
+      <SectionDivider label="Retirement target & life events" />
       <Field label="Target annual retirement spending" hint="In today's dollars — what lifestyle do you want in retirement?">
         <Input value={data.targetRetirementSpending} onChange={v => set("targetRetirementSpending", v)} placeholder="65,000" prefix="$" />
       </Field>
 
       <LifeEventsPanel data={data} set={set} />
-
-      <Field label="What else are you planning for?" hint="Select any goals and add an estimated cost — we'll factor them into your projections">
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {GOAL_OPTIONS.map(o => {
-            const goalObj = goals.find(g => g.key === o.value);
-            const isSelected = !!goalObj;
-            return (
-              <div key={o.value} style={{
-                border: "1.5px solid",
-                borderColor: isSelected ? "#2E4A3D" : "#D8D2C4",
-                borderRadius: 10, overflow: "hidden",
-                background: isSelected ? "#EAF0EC" : "#FBFAF6",
-                transition: "border-color 0.15s, background 0.15s",
-              }}>
-                <button
-                  onClick={() => toggleGoal(o.value)}
-                  style={{
-                    width: "100%", padding: "10px 14px", border: "none",
-                    background: "transparent", cursor: "pointer", fontFamily: "inherit",
-                    fontSize: 13, color: isSelected ? "#2E4A3D" : "#21241E",
-                    textAlign: "left", display: "flex", alignItems: "center", gap: 10,
-                  }}
-                >
-                  <div style={{
-                    width: 18, height: 18, borderRadius: 5, border: "2px solid", flexShrink: 0,
-                    borderColor: isSelected ? "#2E4A3D" : "#D8D2C4",
-                    background: isSelected ? "#2E4A3D" : "white",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    {isSelected && <span style={{ color: "white", fontSize: 11, lineHeight: 1 }}>✓</span>}
-                  </div>
-                  {o.label}
-                </button>
-
-                {isSelected && goalObj && (
-                  <div style={{ padding: "0 14px 14px", borderTop: "1px solid #D8D2C4" }}>
-                    <div style={{ fontSize: 11, color: "#6B6655", marginBottom: 8, marginTop: 10 }}>
-                      Estimated spend
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                      <div style={{ position: "relative", flex: 1, maxWidth: 140 }}>
-                        <span style={{
-                          position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
-                          fontSize: 13, color: "#8A8270", pointerEvents: "none",
-                        }}>$</span>
-                        <input
-                          type="number"
-                          value={goalObj.amount}
-                          onChange={e => updateGoal(o.value, "amount", e.target.value)}
-                          placeholder="0"
-                          style={{
-                            width: "100%", padding: "7px 10px 7px 22px",
-                            border: "1.5px solid #D8D2C4", borderRadius: 8,
-                            fontSize: 13, fontFamily: "inherit", background: "white",
-                            outline: "none",
-                          }}
-                        />
-                      </div>
-                      {[
-                        { key: "monthly",   label: "Mo"  },
-                        { key: "quarterly", label: "Qtr" },
-                        { key: "annual",    label: "Yr"  },
-                      ].map(f => (
-                        <button
-                          key={f.key}
-                          onClick={() => updateGoal(o.value, "frequency", f.key)}
-                          style={{
-                            padding: "7px 12px", border: "1.5px solid",
-                            borderColor: goalObj.frequency === f.key ? "#2E4A3D" : "#D8D2C4",
-                            borderRadius: 8, fontSize: 12, fontFamily: "inherit", cursor: "pointer",
-                            background: goalObj.frequency === f.key ? "#2E4A3D" : "white",
-                            color: goalObj.frequency === f.key ? "white" : "#6B6655",
-                            fontWeight: goalObj.frequency === f.key ? 600 : 400,
-                          }}
-                        >{f.label}</button>
-                      ))}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                      <div
-                        onClick={() => updateGoal(o.value, "additive", !goalObj.additive)}
-                        style={{
-                          width: 18, height: 18, borderRadius: 4, border: "2px solid", flexShrink: 0, marginTop: 1,
-                          borderColor: goalObj.additive ? "#2E4A3D" : "#9DB0A1",
-                          background: goalObj.additive ? "#2E4A3D" : "white",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {goalObj.additive && <span style={{ color: "white", fontSize: 11, lineHeight: 1 }}>✓</span>}
-                      </div>
-                      <span
-                        onClick={() => updateGoal(o.value, "additive", !goalObj.additive)}
-                        style={{ fontSize: 12, color: "#6B6655", lineHeight: 1.5, cursor: "pointer" }}
-                      >
-                        This is <strong>in addition to</strong> my retirement spending target
-                        {!goalObj.additive && <span style={{ color: "#8A8270" }}> (currently treated as included in my target)</span>}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </Field>
     </div>
   );
 }
@@ -845,15 +767,8 @@ function goalAnnualAdditive(goals) {
   }, 0);
 }
 
-const GOAL_OPTIONS = [
-  { value: "travel", label: "✈️  Travel extensively in retirement" },
-  { value: "inheritance", label: "🏡  Leave an inheritance for family" },
-  { value: "education", label: "🎓  Fund children's education" },
-  { value: "payoff-home", label: "🔑  Pay off home before retiring" },
-  { value: "early-retire", label: "⏰  Retire earlier than planned" },
-  { value: "business", label: "💼  Start or invest in a business" },
-  { value: "charity", label: "❤️  Give to charity or causes" },
-];
+// Goals legacy — kept for backward-compat projection calculation only; no longer shown in UI
+const GOAL_OPTIONS = [];
 
 // ─── WARNINGS PANEL ───────────────────────────────────────────────────────────
 
@@ -1905,15 +1820,76 @@ function AnalysisSummary({ data, engine }) {
   );
 }
 
+// Build single-person data slice for individual analysis view
+function derivePersonData(data, person) {
+  const pf = v => parseFloat(String(v ?? "").replace(/,/g, "")) || 0;
+
+  if (person === "primary") {
+    return {
+      ...data, hasPartner: "no",
+      partnerIncome: "", partnerBonusIncome: "", partnerOtherIncome: "",
+      partnerSuperBalance: "", partnerSalarySacrifice: "0", partnerEmployerSgRate: "12",
+    };
+  }
+  if (person === "partner") {
+    return {
+      ...data, hasPartner: "no",
+      firstName: data.partnerName || "Partner",
+      age: data.partnerAge || data.age,
+      retirementAge: data.partnerRetirementAge || data.retirementAge,
+      grossIncome: data.partnerIncome || "",
+      bonusIncome: data.partnerBonusIncome || "",
+      otherIncome: data.partnerOtherIncome || "",
+      superBalance: data.partnerSuperBalance || "",
+      employerSgRate: data.partnerEmployerSgRate || "12",
+      salarySacrifice: data.partnerSalarySacrifice || "0",
+      salarySacrificeMaxed: !!data.partnerSalarySacrificeMaxed,
+      privateHealthInsurance: data.partnerPrivateHealthInsurance || "yes",
+      hecsDebt: data.partnerHecsDebt || "",
+      creditCardDebt: data.partnerCreditCardDebt || "",
+      personalLoanDebt: data.partnerPersonalLoanDebt || "",
+      partnerIncome: "", partnerBonusIncome: "", partnerOtherIncome: "",
+      partnerSuperBalance: "", partnerSalarySacrifice: "0", partnerEmployerSgRate: "12",
+      partnerRetirementAge: "", partnerAge: "",
+    };
+  }
+  return data; // combined
+}
+
+// Apply maxed salary sacrifice to data before engine run
+function applyMaxedSS(data) {
+  const pf = v => parseFloat(String(v ?? "").replace(/,/g, "")) || 0;
+  const gross1 = pf(data.grossIncome) + pf(data.bonusIncome) + pf(data.otherIncome);
+  const sg1 = gross1 * ((pf(data.employerSgRate) || 12) / 100);
+  const effectiveSS1 = data.salarySacrificeMaxed
+    ? String(Math.round(Math.max(0, 30000 - sg1)))
+    : (data.salarySacrifice || "0");
+
+  const isCouple = data.hasPartner === "yes";
+  const gross2 = isCouple ? pf(data.partnerIncome) + pf(data.partnerBonusIncome) + pf(data.partnerOtherIncome) : 0;
+  const sg2 = gross2 * ((pf(data.partnerEmployerSgRate) || 12) / 100);
+  const effectiveSS2 = isCouple && data.partnerSalarySacrificeMaxed
+    ? String(Math.round(Math.max(0, 30000 - sg2)))
+    : (data.partnerSalarySacrifice || "0");
+
+  return { ...data, salarySacrifice: effectiveSS1, partnerSalarySacrifice: effectiveSS2 };
+}
+
 function AnalysisScreen({ data, set }) {
   const [expandedKey, setExpandedKey] = useState(data.activeScenario || "base");
+  const [viewPerson, setViewPerson] = useState("combined");
 
+  const isCouple = data.hasPartner === "yes" && (data.partnerIncome || data.partnerSuperBalance || data.partnerAge);
   const aT = deriveAssetTotals(data.assetItems);
   const baseSpend = parseFloat(String(data.targetRetirementSpending || "").replace(/,/g, "")) || 0;
   const additiveGoals = goalAnnualAdditive(data.goals);
   const effectiveSpend = baseSpend + additiveGoals;
+
+  // Apply person view and maxed SS, then run engine
+  const personData = derivePersonData(data, viewPerson);
+  const ssData = applyMaxedSS(personData);
   const derivedData = {
-    ...data, ...aT,
+    ...ssData, ...aT,
     targetRetirementSpending: effectiveSpend > 0 ? String(effectiveSpend) : data.targetRetirementSpending,
   };
   const engine = runEngine(derivedData);
@@ -1980,13 +1956,46 @@ function AnalysisScreen({ data, set }) {
         ))}
       </div>
 
-      <WarningsPanel data={data} engine={engine} />
-      <MetricsRow engine={engine} data={data} />
-      <MonteCarloCard data={data} engine={engine} />
-      <FIREPanel engine={engine} data={data} />
-      <NetWorthChart engine={engine} data={data} />
-      <ProjectionTable engine={engine} data={data} />
-      <ScenarioComparisonRow data={data} />
+      {/* ── Per-person view toggle (couples only) ── */}
+      {isCouple && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 8 }}>
+            View
+          </div>
+          <div style={{ display: "flex", background: "#F5F2EB", borderRadius: 10, padding: 3, gap: 2 }}>
+            {[
+              { key: "primary",  label: data.firstName || "You" },
+              { key: "partner",  label: data.partnerName || "Partner" },
+              { key: "combined", label: "Combined" },
+            ].map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => setViewPerson(opt.key)}
+                style={{
+                  flex: 1, padding: "7px 10px", border: "none", borderRadius: 8,
+                  background: viewPerson === opt.key ? "#2E4A3D" : "transparent",
+                  color: viewPerson === opt.key ? "white" : "#6B6655",
+                  fontSize: 12, fontWeight: viewPerson === opt.key ? 600 : 400,
+                  cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+                }}
+              >{opt.label}</button>
+            ))}
+          </div>
+          {viewPerson !== "combined" && (
+            <div style={{ fontSize: 11, color: "#8A8270", marginTop: 6 }}>
+              Showing individual projection for {viewPerson === "primary" ? (data.firstName || "you") : (data.partnerName || "partner")}. Shared assets (property, investments) are included in full.
+            </div>
+          )}
+        </div>
+      )}
+
+      <WarningsPanel data={derivedData} engine={engine} />
+      <MetricsRow engine={engine} data={derivedData} />
+      <MonteCarloCard data={derivedData} engine={engine} />
+      <FIREPanel engine={engine} data={derivedData} />
+      <NetWorthChart engine={engine} data={derivedData} />
+      <ProjectionTable engine={engine} data={derivedData} />
+      <ScenarioComparisonRow data={derivedData} />
       {(data.budgetItems || []).length > 0 && (() => {
         const netMo = estimateNetMonthly(data);
         const startCash = deriveAssetTotals(data.assetItems).cashSavings;
@@ -1994,7 +2003,7 @@ function AnalysisScreen({ data, set }) {
           ? <CashflowCalendar items={data.budgetItems} netMonthly={netMo} startingCash={startCash} />
           : null;
       })()}
-      <AnalysisSummary data={data} engine={engine} />
+      <AnalysisSummary data={derivedData} engine={engine} />
       <div style={{ marginTop: 24, display: "flex", gap: 10 }}>
         <button onClick={() => window.print()} style={{
           padding: "10px 20px", border: "none", borderRadius: 10,

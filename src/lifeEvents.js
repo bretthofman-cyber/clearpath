@@ -89,6 +89,46 @@ export const LIFE_EVENT_TYPES = {
     defaults: { amount: "" },
     hint: "Net proceeds (after buying a smaller home) added to liquid assets. Does not model CGT (PPOR is generally exempt) or Downsizer Contribution to super. Consult an adviser for downsizer contribution strategy.",
   },
+  travel_retirement: {
+    label: "Travel in retirement",
+    description: "Annual travel budget during retirement",
+    icon: "✈️",
+    personed: false,
+    durable: true,
+    fields: ["year", "durationYears", "amount"],
+    defaults: { amount: "", durationYears: "10" },
+    hint: "Annual travel budget modelled as a recurring cash outflow for the duration entered.",
+  },
+  inheritance_gift: {
+    label: "Leave an inheritance",
+    description: "Planned estate gift or wealth transfer",
+    icon: "🏡",
+    personed: false,
+    durable: false,
+    fields: ["year", "amount"],
+    defaults: { amount: "" },
+    hint: "Modelled as a lump-sum outflow in the selected year. Does not model tax treatment (estate planning consult recommended).",
+  },
+  business_investment: {
+    label: "Start or invest in a business",
+    description: "Capital investment in a business",
+    icon: "💼",
+    personed: false,
+    durable: false,
+    fields: ["year", "amount"],
+    defaults: { amount: "" },
+    hint: "Investment amount deducted from liquid assets in the modelled year. Does not model returns from the business.",
+  },
+  charity_giving: {
+    label: "Give to charity or causes",
+    description: "Planned charitable giving",
+    icon: "❤️",
+    personed: false,
+    durable: true,
+    fields: ["year", "durationYears", "amount"],
+    defaults: { amount: "", durationYears: "5" },
+    hint: "Annual giving amount, modelled as a recurring cash outflow each year for the duration.",
+  },
 };
 
 /**
@@ -119,7 +159,7 @@ export function newLifeEvent(type) {
  */
 export function indexEventsByYear(lifeEvents) {
   const map = new Map();
-  const durableTypes = new Set(["career_break", "part_time", "school_fees"]);
+  const durableTypes = new Set(["career_break", "part_time", "school_fees", "travel_retirement", "charity_giving"]);
 
   for (const evt of lifeEvents || []) {
     const startYear = parseInt(evt.year) || 0;
@@ -195,7 +235,13 @@ export function getYearEventAdjustments(calYear, eventMap, incRatio = 0.5) {
         break;
       case "major_expense":
       case "school_fees":
+      case "travel_retirement":
+      case "charity_giving":
         lumpOut += amt;
+        break;
+      case "inheritance_gift":
+      case "business_investment":
+        if (evt._durOffset === 0) lumpOut += amt;
         break;
       case "extra_repayment":
         if (evt._durOffset === 0) extraMortgageRepay += amt;
