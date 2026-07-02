@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { DEFAULT_SCENARIOS, runEngine } from "./engine.js";
 import { LIFE_EVENT_TYPES, newLifeEvent } from "./lifeEvents.js";
 import { generateWarnings } from "./warnings.js";
@@ -1660,16 +1660,20 @@ function NetWorthChart({ engine, data }) {
 
 // ─── SCENARIO COMPARISON ROW ──────────────────────────────────────────────────
 
+const SCENARIO_COMPARISON_SCENS = [
+  { key: "conservative", label: "Conservative", color: "#6B5830", bg: "#F5F0E8", bdr: "#e4d8bc" },
+  { key: "base",         label: "Base",         color: "#2E4A3D", bg: "#EAF0EC", bdr: "#D8D2C4" },
+  { key: "aggressive",   label: "Aggressive",   color: "#2a5480", bg: "#eaf0f8", bdr: "#b8cde0" },
+];
+
 function ScenarioComparisonRow({ data }) {
-  const SCENS = [
-    { key: "conservative", label: "Conservative", color: "#6B5830", bg: "#F5F0E8", bdr: "#e4d8bc" },
-    { key: "base",         label: "Base",         color: "#2E4A3D", bg: "#EAF0EC", bdr: "#D8D2C4" },
-    { key: "aggressive",   label: "Aggressive",   color: "#2a5480", bg: "#eaf0f8", bdr: "#b8cde0" },
-  ];
-  const assetTotals = deriveAssetTotals(data.assetItems);
-  const engines = SCENS.map(({ key }) =>
-    runEngine({ ...data, ...assetTotals, activeScenario: key, useCustomAssumptions: false })
-  );
+  const SCENS = SCENARIO_COMPARISON_SCENS;
+  const engines = useMemo(() => {
+    const assetTotals = deriveAssetTotals(data.assetItems);
+    return SCENS.map(({ key }) =>
+      runEngine({ ...data, ...assetTotals, activeScenario: key, useCustomAssumptions: false })
+    );
+  }, [data]);
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 10 }}>
@@ -2239,8 +2243,27 @@ function AnalysisScreen({ data, set }) {
     }
   }
 
+  const missingFields = [
+    !data.grossIncome && "gross income (Stage 2)",
+    !data.superBalance && "super balance (Stage 5)",
+    !data.targetRetirementSpending && "retirement spending target (Stage 5)",
+  ].filter(Boolean);
+
   return (
     <div>
+      {/* ── Missing data nudge ── */}
+      {missingFields.length > 0 && (
+        <div style={{ background: "#FBF8F2", border: "1.5px solid #E4D8BC", borderRadius: 10, padding: "12px 16px", marginBottom: 20, display: "flex", gap: 12, alignItems: "flex-start" }}>
+          <div style={{ fontSize: 16, flexShrink: 0 }}>ℹ️</div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#6B5830", marginBottom: 4 }}>More inputs = more complete projections</div>
+            <div style={{ fontSize: 12, color: "#8A6D3B", lineHeight: 1.5 }}>
+              Still missing: {missingFields.join(" · ")}. You can go back using the tabs above or the Back button below.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Planning scenario ── */}
       <SectionDivider label="Planning scenario & assumptions" />
 
