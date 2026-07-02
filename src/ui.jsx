@@ -1,6 +1,8 @@
 // ─── CLEARPATH SHARED UI PRIMITIVES ──────────────────────────────────────────
 // Imported by App.jsx and any stage component files.
 
+import { useState } from "react";
+
 export function currency(val) {
   const n = parseFloat(String(val).replace(/,/g, ""));
   if (isNaN(n)) return "—";
@@ -19,14 +21,26 @@ export function Field({ label, hint, children }) {
   );
 }
 
+function fmtAmount(v) {
+  const raw = String(v || "").replace(/,/g, "");
+  if (raw === "" || raw === "-") return raw;
+  const n = parseFloat(raw);
+  return isNaN(n) ? raw : n.toLocaleString("en-AU", { maximumFractionDigits: 0 });
+}
+
 export function Input({ value, onChange, placeholder, type = "text", prefix, suffix }) {
+  const [focused, setFocused] = useState(false);
+  const isAmount = prefix === "$";
+  const displayValue = isAmount && !focused ? fmtAmount(value) : (value ?? "");
+
   return (
     <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
       {prefix && <span style={{ position: "absolute", left: 12, fontSize: 14, color: "#6b8f84", fontWeight: 500, pointerEvents: "none" }}>{prefix}</span>}
       <input
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
+        type={isAmount ? "text" : type}
+        inputMode={isAmount ? "numeric" : undefined}
+        value={displayValue}
+        onChange={e => onChange(e.target.value.replace(/,/g, ""))}
         placeholder={placeholder}
         style={{
           width: "100%",
@@ -35,8 +49,8 @@ export function Input({ value, onChange, placeholder, type = "text", prefix, suf
           fontSize: 16, color: "#0f1a16", background: "#f9faf9",
           outline: "none", fontFamily: "inherit", transition: "border-color 0.15s",
         }}
-        onFocus={e => e.target.style.borderColor = "#3d6b5e"}
-        onBlur={e => e.target.style.borderColor = "#d4ddd9"}
+        onFocus={e => { setFocused(true); e.target.style.borderColor = "#3d6b5e"; }}
+        onBlur={e => { setFocused(false); e.target.style.borderColor = "#d4ddd9"; }}
       />
       {suffix && <span style={{ position: "absolute", right: 12, fontSize: 13, color: "#6b8f84", pointerEvents: "none" }}>{suffix}</span>}
     </div>
