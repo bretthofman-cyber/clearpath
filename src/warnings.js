@@ -106,7 +106,7 @@ export function generateWarnings(data, engine) {
     add("high", "CONC_CAP_BREACH",
       "Concessional contributions may exceed the $30,000 cap",
       `Combined employer SG (${fmt(Math.round(sg1))}) and salary sacrifice (${fmt(p(data.salarySacrifice))}) total ${fmt(Math.round(sg1 + ss1))}/yr — above the $30,000 concessional cap.`,
-      "Excess concessional contributions are included in assessable income and taxed at the marginal rate, with a 15% offset. Verify with your super fund and consider adjusting your salary sacrifice."
+      "Excess concessional contributions are included in assessable income and taxed at the marginal rate, with a 15% offset. Verify actual contribution amounts with your super fund and payroll."
     );
   }
 

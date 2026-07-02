@@ -1385,10 +1385,10 @@ function MonteCarloCard({ data, engine }) {
   const bdr   = isStrong ? "#D8D2C4" : isWatch ? "#E4D8BC" : "#f0d0c4";
   const label = isStrong ? "Strong" : isWatch ? "Watch zone" : "Needs attention";
   const desc  = isStrong
-    ? `High confidence your plan funds retirement to age ${data.lifeExpectancy || 90}`
+    ? `Modelling indicates a high likelihood of funding retirement to age ${data.lifeExpectancy || 90} under current assumptions`
     : isWatch
-    ? "Some cashflow pressure in retirement — review your contributions and spending target"
-    : "High risk of running short in retirement — consider increasing contributions or adjusting targets";
+    ? "Modelling shows some cashflow pressure in retirement under current assumptions — adjusting the spending target or scenario inputs will update this result"
+    : "Modelling indicates a high probability of asset depletion before assumed life expectancy — scenario inputs and spending target materially affect this result";
 
   return (
     <div style={{ background: bg, border: `1.5px solid ${bdr}`, borderRadius: 12, padding: "16px 18px", marginBottom: 20 }}>
