@@ -198,8 +198,27 @@ function saveStage(s) {
 // ─── STAGE FORMS ─────────────────────────────────────────────────────────────
 
 function Stage1({ data, set }) {
+  const isNew = !data.firstName && !data.age;
   return (
     <div>
+      {isNew && (
+        <div style={{
+          background: "linear-gradient(135deg, #2E4A3D08 0%, #C2A06B10 100%)",
+          border: "1.5px solid #D8D2C4", borderRadius: 12,
+          padding: "16px 18px", marginBottom: 24,
+          display: "flex", gap: 14, alignItems: "flex-start",
+        }}>
+          <div style={{ fontSize: 22, flexShrink: 0, marginTop: 1 }}>✦</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#21241E", marginBottom: 4 }}>
+              Welcome to Clearpath
+            </div>
+            <div style={{ fontSize: 12, color: "#6B6655", lineHeight: 1.6 }}>
+              A 7-step modelling tool for Australian households. Enter your details to project super, net worth, retirement funding probability, and cashflow — all calculated locally, never sent anywhere.
+            </div>
+          </div>
+        </div>
+      )}
       <TwoCol>
         <Field label="First name"><Input value={data.firstName} onChange={v => set("firstName", v)} placeholder="e.g. Alex" /></Field>
         <Field label="Your age"><Input value={data.age} onChange={v => set("age", v)} placeholder="e.g. 34" type="number" /></Field>
@@ -2485,6 +2504,12 @@ export default function ClearpathMVP() {
   body, html { background: white !important; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @page { margin: 12mm 10mm; size: A4 portrait; }
+}
+@media (max-width: 480px) {
+  .app-subtitle { max-width: 44vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .metrics-bar { gap: 16px !important; padding: 8px 16px !important; }
+  .metrics-bar > div > div:first-child { font-size: 7px !important; }
+  .metrics-bar > div > div:last-child { font-size: 13px !important; }
 }`}</style>
 
       <header className="no-print" style={{ background: "#FBFAF6", borderBottom: "1px solid #ECE7DB", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
@@ -2492,7 +2517,7 @@ export default function ClearpathMVP() {
           <div style={{ fontFamily: "Spectral, serif", fontSize: 20, color: "#21241E" }}>
             Clear<span style={{ color: "#2E4A3D" }}>path</span>
           </div>
-          <div style={{ fontSize: 10, color: "#8A8270", letterSpacing: "0.08em", textTransform: "uppercase" }}>Personal Financial Modelling & Scenario Planning</div>
+          <div className="app-subtitle" style={{ fontSize: 10, color: "#8A8270", letterSpacing: "0.08em", textTransform: "uppercase" }}>Personal Financial Modelling & Scenario Planning</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           {data.firstName && <div style={{ fontSize: 12, color: "#6B6655" }}>Hi, {data.firstName} 👋</div>}
@@ -2524,7 +2549,7 @@ export default function ClearpathMVP() {
       </div>
 
       {(data.grossIncome || data.superBalance || (data.assetItems || []).length > 0) && (
-        <div className="no-print" style={{ background: "#2E4A3D", padding: "10px 28px", display: "flex", gap: 24, overflowX: "auto" }}>
+        <div className="no-print metrics-bar" style={{ background: "#2E4A3D", padding: "10px 28px", display: "flex", gap: 24, overflowX: "auto" }}>
           {[
             { label: "Net Worth", value: currency(netWorth) },
             { label: "Super", value: currency(data.superBalance) },
