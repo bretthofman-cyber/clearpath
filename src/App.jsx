@@ -1839,7 +1839,7 @@ function AnalysisSummary({ data, engine }) {
     parts.push(taxLine);
     if (p1.mls > 0 || (p2?.mls ?? 0) > 0) {
       const mlsAmount = p1.mls + (p2?.mls ?? 0);
-      parts.push(`Medicare Levy Surcharge of ${currency(mlsAmount)}/yr applies due to no hospital-level private health cover — taking out hospital cover could eliminate this charge.`);
+      parts.push(`Medicare Levy Surcharge of ${currency(mlsAmount)}/yr is included in the tax model — it applies when no hospital-level private health cover is held and income exceeds the MLS threshold.`);
     }
     if (p1.hecsRepayment > 0 || (p2?.hecsRepayment ?? 0) > 0) {
       parts.push(`HECS-HELP compulsory repayments total ${currency(p1.hecsRepayment + (p2?.hecsRepayment ?? 0))}/yr, deducted automatically via the tax system.`);
@@ -1881,7 +1881,7 @@ function AnalysisSummary({ data, engine }) {
       parts.push(`Current super of ${currency(n(data.superBalance))}${combinedNote} is projected to reach ${currency(m?.projectedSuper || 0)} by age ${retireAge}. Enter a retirement spending target in the Super & Goals stage to unlock the full funded-to-age and Monte Carlo analysis.`);
     }
     if (concCapHeadroom > 5000) {
-      parts.push(`${currency(Math.round(concCapHeadroom))} of concessional contribution capacity remains unused this year — salary sacrifice within this limit reduces taxable income and compounds inside super's lower tax environment.`);
+      parts.push(`${currency(Math.round(concCapHeadroom))} of the $30,000 concessional cap remains unused based on inputs entered (SG plus salary sacrifice entered so far).`);
     }
     // Age Pension
     const ap = engine?.agePension;
@@ -2019,13 +2019,9 @@ function AnalysisSummary({ data, engine }) {
               );
             })}
           </div>
-          {additiveGoalAmt > 0 ? (
+          {additiveGoalAmt > 0 && (
             <div style={{ marginTop: 8, fontSize: 12, color: "#2a5480", lineHeight: 1.5, padding: "8px 12px", background: "#eaf0f8", borderRadius: 8 }}>
               {currency(additiveGoalAmt)}/year in additional goal spending is included in the retirement projections above.
-            </div>
-          ) : (
-            <div style={{ marginTop: 8, fontSize: 12, color: "#8A8270", lineHeight: 1.5 }}>
-              No goals are currently marked as additional to your retirement target. Tick "in addition to" on any goal in Stage 6 to include its cost in the projections.
             </div>
           )}
         </div>
