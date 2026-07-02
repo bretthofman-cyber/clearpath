@@ -89,6 +89,16 @@ export const LIFE_EVENT_TYPES = {
     defaults: { amount: "" },
     hint: "Net proceeds (after buying a smaller home) added to liquid assets. Does not model CGT (PPOR is generally exempt) or Downsizer Contribution to super. Consult an adviser for downsizer contribution strategy.",
   },
+  ip_sale: {
+    label: "Sell investment property",
+    description: "CGT estimated on sale proceeds",
+    icon: "🏷",
+    personed: false,
+    durable: false,
+    fields: ["year", "amount", "costBase", "heldOver12Months"],
+    defaults: { amount: "", costBase: "", heldOver12Months: "yes" },
+    hint: "Net proceeds after estimated CGT (50% discount if held >12 months at 30% marginal rate estimate) are added to liquid assets.",
+  },
   travel_retirement: {
     label: "Travel in retirement",
     description: "Annual travel budget during retirement",
@@ -147,6 +157,8 @@ export function newLifeEvent(type) {
     incomeReductionPct: meta.defaults?.incomeReductionPct ?? "100",
     pauseMonths: meta.defaults?.pauseMonths ?? "3",
     customLabel: meta.defaults?.customLabel ?? "",
+    costBase: meta.defaults?.costBase ?? "",
+    heldOver12Months: meta.defaults?.heldOver12Months ?? "yes",
   };
 }
 
@@ -182,12 +194,13 @@ export function indexEventsByYear(lifeEvents) {
 /**
  * Compute the income multiplier and lump-sum adjustments for a given calendar year.
  *
- * @param {number} calYear   Calendar year being processed
- * @param {Map}    eventMap  Output of indexEventsByYear()
- * @param {number} incRatio  gross1 / (gross1 + gross2) — used for partner-specific events
+ * @param {number} calYear      Calendar year being processed
+ * @param {Map}    eventMap     Output of indexEventsByYear()
+ * @param {number} incRatio     gross1 / (gross1 + gross2) — used for partner-specific events
+ * @param {number} marginalRate Estimated marginal tax rate for CGT calculation (default 0.30)
  * @returns {{ incomeMult: number, lumpIn: number, lumpOut: number, extraMortgageRepay: number, eventTypes: string[] }}
  */
-export function getYearEventAdjustments(calYear, eventMap, incRatio = 0.5) {
+export function getYearEventAdjustments(calYear, eventMap, incRatio = 0.5, marginalRate = 0.30) {
   const events = eventMap.get(calYear) || [];
   let incomeMult = 1;
   let lumpIn = 0;
@@ -246,6 +259,17 @@ export function getYearEventAdjustments(calYear, eventMap, incRatio = 0.5) {
       case "extra_repayment":
         if (evt._durOffset === 0) extraMortgageRepay += amt;
         break;
+      case "ip_sale": {
+        if (evt._durOffset === 0) {
+          const costBase = parseFloat(String(evt.costBase || "").replace(/,/g, "")) || 0;
+          const gain = Math.max(0, amt - costBase);
+          const discount = evt.heldOver12Months !== "no" ? 0.5 : 1;
+          const taxableGain = gain * discount;
+          const cgt = taxableGain * marginalRate;
+          lumpIn += amt - cgt;
+        }
+        break;
+      }
       default:
         break;
     }

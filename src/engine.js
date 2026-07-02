@@ -51,6 +51,14 @@ function fvAnnuity(pmt, r, n) {
   return pmt * ((Math.pow(1 + r, n) - 1) / r);
 }
 
+function estimateMarginalRate(taxableIncome) {
+  if (taxableIncome > 190000) return 0.45;
+  if (taxableIncome > 135000) return 0.37;
+  if (taxableIncome >  45000) return 0.30;
+  if (taxableIncome >  18200) return 0.15;
+  return 0;
+}
+
 function monthlyPayment(balance, monthlyRate, remainingMonths) {
   if (monthlyRate === 0) return balance / remainingMonths;
   return balance * monthlyRate * Math.pow(1 + monthlyRate, remainingMonths) /
@@ -74,6 +82,7 @@ export function calculatePersonTax(taxableIncome, {
   hasPrivateHealth     = true,
   hecsDebt             = 0,
   excessConcessional   = 0,   // amount above $30k cap — already in taxableIncome; credit 15% offset here
+  frankingCredits      = 0,   // dividend imputation credits — direct offset against income tax; excess is refundable
 } = {}) {
   const g = Math.max(0, taxableIncome);
   const zero = { taxableIncome: 0, incomeTax: 0, medicareLevy: 0, mls: 0, hecsRepayment: 0, division293: 0, totalTax: 0, afterTax: 0, effectiveRate: 0 };
@@ -101,6 +110,11 @@ export function calculatePersonTax(taxableIncome, {
     lito = Math.max(0, 325 - (g - LITO.phase2From) * LITO.phase2Rate);
   }
   incomeTax = Math.max(0, incomeTax - lito - excessConcessionalCredit);
+
+  // 1d. Franking credits (imputation) — offset income tax; excess is refundable by ATO
+  const fcApplied = Math.min(incomeTax, frankingCredits);
+  const frankingCreditRefund = Math.max(0, frankingCredits - fcApplied);
+  incomeTax = incomeTax - fcApplied;
 
   // 3. Medicare Levy (simplified: 2% above shade-in threshold)
   const medicareLevy = g > MEDICARE.shadeInThreshold ? g * MEDICARE.levyRate : 0;
@@ -141,16 +155,18 @@ export function calculatePersonTax(taxableIncome, {
   const effectiveRate = g > 0 ? totalTax / g : 0;
 
   return {
-    taxableIncome:       Math.round(g),
-    incomeTax:           Math.round(incomeTax),
-    medicareLevy:        Math.round(medicareLevy),
-    mls:                 Math.round(mls),
-    hecsRepayment:       Math.round(hecsRepayment),
-    division293:         Math.round(division293),
-    excessConcessional:  Math.round(excessConcessional),
+    taxableIncome:        Math.round(g),
+    incomeTax:            Math.round(incomeTax),
+    medicareLevy:         Math.round(medicareLevy),
+    mls:                  Math.round(mls),
+    hecsRepayment:        Math.round(hecsRepayment),
+    division293:          Math.round(division293),
+    excessConcessional:   Math.round(excessConcessional),
+    frankingCredits:      Math.round(frankingCredits),
+    frankingCreditRefund: Math.round(frankingCreditRefund),
     totalTax,
     afterTax,
-    effectiveRate:       Math.round(effectiveRate * 10000) / 10000,
+    effectiveRate:        Math.round(effectiveRate * 10000) / 10000,
   };
 }
 
@@ -178,15 +194,28 @@ export function calculateHouseholdTax(data, ipCashflows) {
   const gross1 = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome);
   const gross2 = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0;
 
+  // Carry-forward concessional cap (ATO: available when prior-year super balance < $500k)
+  const CARRY_BALANCE_LIMIT = 500_000;
+  const cfCap1 = p(data.carryForwardCap || "0");
+  const cfCap2 = isCouple ? p(data.partnerCarryForwardCap || "0") : 0;
+  const effectiveConcCap1 = p(data.superBalance) < CARRY_BALANCE_LIMIT
+    ? SUPER.concessionalCap + cfCap1 : SUPER.concessionalCap;
+  const effectiveConcCap2 = isCouple && p(data.partnerSuperBalance) < CARRY_BALANCE_LIMIT
+    ? SUPER.concessionalCap + cfCap2 : SUPER.concessionalCap;
+
+  // Franking credits (dividend imputation) per person
+  const fc1 = p(data.frankingCredits || "0");
+  const fc2 = isCouple ? p(data.partnerFrankingCredits || "0") : 0;
+
   // Concessional contributions (used for Div 293 test and excess cap detection)
   const sgRate1  = (p(data.employerSgRate) || SUPER.sgRate * 100) / 100;
   const sgRate2  = isCouple ? (p(data.partnerEmployerSgRate) || SUPER.sgRate * 100) / 100 : 0;
   const concess1 = gross1 * sgRate1 + ss1;
   const concess2 = isCouple ? gross2 * sgRate2 + ss2 : 0;
 
-  // Excess concessional: amount above $30k cap is added back to assessable income
-  const excessConc1 = Math.max(0, concess1 - SUPER.concessionalCap);
-  const excessConc2 = isCouple ? Math.max(0, concess2 - SUPER.concessionalCap) : 0;
+  // Excess concessional: amount above effective cap (incl. carry-forward) added back to assessable income
+  const excessConc1 = Math.max(0, concess1 - effectiveConcCap1);
+  const excessConc2 = isCouple ? Math.max(0, concess2 - effectiveConcCap2) : 0;
 
   // Taxable income = gross salary - salary sacrifice + rental income/loss + excess concessional (added back)
   const taxable1 = Math.max(-999999, gross1 - ss1 + rentalPerson1 + excessConc1);
@@ -197,8 +226,8 @@ export function calculateHouseholdTax(data, ipCashflows) {
   const hecs1   = p(data.hecsDebt);
   const hecs2   = isCouple ? p(data.partnerHecsDebt) : 0;
 
-  const p1Tax = calculatePersonTax(taxable1, { superConcessional: concess1, hasPrivateHealth: health1, hecsDebt: hecs1, excessConcessional: excessConc1 });
-  const p2Tax = isCouple ? calculatePersonTax(taxable2, { superConcessional: concess2, hasPrivateHealth: health2, hecsDebt: hecs2, excessConcessional: excessConc2 }) : null;
+  const p1Tax = calculatePersonTax(taxable1, { superConcessional: concess1, hasPrivateHealth: health1, hecsDebt: hecs1, excessConcessional: excessConc1, frankingCredits: fc1 });
+  const p2Tax = isCouple ? calculatePersonTax(taxable2, { superConcessional: concess2, hasPrivateHealth: health2, hecsDebt: hecs2, excessConcessional: excessConc2, frankingCredits: fc2 }) : null;
 
   // Negative gearing tax benefit: how much less tax because of rental losses
   const negGearBenefit1 = rentalPerson1 < 0
@@ -225,6 +254,7 @@ export function calculateHouseholdTax(data, ipCashflows) {
     totalAfterTax:        p1Tax.afterTax + (p2Tax?.afterTax || 0),
     negativeGearingBenefit: Math.round(Math.max(0, negGearBenefit1 + negGearBenefit2)),
     rentalIncomeLoss:     Math.round(rentalPerson1 + rentalPerson2),
+    frankingCreditRefund: (p1Tax.frankingCreditRefund || 0) + (p2Tax?.frankingCreditRefund || 0),
   };
 }
 
@@ -717,6 +747,15 @@ export function netWorthTrajectory(data, assumptions, householdTax) {
   const ipNetAnnualCF = existingIPs.reduce((sum, ip) => sum + propertyAnnualCashflow(ip).netCashflow, 0);
   const negGearBenefit = householdTax?.negativeGearingBenefit || 0;
 
+  // Franking credit refund flows to liquid each year (ATO refund of excess imputation credits)
+  const frankingRefund = householdTax?.frankingCreditRefund || 0;
+
+  // Debt recycling: annual tax saving from deductible investment debt
+  const debtRecycling = data.debtRecycling === true || data.debtRecycling === "true";
+  const mortgageRateAnnual = p(data.mortgageRate) / 100;
+  const marginalRate1 = estimateMarginalRate(gross1 - p(data.salarySacrifice));
+  let recycledCumulative = 0;
+
   const annualSavings = p(data.savingsPerMonth) * 12;
   const sgRate1       = (p(data.employerSgRate) || 12) / 100;
   const sgRate2       = isCouple ? (p(data.partnerEmployerSgRate) || 12) / 100 : 0;
@@ -745,7 +784,7 @@ export function netWorthTrajectory(data, assumptions, householdTax) {
     const nw = liquid + superBal + ppor + ipTotal - mortgage - ipMortTotal - Math.max(otherDebt, 0);
 
     // Life events active in this calendar year
-    const { eventTypes } = getYearEventAdjustments(calYear, eventMap, incRatio);
+    const { eventTypes } = getYearEventAdjustments(calYear, eventMap, incRatio, marginalRate1);
 
     trajectory.push({
       age,
@@ -764,7 +803,7 @@ export function netWorthTrajectory(data, assumptions, householdTax) {
     if (!isRetired) {
       // Apply life events for the UPCOMING year (y+1) — adjustments to cashflows
       const nextCalYear = currentYear + y + 1;
-      const adj = getYearEventAdjustments(nextCalYear, eventMap, incRatio);
+      const adj = getYearEventAdjustments(nextCalYear, eventMap, incRatio, marginalRate1);
 
       const effectiveSavings  = annualSavings * adj.incomeMult;
       const effectiveSuperIn  = annualSuperIn * adj.incomeMult;
@@ -776,8 +815,15 @@ export function netWorthTrajectory(data, assumptions, householdTax) {
         mortgage = Math.max(0, mortgage - adj.extraMortgageRepay);
       }
 
-      // IP net cashflow + negative gearing tax benefit flow into liquid savings
-      liquid   = liquid * (1 + r) + effectiveSavings + ipNetAnnualCF + negGearBenefit;
+      // Debt recycling: annual tax saving from deductible investment debt (pre-retirement only)
+      let drTaxSaving = 0;
+      if (debtRecycling && mortgage > 0) {
+        recycledCumulative = Math.min(recycledCumulative + effectiveSavings * 0.5, mortgage);
+        drTaxSaving = recycledCumulative * mortgageRateAnnual * marginalRate1;
+      }
+
+      // IP net cashflow + negative gearing benefit + franking refund + debt recycling saving
+      liquid   = liquid * (1 + r) + effectiveSavings + ipNetAnnualCF + negGearBenefit + frankingRefund + drTaxSaving;
       superBal = superBal * (1 + r) + effectiveSuperIn;
     } else {
       const withdrawal = targetSpending * Math.pow(1 + inf, y - (retirementAge - currentAge));

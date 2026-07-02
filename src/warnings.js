@@ -230,6 +230,40 @@ export function generateWarnings(data, engine) {
     );
   }
 
+  // Franking credits
+  const fc1 = p(data.frankingCredits);
+  const fc2 = p(data.partnerFrankingCredits);
+  const fcTotal = fc1 + fc2;
+  const fcRefund = ht?.frankingCreditRefund || 0;
+  if (fcTotal > 0) {
+    add("info", "FRANKING_CREDITS",
+      "Franking credits included in tax calculation",
+      `${fmt(fcTotal)}/yr in franking credits offsets income tax.${fcRefund > 0 ? ` ${fmt(fcRefund)} in excess credits is modelled as an ATO refund added to savings.` : ""}`,
+      "Dividend imputation credits reduce tax payable dollar-for-dollar. Since 2001, excess credits are refundable by the ATO for most taxpayers. Check dividend statements for the grossed-up dividend and franking credit amounts."
+    );
+  }
+
+  // Carry-forward concessional contributions
+  const cfCap = p(data.carryForwardCap) + p(data.partnerCarryForwardCap);
+  const superBal = p(data.superBalance);
+  if (cfCap > 0 && superBal < 500_000) {
+    add("info", "CARRY_FORWARD",
+      "Carry-forward concessional cap available",
+      `${fmt(cfCap)} in unused concessional cap is available to contribute above the $30,000/yr standard cap (prior-year super balance under $500,000).`,
+      "Carry-forward amounts accumulate over up to 5 prior financial years. Verify your exact available amount via ATO online services (myGov). Consult a tax adviser before making large concessional contributions."
+    );
+  }
+
+  // Debt recycling
+  if ((data.debtRecycling === true || data.debtRecycling === "true") && p(data.mortgageBalance) > 0) {
+    const mortgageRate = p(data.mortgageRate);
+    add("info", "DEBT_RECYCLING",
+      "Debt recycling modelled",
+      `Debt recycling is enabled. The annual tax saving from deductible investment debt is added to projected liquid savings each year until retirement or the mortgage is repaid (mortgage rate: ${mortgageRate}%).`,
+      "Debt recycling does not reduce your mortgage balance — it converts non-deductible PPOR debt to deductible investment debt. The benefit is the tax deduction on investment interest. This strategy has specific legal and tax requirements; consult a qualified tax adviser."
+    );
+  }
+
   // On track positive
   if (hasTarget && m?.onTrack && m.lastsToLifeExpectancy && mc && mc.successRate >= 85) {
     add("info", "ON_TRACK",

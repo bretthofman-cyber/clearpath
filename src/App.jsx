@@ -70,6 +70,9 @@ const EMPTY_DATA = {
   superBalance: "", partnerSuperBalance: "", employerSgRate: "12",
   partnerEmployerSgRate: "12", salarySacrifice: "", partnerSalarySacrifice: "0",
   salarySacrificeMaxed: false, partnerSalarySacrificeMaxed: false,
+  carryForwardCap: "", partnerCarryForwardCap: "",
+  frankingCredits: "", partnerFrankingCredits: "",
+  debtRecycling: false,
   targetRetirementSpending: "",
   // Stage 6
   retirementLifestyle: "comfortable",
@@ -478,6 +481,32 @@ function Stage4({ data, set }) {
           })()}
         </>
       )}
+      {data.homeOwnership === "mortgage" && parseFloat(String(data.mortgageBalance || "").replace(/,/g, "")) > 0 && (
+        <>
+          <SectionDivider label="Debt recycling" />
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "12px 14px", border: "1.5px solid #D8D2C4", borderRadius: 10, background: "#FBFAF6", marginBottom: 16 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "#21241E", marginBottom: 2 }}>Enable debt recycling</div>
+              <div style={{ fontSize: 11, color: "#8A8270", lineHeight: 1.5 }}>
+                Converts non-deductible mortgage interest to deductible investment debt as you repay and redraw. Modelled as an annual tax saving added to liquid savings. General information only — consult a tax adviser before implementing.
+              </div>
+            </div>
+            <button
+              onClick={() => set("debtRecycling", !data.debtRecycling)}
+              style={{
+                width: 42, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+                background: data.debtRecycling ? "#2E4A3D" : "#D8D2C4",
+                position: "relative", flexShrink: 0, marginTop: 2, transition: "background 0.2s",
+              }}
+            >
+              <div style={{
+                width: 18, height: 18, borderRadius: "50%", background: "white",
+                position: "absolute", top: 3, left: data.debtRecycling ? 21 : 3, transition: "left 0.2s",
+              }} />
+            </button>
+          </div>
+        </>
+      )}
       <SectionDivider label="Investment properties" />
       <PropertyPortfolio
         ips={data.investmentProperties || []}
@@ -624,6 +653,36 @@ function Stage5({ data, set }) {
           onMaxedChange={v => set("partnerSalarySacrificeMaxed", v)}
         />
       )}
+
+      <SectionDivider label="Carry-forward contributions" />
+      <div style={{ fontSize: 12, color: "#8A8270", marginBottom: 12, lineHeight: 1.5 }}>
+        If your prior-year super balance was under $500,000 and you have unused concessional cap from previous years, you may be able to contribute more than the $30,000 annual cap. Check your available amount via ATO online services.
+      </div>
+      <TwoCol>
+        <Field label="Your carry-forward cap available" hint="From ATO online services — leave blank if not applicable">
+          <Input value={data.carryForwardCap} onChange={v => set("carryForwardCap", v)} placeholder="0" prefix="$" />
+        </Field>
+        {data.hasPartner === "yes" && (
+          <Field label={`${data.partnerName || "Partner"}'s carry-forward cap`} hint="From ATO online services">
+            <Input value={data.partnerCarryForwardCap} onChange={v => set("partnerCarryForwardCap", v)} placeholder="0" prefix="$" />
+          </Field>
+        )}
+      </TwoCol>
+
+      <SectionDivider label="Franking credits" />
+      <div style={{ fontSize: 12, color: "#8A8270", marginBottom: 12, lineHeight: 1.5 }}>
+        Annual franking credits from Australian shares or managed funds. These offset your income tax — any excess is refunded by the ATO. Check your dividend statements or last year's tax return.
+      </div>
+      <TwoCol>
+        <Field label="Your annual franking credits" hint="From dividends — shown on dividend statements">
+          <Input value={data.frankingCredits} onChange={v => set("frankingCredits", v)} placeholder="0" prefix="$" />
+        </Field>
+        {data.hasPartner === "yes" && (
+          <Field label={`${data.partnerName || "Partner"}'s franking credits`}>
+            <Input value={data.partnerFrankingCredits} onChange={v => set("partnerFrankingCredits", v)} placeholder="0" prefix="$" />
+          </Field>
+        )}
+      </TwoCol>
 
       <SectionDivider label="Retirement target & life events" />
       <Field label="Target annual retirement spending" hint="In today's dollars — what lifestyle do you want in retirement?">
@@ -874,12 +933,14 @@ function LifeEventsPanel({ data, set }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
           {events.map(evt => {
             const meta = LIFE_EVENT_TYPES[evt.type] || {};
-            const needsAmount   = ["windfall","major_expense","school_fees","redundancy","extra_repayment","downsize"].includes(evt.type);
-            const needsDuration = ["career_break","part_time","school_fees"].includes(evt.type);
-            const needsReduction = ["career_break","part_time"].includes(evt.type);
-            const needsPause    = evt.type === "redundancy";
-            const needsPerson   = !!meta.personed && isCouple;
-            const needsLabel    = evt.type === "major_expense";
+            const needsAmount    = meta.fields?.includes("amount") || false;
+            const needsDuration  = meta.fields?.includes("durationYears") || false;
+            const needsReduction = meta.fields?.includes("incomeReductionPct") || false;
+            const needsPause     = meta.fields?.includes("pauseMonths") || false;
+            const needsPerson    = !!meta.personed && isCouple;
+            const needsLabel     = meta.fields?.includes("customLabel") || false;
+            const needsCostBase  = meta.fields?.includes("costBase") || false;
+            const needsHeld12    = meta.fields?.includes("heldOver12Months") || false;
 
             return (
               <div key={evt.id} style={{ border: "1.5px solid #D8D2C4", borderRadius: 10, overflow: "hidden", background: "#FBFAF6" }}>
@@ -925,6 +986,20 @@ function LifeEventsPanel({ data, set }) {
                     {needsPause && (
                       <Field label="Income pause">
                         <Input value={evt.pauseMonths} onChange={v => updateEvent(evt.id, "pauseMonths", v)} suffix="mo" placeholder="6" type="number" />
+                      </Field>
+                    )}
+                    {needsCostBase && (
+                      <Field label="Cost base" hint="Original purchase price + costs">
+                        <Input value={evt.costBase} onChange={v => updateEvent(evt.id, "costBase", v)} prefix="$" placeholder="400,000" />
+                      </Field>
+                    )}
+                    {needsHeld12 && (
+                      <Field label="Held over 12 months?" hint="50% CGT discount applies">
+                        <Select
+                          value={evt.heldOver12Months || "yes"}
+                          onChange={v => updateEvent(evt.id, "heldOver12Months", v)}
+                          options={[{ value: "yes", label: "Yes — 50% discount applies" }, { value: "no", label: "No — full gain taxable" }]}
+                        />
                       </Field>
                     )}
                   </div>
@@ -1875,6 +1950,115 @@ function applyMaxedSS(data) {
   return { ...data, salarySacrifice: effectiveSS1, partnerSalarySacrifice: effectiveSS2 };
 }
 
+function AssumptionsRegister({ engine, data }) {
+  const [open, setOpen] = useState(false);
+  const ht = engine?.householdTax;
+  const assumptions = engine?.assumptions || {};
+  const pf = v => parseFloat(String(v ?? "").replace(/,/g, "")) || 0;
+  const fmt = n => n.toLocaleString("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 });
+
+  const sections = [
+    {
+      title: "Market & returns",
+      rows: [
+        { label: "Investment return", value: `${assumptions.returnRate ?? 6.5}% p.a.`, source: "Vanguard Index Chart (30-yr diversified average); RBA long-run real rate + inflation" },
+        { label: "Inflation", value: `${assumptions.inflation ?? 2.5}% p.a.`, source: "RBA target band 2–3%; mid-point used" },
+        { label: "Property growth (PPOR & IP)", value: `${assumptions.propertyGrowth ?? 4.5}% p.a.`, source: "CoreLogic long-run national dwelling value growth" },
+        { label: "Rental yield", value: `${assumptions.rentalYield ?? 3.0}% p.a.`, source: "CoreLogic gross rental yield national average" },
+        { label: "Safe withdrawal rate", value: `${assumptions.swr ?? 4.0}%`, source: "Bengen (1994); widely adopted in AU retirement research (ASFA)" },
+      ],
+    },
+    {
+      title: "Tax — FY2026–27",
+      rows: [
+        { label: "Tax brackets", value: "0% / 15% / 30% / 37% / 45%", source: "ATO Individual Income Tax Rates FY2026-27 (Stage 3 cuts in effect)" },
+        { label: "Medicare Levy", value: "2.0%", source: "ITAA 1936 s251R; standard levy rate" },
+        { label: "Low Income Tax Offset (LITO)", value: "Up to $700", source: "ATO LITO; phased out $37,500–$66,667" },
+        { label: "CGT discount", value: "50% (if held >12 months)", source: "ITAA 1997 s115-100" },
+        { label: "Franking credit refundability", value: "Excess refunded by ATO", source: "Income Tax Assessment Act 1997 s207-45 (post-2001 rule)" },
+        { label: "CGT marginal rate (IP sale estimate)", value: "30%", source: "Middle bracket estimate; actual rate depends on income in sale year" },
+      ],
+    },
+    {
+      title: "Superannuation",
+      rows: [
+        { label: "Concessional cap", value: "$30,000/yr", source: "Treasury Laws Amendment (Better Targeted Super) Act 2023; FY2024-25 onward" },
+        { label: "Contributions tax", value: "15%", source: "ITAA 1997 s295-190" },
+        { label: "Preservation age", value: "60", source: "SIS Regulations r6.01(2)" },
+        { label: "Transfer Balance Cap", value: "$1,900,000", source: "ATO TBC for FY2025-26; indexed to CPI" },
+        { label: "Carry-forward eligibility threshold", value: "Prior 30 June super balance < $500,000", source: "Treasury Laws Amendment 2018; Schedule 2" },
+        { label: "SG rate", value: "12%", source: "SGAA 1992 s19; legislated rate from 1 July 2025" },
+      ],
+    },
+    {
+      title: "Age Pension",
+      rows: [
+        { label: "Eligibility age", value: "67", source: "Social Security Act 1991 s23(5A); raised progressively from 65" },
+        { label: "Single rate (full pension)", value: "$28,514/yr", source: "DSS rates effective 20 March 2025" },
+        { label: "Couple rate (combined)", value: "$43,022/yr", source: "DSS rates effective 20 March 2025" },
+        { label: "Assets taper", value: "$78 per $1,000 above threshold", source: "Social Security Act 1991 s1131; taper rate" },
+        { label: "Income taper", value: "50c per $1 above free area", source: "Social Security Act 1991 s1073" },
+      ],
+    },
+    {
+      title: "Monte Carlo simulation",
+      rows: [
+        { label: "Iterations", value: "1,000", source: "Standard financial planning practice; balances accuracy vs performance" },
+        { label: "Return volatility — Base", value: "±10%", source: "Approximate annual standard deviation for a 60/40 diversified portfolio" },
+        { label: "Return volatility — Conservative", value: "±8%", source: "Defensive allocation (higher bonds); lower variance" },
+        { label: "Return volatility — Aggressive", value: "±14%", source: "Growth tilt (higher equities); higher variance" },
+        { label: "Success threshold", value: "Funds last to life expectancy", source: "Standard definition used across modelling tools" },
+      ],
+    },
+  ];
+
+  return (
+    <div style={{ marginTop: 24, border: "1.5px solid #D8D2C4", borderRadius: 12, overflow: "hidden", background: "#FBFAF6" }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: "100%", padding: "14px 18px", display: "flex", alignItems: "center",
+          justifyContent: "space-between", background: "none", border: "none",
+          cursor: "pointer", fontFamily: "inherit",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 15 }}>📋</span>
+          <div style={{ textAlign: "left" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#21241E" }}>Assumptions register</div>
+            <div style={{ fontSize: 11, color: "#8A8270" }}>All modelling assumptions with source citations</div>
+          </div>
+        </div>
+        <span style={{ fontSize: 12, color: "#8A8270", transform: open ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▼</span>
+      </button>
+
+      {open && (
+        <div style={{ borderTop: "1px solid #ECE7DB", padding: "16px 18px" }}>
+          {sections.map(section => (
+            <div key={section.title} style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6B6655", marginBottom: 8 }}>
+                {section.title}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 1, borderRadius: 8, overflow: "hidden", border: "1px solid #ECE7DB" }}>
+                {section.rows.map((row, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "160px 1fr 1fr", gap: 0, background: i % 2 === 0 ? "white" : "#F5F2EB" }}>
+                    <div style={{ padding: "7px 10px", fontSize: 12, fontWeight: 500, color: "#21241E", borderRight: "1px solid #ECE7DB" }}>{row.label}</div>
+                    <div style={{ padding: "7px 10px", fontSize: 12, color: "#2E4A3D", fontWeight: 600, borderRight: "1px solid #ECE7DB", fontFamily: "'Spectral', serif" }}>{row.value}</div>
+                    <div style={{ padding: "7px 10px", fontSize: 11, color: "#8A8270", lineHeight: 1.4 }}>{row.source}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div style={{ fontSize: 11, color: "#8A8270", lineHeight: 1.5, marginTop: 4, paddingTop: 12, borderTop: "1px solid #ECE7DB" }}>
+            Assumptions are reviewed periodically. Projections are illustrative — actual outcomes will differ. This is general information only and does not constitute financial advice.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AnalysisScreen({ data, set }) {
   const [expandedKey, setExpandedKey] = useState(data.activeScenario || "base");
   const [viewPerson, setViewPerson] = useState("combined");
@@ -2004,6 +2188,7 @@ function AnalysisScreen({ data, set }) {
           : null;
       })()}
       <AnalysisSummary data={derivedData} engine={engine} />
+      <AssumptionsRegister engine={engine} data={derivedData} />
       <div style={{ marginTop: 24, display: "flex", gap: 10 }}>
         <button onClick={() => window.print()} style={{
           padding: "10px 20px", border: "none", borderRadius: 10,
