@@ -28,7 +28,7 @@ const ASSUMPTION_RATIONALE = {
   },
   safeWithdrawal: {
     label: "Safe withdrawal rate (% p.a.)",
-    source: "The 4% rule originates from the Bengen (1994) study and is widely referenced in Australian financial planning. ASFA and Vanguard research suggests 3.5–4.5% is a reasonable sustainable drawdown rate for a 25–30 year retirement, depending on portfolio composition.",
+    source: "The 4% rule originates from the Bengen (1994) study and is widely referenced in personal financial modelling & scenario planning. ASFA and Vanguard research suggests 3.5–4.5% is a reasonable sustainable drawdown rate for a 25–30 year retirement, depending on portfolio composition.",
   },
 };
 
@@ -2482,7 +2482,7 @@ export default function ClearpathMVP() {
           <div style={{ fontFamily: "Spectral, serif", fontSize: 20, color: "#21241E" }}>
             Clear<span style={{ color: "#2E4A3D" }}>path</span>
           </div>
-          <div style={{ fontSize: 10, color: "#8A8270", letterSpacing: "0.08em", textTransform: "uppercase" }}>Australian Financial Planner</div>
+          <div style={{ fontSize: 10, color: "#8A8270", letterSpacing: "0.08em", textTransform: "uppercase" }}>Personal Financial Modelling & Scenario Planning</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           {data.firstName && <div style={{ fontSize: 12, color: "#6B6655" }}>Hi, {data.firstName} 👋</div>}
