@@ -1124,7 +1124,7 @@ function FIREPanel({ engine, data }) {
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 10 }}>
         FIRE Analysis
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+      <div className="fire-card-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
         {cards.map((card, i) => (
           <div key={i} style={{ background: "#FBFAF6", border: "1.5px solid #ECE7DB", borderRadius: 12, padding: "14px 16px" }}>
             <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 4 }}>{card.label}</div>
@@ -1310,7 +1310,7 @@ function MetricsRow({ engine, data }) {
   const subColor = (ok) => ok === true ? "#2E4A3D" : ok === false ? "#9a3922" : "#8A8270";
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+    <div className="metrics-card-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
       {cards.map((card, i) => (
         <div key={i} style={{
           background: "#FBFAF6", border: "1.5px solid #ECE7DB",
@@ -1679,7 +1679,7 @@ function ScenarioComparisonRow({ data }) {
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 10 }}>
         Scenario Comparison
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+      <div className="scenario-comparison-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
         {SCENS.map(({ key, label, color, bg, bdr }, idx) => {
           const eng = engines[idx];
           const mc  = eng.monteCarlo;
@@ -2582,6 +2582,9 @@ export default function ClearpathMVP() {
   .metrics-bar { gap: 16px !important; padding: 8px 16px !important; }
   .metrics-bar > div > div:first-child { font-size: 7px !important; }
   .metrics-bar > div > div:last-child { font-size: 13px !important; }
+  .scenario-comparison-grid { grid-template-columns: 1fr !important; }
+  .metrics-card-grid { grid-template-columns: 1fr !important; }
+  .fire-card-grid { grid-template-columns: 1fr !important; }
 }`}</style>
 
       <header className="no-print" style={{ background: "#FBFAF6", borderBottom: "1px solid #ECE7DB", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
