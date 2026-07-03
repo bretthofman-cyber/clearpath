@@ -1,12 +1,12 @@
-# CLAUDE.md — Clearpath Financial Planner
+# CLAUDE.md — Independent Means Financial Planner
 
 > Auto-loaded by Claude Code at session start. Full project context — no re-explaining needed.
 
 ---
 
-## What Is Clearpath?
+## What Is Independent Means?
 
-**Clearpath** is an Australian financial planning and retirement modelling web app — live on Vercel. It guides households through an 8-stage wizard (7 stages built, Stage 8 in backlog), runs a deterministic JS calculation engine, and generates AI-powered financial analysis via the Anthropic API.
+**Independent Means** is an Australian financial planning and retirement modelling web app — live on Vercel. It guides households through an 8-stage wizard (7 stages built, Stage 8 in backlog), runs a deterministic JS calculation engine, and generates AI-powered financial analysis via the Anthropic API.
 
 **Key differentiator:** The financial calculations are deterministic (not AI-estimated). The AI interprets pre-calculated figures — it does not invent them.
 
@@ -163,7 +163,7 @@ Key AU-specific concepts: superannuation, HECS/HELP, franking credits, offset ac
 
 ## Brand & Voice
 
-**Brand:** Clearpath — Your Australian Financial Planner
+**Brand:** Independent Means — Your Australian Financial Planner
 **Tone:** Calm, intelligent, plain English — like a highly capable financial strategist who does not condescend
 **Target user:** Australian households aged 30-55, HHI $100K+, property owners or aspiring
 

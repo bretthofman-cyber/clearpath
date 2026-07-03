@@ -211,7 +211,7 @@ function Stage1({ data, set }) {
           <div style={{ fontSize: 22, flexShrink: 0, marginTop: 1 }}>✦</div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 600, color: "#21241E", marginBottom: 4 }}>
-              Welcome to Clearpath
+              Welcome to Independent Means
             </div>
             <div style={{ fontSize: 12, color: "#6B6655", lineHeight: 1.6 }}>
               A 7-step modelling tool for Australian households. Enter your details to project super, net worth, retirement funding probability, and cashflow — all calculated locally, never sent anywhere.
@@ -1977,7 +1977,7 @@ function AnalysisSummary({ data, engine }) {
           fontFamily: "Spectral, serif", fontSize: 17, color: "white", flexShrink: 0,
         }}>C</div>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#2E4A3D", marginBottom: 1 }}>Clearpath Summary</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#2E4A3D", marginBottom: 1 }}>Independent Means Summary</div>
           <div style={{ fontSize: 11, color: "#8A8270" }}>
             {firstName ? `Prepared for ${firstName}` : "Your financial picture"} · {scenarioLabel} scenario · General information only
           </div>
@@ -2484,7 +2484,7 @@ function ActionPlanScreen({ data }) {
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
-export default function ClearpathMVP() {
+export default function IndependentMeans() {
   const [data, setData] = useState(() => loadData());
   const [stage, setStage] = useState(() => loadStage());
   const scrollRef = useRef(null);
@@ -2590,7 +2590,7 @@ export default function ClearpathMVP() {
       <header className="no-print" style={{ background: "#FBFAF6", borderBottom: "1px solid #ECE7DB", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
         <div>
           <div style={{ fontFamily: "Spectral, serif", fontSize: 20, color: "#21241E" }}>
-            Clear<span style={{ color: "#2E4A3D" }}>path</span>
+            Independent<span style={{ color: "#2E4A3D" }}> Means</span>
           </div>
           <div className="app-subtitle" style={{ fontSize: 10, color: "#8A8270", letterSpacing: "0.08em", textTransform: "uppercase" }}>Personal Financial Modelling & Scenario Planning</div>
         </div>
@@ -2693,7 +2693,7 @@ export default function ClearpathMVP() {
 
       <footer className="no-print" style={{ background: "white", borderTop: "1px solid #ECE7DB", padding: "16px 28px", textAlign: "center", marginTop: "auto" }}>
         <div style={{ fontSize: 11, color: "#8A8270", lineHeight: 1.6, maxWidth: 620, margin: "0 auto" }}>
-          <strong style={{ color: "#6B6655" }}>General information only.</strong> Clearpath is an educational planning tool and does not provide personal financial advice. All projections and analysis are illustrative estimates based on the information you enter. Before making financial decisions, consider seeking advice from a licensed Australian financial adviser (AFSL holder). Past performance is not a reliable indicator of future performance.
+          <strong style={{ color: "#6B6655" }}>General information only.</strong> Independent Means is an educational planning tool and does not provide personal financial advice. All projections and analysis are illustrative estimates based on the information you enter. Before making financial decisions, consider seeking advice from a licensed Australian financial adviser (AFSL holder). Past performance is not a reliable indicator of future performance.
         </div>
       </footer>
     </div>

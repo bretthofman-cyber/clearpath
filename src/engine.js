@@ -1,5 +1,5 @@
 /**
- * Clearpath Calculation Engine
+ * Independent Means Calculation Engine
  *
  * All monetary inputs are strings; parse with p() before arithmetic.
  * Australian-specific thresholds live in ausConfig.js — update there annually.

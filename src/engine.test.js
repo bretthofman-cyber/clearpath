@@ -1,5 +1,5 @@
 /**
- * Clearpath Engine — Validation Test Suite
+ * Independent Means Engine — Validation Test Suite
  *
  * 16 scenarios covering the main Australian financial modelling paths.
  * Tests are structural/directional rather than exact-figure assertions —
