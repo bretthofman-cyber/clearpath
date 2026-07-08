@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { DEFAULT_SCENARIOS, runEngine } from "./engine.js";
 import { LIFE_EVENT_TYPES, newLifeEvent } from "./lifeEvents.js";
 import { generateWarnings } from "./warnings.js";
@@ -6,6 +6,7 @@ import { generatePlanItems, PLAN_CATEGORIES } from "./actionPlan.js";
 import { currency, Field, Input, Select, Toggle, TwoCol, SectionDivider } from "./ui.jsx";
 import Stage2, { BUDGET_CATS, budgetTotal, itemMonthly, estimateNetMonthly, CashflowCalendar, buildCashflowCalendar } from "./BudgetStage.jsx";
 import AssetStage3, { deriveAssetTotals } from "./AssetStage.jsx";
+import { supabase } from "./supabase.js";
 
 const STORAGE_KEY = "clearpath_v1";
 
@@ -93,11 +94,8 @@ const EMPTY_DATA = {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
-function loadData() {
+function parseData(parsed) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...EMPTY_DATA };
-    const parsed = JSON.parse(raw);
     // Migrate legacy single-IP fields to investmentProperties array
     let investmentProperties = parsed.investmentProperties || [];
     if (investmentProperties.length === 0 && parsed.hasInvestmentProperty === "yes" && parsed.ipValue) {
@@ -166,6 +164,14 @@ function loadData() {
         aggressive: { ...DEFAULT_SCENARIOS.aggressive, ...(parsed.customAssumptions?.aggressive || {}) },
       },
     };
+  } catch { return { ...EMPTY_DATA }; }
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...EMPTY_DATA };
+    return parseData(JSON.parse(raw));
   } catch { return { ...EMPTY_DATA }; }
 }
 
@@ -2482,17 +2488,127 @@ function ActionPlanScreen({ data }) {
   );
 }
 
+// ─── LOGIN / LOADING SCREENS ──────────────────────────────────────────────────
+
+function LoginScreen() {
+  const [loading, setLoading] = useState(false);
+
+  async function signInWithGoogle() {
+    setLoading(true);
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#F5F2EB", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "#FBFAF6", border: "1px solid #ECE7DB", borderRadius: 16, padding: "48px 40px", maxWidth: 400, width: "100%", textAlign: "center" }}>
+        <div style={{ fontFamily: "Spectral, serif", fontSize: 28, color: "#21241E", marginBottom: 6 }}>
+          Independent<span style={{ color: "#2E4A3D" }}> Means</span>
+        </div>
+        <div style={{ fontSize: 12, color: "#8A8270", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 32 }}>
+          Personal Financial Modelling
+        </div>
+        <div style={{ fontSize: 14, color: "#6B6655", lineHeight: 1.6, marginBottom: 32 }}>
+          Model your super, net worth, retirement funding probability, and cashflow. Your data is saved securely to your account.
+        </div>
+        <button
+          onClick={signInWithGoogle}
+          disabled={loading}
+          style={{
+            width: "100%", padding: "13px 20px", background: loading ? "#9DB0A1" : "#2E4A3D",
+            color: "white", border: "none", borderRadius: 10, fontSize: 15, fontWeight: 500,
+            cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#fff" fillOpacity=".9"/>
+            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#fff" fillOpacity=".8"/>
+            <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#fff" fillOpacity=".7"/>
+            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#fff" fillOpacity=".6"/>
+          </svg>
+          {loading ? "Redirecting…" : "Continue with Google"}
+        </button>
+        <div style={{ fontSize: 11, color: "#9DB0A1", marginTop: 24, lineHeight: 1.5 }}>
+          General information only. Not personal financial advice.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <div style={{ minHeight: "100vh", background: "#F5F2EB", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontFamily: "Spectral, serif", fontSize: 22, color: "#21241E", marginBottom: 12 }}>
+          Independent<span style={{ color: "#2E4A3D" }}> Means</span>
+        </div>
+        <div style={{ fontSize: 12, color: "#9DB0A1" }}>Loading your plan…</div>
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 export default function IndependentMeans() {
-  const [data, setData] = useState(() => loadData());
-  const [stage, setStage] = useState(() => loadStage());
-  const scrollRef = useRef(null);
+  const [user, setUser]           = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [data, setData]           = useState({ ...EMPTY_DATA });
+  const [stage, setStage]         = useState(1);
+  const scrollRef  = useRef(null);
+  const saveTimer  = useRef(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) loadPlan(u.id);
+      else setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) loadPlan(u.id);
+      else { setData({ ...EMPTY_DATA }); setStage(1); setAuthLoading(false); }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function loadPlan(userId) {
+    setAuthLoading(true);
+    const { data: row } = await supabase
+      .from("plans")
+      .select("data, stage")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (row) {
+      setData(parseData(row.data));
+      setStage(Math.max(1, Math.min(7, row.stage || 1)));
+    }
+    setAuthLoading(false);
+  }
+
+  function savePlan(nextData, nextStage) {
+    if (!user) return;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      supabase.from("plans").upsert(
+        { user_id: user.id, data: nextData, stage: nextStage },
+        { onConflict: "user_id" }
+      );
+    }, 800);
+  }
 
   function set(field, value) {
     setData(prev => {
       const next = { ...prev, [field]: value };
-      saveData(next);
+      savePlan(next, stage);
       return next;
     });
   }
@@ -2500,20 +2616,23 @@ export default function IndependentMeans() {
   function setMany(updates) {
     setData(prev => {
       const next = { ...prev, ...updates };
-      saveData(next);
+      savePlan(next, stage);
       return next;
     });
   }
 
   function goTo(s) {
     setStage(s);
-    saveStage(s);
+    savePlan(data, s);
     window.scrollTo({ top: 0, behavior: "smooth" });
     setTimeout(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, 50);
   }
 
   function next() { goTo(Math.min(stage + 1, 7)); }
   function back() { goTo(Math.max(stage - 1, 1)); }
+
+  if (authLoading) return <LoadingScreen />;
+  if (!user) return <LoginScreen />;
 
   const progress = ((stage - 1) / 6) * 100;
   const currentStage = STAGES[stage - 1];
@@ -2594,12 +2713,16 @@ export default function IndependentMeans() {
           </div>
           <div className="app-subtitle" style={{ fontSize: 10, color: "#8A8270", letterSpacing: "0.08em", textTransform: "uppercase" }}>Personal Financial Modelling & Scenario Planning</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {data.firstName && <div style={{ fontSize: 12, color: "#6B6655" }}>Hi, {data.firstName} 👋</div>}
           <button
-            onClick={() => { if (window.confirm("Clear all saved data?")) { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem("clearpath_stage"); setData({ ...EMPTY_DATA }); setStage(1); } }}
+            onClick={async () => { if (window.confirm("Clear all saved data? This cannot be undone.")) { await supabase.from("plans").delete().eq("user_id", user.id); setData({ ...EMPTY_DATA }); setStage(1); } }}
             style={{ fontSize: 11, color: "#8A8270", background: "none", border: "1px solid #ECE7DB", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}
           >Clear data</button>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            style={{ fontSize: 11, color: "#8A8270", background: "none", border: "1px solid #ECE7DB", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}
+          >Sign out</button>
         </div>
       </header>
 
