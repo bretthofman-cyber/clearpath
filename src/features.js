@@ -1,5 +1,5 @@
 export const FEATURES = {
-  MONTE_CARLO:        "monte_carlo",
+  PROBABILITY_VIEW:   "probability_view",
   SCENARIO_COMPARE:   "scenario_comparison",
   CUSTOM_ASSUMPTIONS: "custom_assumptions",
   CARRY_FORWARD_CAP:  "carry_forward_cap",
@@ -8,6 +8,7 @@ export const FEATURES = {
   PDF_EXPORT:         "pdf_export",
   STRATEGY_CENTRE:    "strategy_centre",
   CSV_EXPORT:         "csv_export",
+  MULTI_PLAN:         "multi_plan",
 };
 
 export const TIERS = {

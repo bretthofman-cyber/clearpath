@@ -1,16 +1,7 @@
 import { useContext, useState } from "react";
 import { EntitlementContext } from "./useEntitlement.js";
 import TrialModal from "./TrialModal.jsx";
-
-function logGateClick(featureId) {
-  // Plausible custom event — activates automatically once the script is added in Phase 5
-  if (typeof window !== "undefined" && typeof window.plausible === "function") {
-    window.plausible("Gate Click", { props: { feature: featureId } });
-  }
-  if (import.meta.env.DEV) {
-    console.info("[gate-click]", featureId, new Date().toISOString());
-  }
-}
+import { logGateClick } from "./analytics.js";
 
 export default function PremiumGate({ featureId, children, label = "Premium feature" }) {
   const { can, status, activateTrial } = useContext(EntitlementContext);

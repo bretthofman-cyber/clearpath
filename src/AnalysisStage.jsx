@@ -2,7 +2,9 @@ import { useState, useRef, useMemo, useContext } from "react";
 import { DEFAULT_SCENARIOS, runEngine } from "./engine.js";
 import { EntitlementContext } from "./useEntitlement.js";
 import PremiumGate from "./PremiumGate.jsx";
+import TrialModal from "./TrialModal.jsx";
 import { FEATURES } from "./features.js";
+import { logGateClick } from "./analytics.js";
 import { LIFE_EVENT_TYPES } from "./lifeEvents.js";
 import { generateWarnings } from "./warnings.js";
 import { currency, SectionDivider } from "./ui.jsx";
@@ -1332,8 +1334,24 @@ function AssumptionsRegister({ engine }) {
 function AnalysisScreen({ data, set }) {
   const [expandedKey, setExpandedKey] = useState(data.activeScenario || "base");
   const [viewPerson, setViewPerson] = useState("combined");
+  const [chartView, setChartView] = useState("projection");
+  const [showProbGateModal, setShowProbGateModal] = useState(false);
+  const [showProbExpired, setShowProbExpired] = useState(false);
 
   const { can, status, activateTrial } = useContext(EntitlementContext);
+
+  async function handleProbabilityClick() {
+    logGateClick(FEATURES.PROBABILITY_VIEW);
+    if (can(FEATURES.PROBABILITY_VIEW)) {
+      setChartView("probability");
+    } else if (status === "free") {
+      await activateTrial();
+      setChartView("probability");
+      setShowProbGateModal(true);
+    } else {
+      setShowProbExpired(true);
+    }
+  }
 
   const isCouple = data.hasPartner === "yes" && (data.partnerIncome || data.partnerSuperBalance || data.partnerAge);
   const aT = deriveAssetTotals(data.assetItems);
@@ -1347,7 +1365,7 @@ function AnalysisScreen({ data, set }) {
     ...ssData, ...aT,
     targetRetirementSpending: effectiveSpend > 0 ? String(effectiveSpend) : data.targetRetirementSpending,
   };
-  const engine = runEngine(derivedData, { skipMonteCarlo: !can(FEATURES.MONTE_CARLO) });
+  const engine = runEngine(derivedData, { skipMonteCarlo: !can(FEATURES.PROBABILITY_VIEW) });
 
   function handleScenarioToggle(key) {
     if (data.activeScenario !== key) {
@@ -1476,11 +1494,65 @@ function AnalysisScreen({ data, set }) {
 
       <WarningsPanel data={derivedData} engine={engine} />
       <MetricsRow engine={engine} data={derivedData} />
-      <PremiumGate featureId="monte_carlo" label="Monte Carlo simulation">
-        <MonteCarloCard data={derivedData} engine={engine} />
-      </PremiumGate>
       <FIREPanel engine={engine} data={derivedData} />
-      <NetWorthChart engine={engine} data={derivedData} />
+
+      {/* Chart view toggle — Probability view is visible but locked for free users */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 10 }}>
+        <button
+          onClick={() => setChartView("projection")}
+          style={{
+            fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 20,
+            border: "1.5px solid", cursor: "pointer", fontFamily: "inherit",
+            background: chartView === "projection" ? "#2E4A3D" : "white",
+            color:      chartView === "projection" ? "#F5F2EB" : "#6B6655",
+            borderColor: chartView === "projection" ? "#2E4A3D" : "#D8D2C4",
+          }}
+        >
+          Projection
+        </button>
+        <button
+          onClick={handleProbabilityClick}
+          style={{
+            fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 20,
+            border: "1.5px solid", cursor: "pointer", fontFamily: "inherit",
+            background: chartView === "probability" ? "#2E4A3D" : "white",
+            color:      chartView === "probability" ? "#F5F2EB" : "#6B6655",
+            borderColor: chartView === "probability" ? "#2E4A3D" : "#D8D2C4",
+            display: "flex", alignItems: "center", gap: 4,
+          }}
+        >
+          Probability view
+          {!can(FEATURES.PROBABILITY_VIEW) && (
+            <span style={{ color: "#C2A06B", fontSize: 10 }}>🔒</span>
+          )}
+        </button>
+      </div>
+
+      {chartView === "projection"
+        ? <NetWorthChart engine={engine} data={derivedData} />
+        : <MonteCarloCard data={derivedData} engine={engine} />}
+
+      {showProbGateModal && (
+        <TrialModal onClose={() => setShowProbGateModal(false)} />
+      )}
+      {showProbExpired && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(33,36,30,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+          onClick={() => setShowProbExpired(false)}
+        >
+          <div
+            style={{ background: "#FBFAF6", borderRadius: 16, padding: "32px 36px", maxWidth: 380, margin: 20, textAlign: "center", boxShadow: "0 12px 48px rgba(33,36,30,0.18)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontFamily: "Spectral, serif", fontSize: 20, color: "#21241E", marginBottom: 12 }}>Trial ended</div>
+            <div style={{ fontSize: 14, color: "#6B6655", lineHeight: 1.6, marginBottom: 20 }}>
+              Your 14-day trial has ended. Upgrade to Independent Means Premium to access probability view and all other premium features.
+            </div>
+            <div style={{ fontSize: 12, color: "#9DB0A1", marginBottom: 20 }}>Pricing and upgrade coming soon.</div>
+            <button onClick={() => setShowProbExpired(false)} style={{ fontSize: 13, color: "#6B6655", background: "none", border: "1px solid #D8D2C4", borderRadius: 8, padding: "8px 20px", cursor: "pointer", fontFamily: "inherit" }}>Close</button>
+          </div>
+        </div>
+      )}
       <ProjectionTable engine={engine} data={derivedData} />
       <PremiumGate featureId="scenario_comparison" label="Scenario comparison">
         <ScenarioComparisonRow data={derivedData} />

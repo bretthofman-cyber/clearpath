@@ -8,6 +8,7 @@ import { supabase } from "./supabase.js";
 import { useEntitlement, EntitlementContext } from "./useEntitlement.js";
 import PremiumGate from "./PremiumGate.jsx";
 import TrialBanner from "./TrialBanner.jsx";
+import { FEATURES } from "./features.js";
 import LoginScreen from "./LandingPage.jsx";
 import AnalysisScreen from "./AnalysisStage.jsx";
 import ActionPlanScreen from "./ActionPlanStage.jsx";
@@ -1068,6 +1069,11 @@ export default function IndependentMeans() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {data.firstName && <div style={{ fontSize: 12, color: "#6B6655" }}>Hi, {data.firstName} 👋</div>}
+          <PremiumGate featureId={FEATURES.MULTI_PLAN} label="Multiple plans">
+            <button
+              style={{ fontSize: 11, color: "#2E4A3D", background: "none", border: "1px solid #9DB0A1", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
+            >+ New plan</button>
+          </PremiumGate>
           <button
             onClick={async () => { if (window.confirm("Clear all saved data? This cannot be undone.")) { await supabase.from("plans").delete().eq("user_id", user.id); setData({ ...EMPTY_DATA }); setStage(1); } }}
             style={{ fontSize: 11, color: "#8A8270", background: "none", border: "1px solid #ECE7DB", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}

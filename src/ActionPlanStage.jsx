@@ -35,7 +35,7 @@ function ActionPlanScreen({ data }) {
   const aT = deriveAssetTotals(data.assetItems);
   const ssData = applyMaxedSS({ ...data, ...aT });
   const derivedData = { ...ssData, ...aT };
-  const engine = runEngine(derivedData, { skipMonteCarlo: !can(FEATURES.MONTE_CARLO) });
+  const engine = runEngine(derivedData, { skipMonteCarlo: !can(FEATURES.PROBABILITY_VIEW) });
   const items = generatePlanItems(derivedData, engine);
 
   const grouped = Object.keys(PLAN_CATEGORIES).reduce((acc, key) => {
