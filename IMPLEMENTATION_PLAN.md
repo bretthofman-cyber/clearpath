@@ -287,16 +287,27 @@ This is a 5-line change; do it in Phase 2 when gating is added.
 - Negative gearing income tax benefit
 - Saving and loading the single plan (Supabase plans table)
 
-### Phase 3 — Stripe billing
+### Phase 3 — Locked-State UI, Paywall Modal & Improve My Plan (COMPLETE)
 
-**Goal:** Users can upgrade; Stripe subscription syncs back to Supabase.
+**Goal:** Every gate opens the same upgrade modal; "Improve my plan" shows personalised opportunities.
+
+| File | Status |
+|---|---|
+| `src/analytics.js` | DONE — added trackGateClick(feature, context) stub |
+| `src/UpgradeModal.jsx` | DONE — shared modal; feature-specific headline + body copy for all 10 premium features; "Start 14-day free trial" / "Upgrade to Premium" primary CTA; "See Premium" secondary stub |
+| `src/PremiumGate.jsx` | DONE — redesigned: children visible at full opacity, non-interactive (pointer-events:none); gold "Premium" badge top-right; transparent click-capture overlay; opens UpgradeModal |
+| `src/opportunityEngine.js` | DONE — 6 pure detectors: salary sacrifice, carry-forward cap, mortgage acceleration, retirement age optimisation, Monte Carlo analysis, debt recycling; each returns personalised description using user's numbers |
+| `src/ImprovePlanModal.jsx` | DONE — shows all opportunities with gold tick (matched) / dash (not matched); free users see trial CTA; premium/trial users see Strategy Centre stub |
+| `src/AnalysisStage.jsx` | DONE — "Improve your plan" Pine banner after MetricsRow shows matched count; all inline locks (custom assumptions, probability view toggle) route through UpgradeModal |
+| `src/opportunityEngine.test.js` | DONE — 33 unit tests covering all 6 detectors (matched, not-matched, edge cases) plus runOpportunityDetectors |
+
+**Next: Phase 4 (was Phase 3 in original plan) — Stripe billing**
 
 | File | Change |
 |---|---|
 | `api/stripe-checkout.js` | New Vercel serverless function — creates Stripe Checkout Session (mode: subscription); takes user_id, price_id, success_url, cancel_url |
 | `api/stripe-webhook.js` | New Vercel serverless function — handles `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`; upserts `subscriptions` table via service_role key |
-| `src/UpgradeModal.jsx` | New file — pricing modal: A$15/month or A$149/year; calls `/api/stripe-checkout`; redirects to Stripe Checkout |
-| `src/PremiumGate.jsx` | Update: on gate click after trial expires, show UpgradeModal instead of TrialModal |
+| `src/UpgradeModal.jsx` | Update: "Start 14-day free trial" calls `/api/stripe-checkout`; redirects to Stripe Checkout |
 | `src/LandingPage.jsx` | Add pricing section to landing page |
 | `vercel.json` | Add webhook route rewrites if needed |
 | `.env.local` | Add VITE_STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET (server-side vars only — last two never in client bundle) |

@@ -3,8 +3,11 @@ import { DEFAULT_SCENARIOS, runEngine } from "./engine.js";
 import { EntitlementContext } from "./useEntitlement.js";
 import PremiumGate from "./PremiumGate.jsx";
 import TrialModal from "./TrialModal.jsx";
+import UpgradeModal from "./UpgradeModal.jsx";
+import ImprovePlanModal from "./ImprovePlanModal.jsx";
 import { FEATURES } from "./features.js";
-import { logGateClick } from "./analytics.js";
+import { trackGateClick } from "./analytics.js";
+import { runOpportunityDetectors } from "./opportunityEngine.js";
 import { LIFE_EVENT_TYPES } from "./lifeEvents.js";
 import { generateWarnings } from "./warnings.js";
 import { currency, SectionDivider } from "./ui.jsx";
@@ -1335,22 +1338,26 @@ function AnalysisScreen({ data, set }) {
   const [expandedKey, setExpandedKey] = useState(data.activeScenario || "base");
   const [viewPerson, setViewPerson] = useState("combined");
   const [chartView, setChartView] = useState("projection");
-  const [showProbGateModal, setShowProbGateModal] = useState(false);
-  const [showProbExpired, setShowProbExpired] = useState(false);
+  const [showProbModal, setShowProbModal] = useState(false);
+  const [showProbTrialModal, setShowProbTrialModal] = useState(false);
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [showCustomTrialModal, setShowCustomTrialModal] = useState(false);
+  const [showImproveModal, setShowImproveModal] = useState(false);
 
-  const { can, status, activateTrial } = useContext(EntitlementContext);
+  const { can, status } = useContext(EntitlementContext);
 
-  async function handleProbabilityClick() {
-    logGateClick(FEATURES.PROBABILITY_VIEW);
+  function handleProbabilityClick() {
     if (can(FEATURES.PROBABILITY_VIEW)) {
       setChartView("probability");
-    } else if (status === "free") {
-      await activateTrial();
-      setChartView("probability");
-      setShowProbGateModal(true);
     } else {
-      setShowProbExpired(true);
+      trackGateClick(FEATURES.PROBABILITY_VIEW, { source: "toggle" });
+      setShowProbModal(true);
     }
+  }
+
+  function handleCustomAssumptionsLock() {
+    trackGateClick(FEATURES.CUSTOM_ASSUMPTIONS, { source: "toggle" });
+    setShowCustomModal(true);
   }
 
   const isCouple = data.hasPartner === "yes" && (data.partnerIncome || data.partnerSuperBalance || data.partnerAge);
@@ -1427,15 +1434,15 @@ function AnalysisScreen({ data, set }) {
           </button>
         ) : (
           <button
-            onClick={async () => { if (status === "free") { await activateTrial(); } }}
+            onClick={handleCustomAssumptionsLock}
             style={{
-              display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
-              border: "1.5px solid #D8D2C4", borderRadius: 20, background: "white",
+              display: "flex", alignItems: "center", gap: 5, padding: "6px 12px",
+              border: "1.5px solid rgba(194,160,107,0.4)", borderRadius: 20, background: "white",
               cursor: "pointer", fontFamily: "inherit", fontSize: 12, color: "#9DB0A1",
               flexShrink: 0, marginLeft: 12,
             }}
           >
-            🔒 Custom
+            <span style={{ color: "#C2A06B", fontSize: 10 }}>🔒</span> Custom
           </button>
         )}
       </div>
@@ -1494,9 +1501,45 @@ function AnalysisScreen({ data, set }) {
 
       <WarningsPanel data={derivedData} engine={engine} />
       <MetricsRow engine={engine} data={derivedData} />
+
+      {/* "Improve my plan" — primary premium entry point */}
+      {(() => {
+        const opps = runOpportunityDetectors(derivedData, engine);
+        const matched = opps.filter(o => o.matched).length;
+        if (matched === 0) return null;
+        return (
+          <div
+            onClick={() => setShowImproveModal(true)}
+            style={{
+              background: "#2E4A3D", borderRadius: 12,
+              padding: "16px 20px", marginBottom: 20,
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              cursor: "pointer", gap: 12,
+            }}
+          >
+            <div>
+              <div style={{ fontFamily: "Spectral, serif", fontSize: 16, color: "#F5F2EB", marginBottom: 3 }}>
+                Improve your plan
+              </div>
+              <div style={{ fontSize: 12, color: "#9DB0A1" }}>
+                {matched} of {opps.length} opportunities detected
+              </div>
+            </div>
+            <div style={{
+              background: "#C2A06B", color: "#2A2113",
+              borderRadius: 20, padding: "6px 14px",
+              fontSize: 12, fontWeight: 700,
+              flexShrink: 0, whiteSpace: "nowrap",
+            }}>
+              Explore →
+            </div>
+          </div>
+        );
+      })()}
+
       <FIREPanel engine={engine} data={derivedData} />
 
-      {/* Chart view toggle — Probability view is visible but locked for free users */}
+      {/* Chart view toggle */}
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 10 }}>
         <button
           onClick={() => setChartView("projection")}
@@ -1532,29 +1575,32 @@ function AnalysisScreen({ data, set }) {
         ? <NetWorthChart engine={engine} data={derivedData} />
         : <MonteCarloCard data={derivedData} engine={engine} />}
 
-      {showProbGateModal && (
-        <TrialModal onClose={() => setShowProbGateModal(false)} />
+      {showProbModal && (
+        <UpgradeModal
+          featureId={FEATURES.PROBABILITY_VIEW}
+          onClose={() => setShowProbModal(false)}
+          onTrialStarted={() => { setShowProbTrialModal(true); setChartView("probability"); }}
+        />
       )}
-      {showProbExpired && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(33,36,30,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
-          onClick={() => setShowProbExpired(false)}
-        >
-          <div
-            style={{ background: "#FBFAF6", borderRadius: 16, padding: "32px 36px", maxWidth: 380, margin: 20, textAlign: "center", boxShadow: "0 12px 48px rgba(33,36,30,0.18)" }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ fontFamily: "Spectral, serif", fontSize: 20, color: "#21241E", marginBottom: 12 }}>Trial ended</div>
-            <div style={{ fontSize: 14, color: "#6B6655", lineHeight: 1.6, marginBottom: 20 }}>
-              Your 14-day trial has ended. Upgrade to Independent Means Premium to access probability view and all other premium features.
-            </div>
-            <div style={{ fontSize: 12, color: "#9DB0A1", marginBottom: 20 }}>Pricing and upgrade coming soon.</div>
-            <button onClick={() => setShowProbExpired(false)} style={{ fontSize: 13, color: "#6B6655", background: "none", border: "1px solid #D8D2C4", borderRadius: 8, padding: "8px 20px", cursor: "pointer", fontFamily: "inherit" }}>Close</button>
-          </div>
-        </div>
+      {showProbTrialModal && <TrialModal onClose={() => setShowProbTrialModal(false)} />}
+      {showCustomModal && (
+        <UpgradeModal
+          featureId={FEATURES.CUSTOM_ASSUMPTIONS}
+          onClose={() => setShowCustomModal(false)}
+          onTrialStarted={() => setShowCustomTrialModal(true)}
+        />
       )}
+      {showCustomTrialModal && <TrialModal onClose={() => setShowCustomTrialModal(false)} />}
+      {showImproveModal && (
+        <ImprovePlanModal
+          data={derivedData}
+          engine={engine}
+          onClose={() => setShowImproveModal(false)}
+        />
+      )}
+
       <ProjectionTable engine={engine} data={derivedData} />
-      <PremiumGate featureId="scenario_comparison" label="Scenario comparison">
+      <PremiumGate featureId="scenario_comparison">
         <ScenarioComparisonRow data={derivedData} />
       </PremiumGate>
       {(data.budgetItems || []).length > 0 && (() => {
