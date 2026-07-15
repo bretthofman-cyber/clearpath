@@ -1,22 +1,41 @@
+import { trackGateClick } from "./analytics.js";
+
 export default function TrialBanner({ isTrial, trialDaysLeft }) {
   if (!isTrial) return null;
+
   const urgent = trialDaysLeft <= 3;
+
+  const daysText = trialDaysLeft === 0
+    ? "Premium trial — expires today"
+    : `Premium trial — ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left`;
+
   return (
     <div style={{
-      background: urgent ? "#7A3B28" : "#2E4A3D",
-      color: "#F5F2EB",
-      padding: "7px 28px",
+      background:   urgent ? "rgba(194,160,107,0.10)" : "#2E4A3D",
+      borderBottom: urgent ? "1px solid rgba(194,160,107,0.30)" : "none",
+      color:        urgent ? "#7A5A0E" : "#F5F2EB",
+      padding: "7px 20px",
       display: "flex", alignItems: "center", justifyContent: "space-between",
       fontSize: 12, lineHeight: 1,
     }}>
-      <span>
-        {trialDaysLeft === 0
-          ? "Your trial expires today"
-          : `${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left in your free trial — all premium features unlocked`}
+      <span style={{ fontWeight: urgent ? 600 : 400 }}>
+        {daysText}
       </span>
-      <span style={{ color: "#C2A06B", fontSize: 11, flexShrink: 0, marginLeft: 16 }}>
-        Upgrade coming soon
-      </span>
+      <button
+        onClick={() => {
+          trackGateClick("upgrade_banner", { source: "trial_banner" });
+          // Phase 5: navigate to Stripe checkout / pricing page
+        }}
+        style={{
+          background: "none", border: "none", padding: 0,
+          fontSize: 11, fontWeight: 600,
+          color:   urgent ? "#C2A06B" : "rgba(245,242,235,0.70)",
+          cursor: "pointer", textDecoration: "underline",
+          fontFamily: "inherit", flexShrink: 0, marginLeft: 16,
+        }}
+      >
+        Upgrade
+      </button>
     </div>
   );
 }

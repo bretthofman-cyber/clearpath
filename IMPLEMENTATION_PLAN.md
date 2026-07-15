@@ -301,14 +301,40 @@ This is a 5-line change; do it in Phase 2 when gating is added.
 | `src/AnalysisStage.jsx` | DONE — "Improve your plan" Pine banner after MetricsRow shows matched count; all inline locks (custom assumptions, probability view toggle) route through UpgradeModal |
 | `src/opportunityEngine.test.js` | DONE — 33 unit tests covering all 6 detectors (matched, not-matched, edge cases) plus runOpportunityDetectors |
 
-**Next: Phase 4 (was Phase 3 in original plan) — Stripe billing**
+### Phase 4 — Triggered 14-Day Trial (COMPLETE)
+
+**Goal:** Frictionless trial start from any gate; instant action completion; TrialBanner confirmation; one trial per account ever.
+
+| File | Status |
+|---|---|
+| `supabase-add-trial-feature.sql` | DONE — `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS trial_started_from_feature text` |
+| `src/analytics.js` | DONE — added `trackTrialStarted(featureId)` and `trackTrialExpired()` stubs |
+| `src/useEntitlement.js` | DONE — `activateTrial(fromFeature)` stores feature + calls `trackTrialStarted`; `useEffect` emits `trackTrialExpired()` once per session on expiry detection; `hadTrial` flag exposed |
+| `src/UpgradeModal.jsx` | DONE — passes `featureId` to `activateTrial`; removed TrialModal fallback; calls `onTrialStarted?.()` after close |
+| `src/ImprovePlanModal.jsx` | DONE — passes `"improve_my_plan"` to `activateTrial`; removed TrialModal |
+| `src/TrialBanner.jsx` | DONE — redesigned: "Premium trial — X days left"; pine green normal, gold tones (≤3 days); "Upgrade" link stub |
+| `src/PremiumGate.jsx` | DONE — removed unused `showTrialBadge` state; TrialBanner in header handles confirmation |
+| `src/AnalysisStage.jsx` | DONE — removed TrialModal import and `showProbTrialModal`/`showCustomTrialModal` states; prob-view `onTrialStarted` flips chart view immediately |
+| `src/trial.test.js` | DONE — 25 tests: one-trial guard, hadTrial flag, entitlement flips, expiry at read time, artefact survival, Plausible stubs |
+
+**Acceptance criteria met:**
+- Clicking any gate as a free user starts the trial and immediately performs the gated action
+- Second trial cannot be started (DB status stays "trialing"; client guard: `status !== "free"`)
+- Expired-trial data is locked but intact (tierOf computes expiry at read time; plan data never mutated)
+- TrialBanner turns gold at ≤3 days; "Upgrade" link stubs Phase 5
+
+**Test count after Phase 4:** 142 passing
+
+**Next: Phase 5 — Stripe billing**
 
 | File | Change |
 |---|---|
 | `api/stripe-checkout.js` | New Vercel serverless function — creates Stripe Checkout Session (mode: subscription); takes user_id, price_id, success_url, cancel_url |
 | `api/stripe-webhook.js` | New Vercel serverless function — handles `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`; upserts `subscriptions` table via service_role key |
-| `src/UpgradeModal.jsx` | Update: "Start 14-day free trial" calls `/api/stripe-checkout`; redirects to Stripe Checkout |
+| `src/UpgradeModal.jsx` | Update: "Upgrade to Premium" CTA (expired-trial / paid path) calls `/api/stripe-checkout`; redirects to Stripe Checkout |
+| `src/TrialBanner.jsx` | Update: "Upgrade" link calls `/api/stripe-checkout` |
 | `src/LandingPage.jsx` | Add pricing section to landing page |
+| `index.html` | Add Plausible `<script>` tag |
 | `vercel.json` | Add webhook route rewrites if needed |
 | `.env.local` | Add VITE_STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET (server-side vars only — last two never in client bundle) |
 
@@ -317,26 +343,16 @@ This is a 5-line change; do it in Phase 2 when gating is added.
 - Price 1: A$15.00/month, recurring
 - Price 2: A$149.00/year, recurring
 
-### Phase 4 — Strategy Centre
+### Phase 6 — Plausible Analytics
 
-**Goal:** "Improve my plan" tab on the analysis screen; opportunity-detection engine.
-
-| File | Change |
-|---|---|
-| `src/strategyEngine.js` | New file — opportunity-detection functions: detectSalarySacrificeOpportunity(), detectOffsetOpportunity(), detectDebtRecyclingOpportunity(), detectSpendingGap(), detectIPCGTWindow(), detectSuperContribWindow() |
-| `src/StrategyCentre.jsx` | New file — renders opportunities as cards with "What this means" + "Questions to ask your adviser" language; AFSL-compliant framing |
-| `src/AnalysisStage.jsx` | Add Strategy Centre tab to analysis screen; gate with `<PremiumGate featureId="strategy_centre">` |
-
-### Phase 5 — Analytics
-
-**Goal:** Page views and gate clicks tracked.
+**Goal:** Page views and gate clicks tracked in production.
 
 | File | Change |
 |---|---|
 | `index.html` | Add Plausible `<script>` tag |
-| `src/PremiumGate.jsx` | `plausible('Gate Click', { props: { featureId } })` already in Phase 2; confirm it works with Plausible |
+| `src/analytics.js` | Stubs already in place from Phase 2–4; confirm events fire with Plausible installed |
 
-### Phase 6 — PDF and CSV export
+### Phase 7 — PDF and CSV export
 
 **Goal:** Premium export features working.
 
@@ -346,16 +362,26 @@ This is a 5-line change; do it in Phase 2 when gating is added.
 | `src/exportCsv.js` | New file — serialises trajectory and metrics to CSV; triggers download |
 | `src/ActionPlanStage.jsx` | Add CSV download button (gated) |
 
-### Phase 7 — Snapshots (stub) and CSV import (stub)
+### Phase 8 — Strategy Centre (deep modelling)
+
+**Goal:** Per-opportunity scenario modelling inside "Improve my plan".
+
+| File | Change |
+|---|---|
+| `src/strategyEngine.js` | New file — per-opportunity number-crunching functions |
+| `src/StrategyCentre.jsx` | New file — renders opportunities as cards; AFSL-compliant framing; adviser referral on each card |
+| `src/AnalysisStage.jsx` | Wire Strategy Centre tab; gate with `<PremiumGate featureId="strategy_centre">` |
+
+### Phase 9 — Snapshots (stub) and CSV import (stub)
 
 **Goal:** Feature exists behind premium gate with "Coming soon" UI.
 
 | File | Change |
 |---|---|
-| `src/SnapshotsPanel.jsx` | New file — stub UI: "Plan snapshots coming soon. This feature will let you save and compare point-in-time versions of your plan." |
+| `src/SnapshotsPanel.jsx` | New file — stub UI: "Plan snapshots coming soon." |
 | `src/ImportPanel.jsx` | New file — stub UI: "CSV import coming soon." |
 
-### Phase 8 — Post-launch refactors
+### Phase 10 — Post-launch refactors
 
 These do not block launch:
 - Update `CLAUDE.md` to reflect current state (App.jsx line count, Supabase schema, Stripe setup)

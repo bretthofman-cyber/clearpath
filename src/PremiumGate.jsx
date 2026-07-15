@@ -13,7 +13,6 @@ import { trackGateClick } from "./analytics.js";
 export default function PremiumGate({ featureId, children }) {
   const { can } = useContext(EntitlementContext);
   const [showModal, setShowModal] = useState(false);
-  const [showTrialBadge, setShowTrialBadge] = useState(false);
 
   if (can(featureId)) return <>{children}</>;
 
@@ -63,11 +62,11 @@ export default function PremiumGate({ featureId, children }) {
         </div>
       </div>
 
+      {/* TrialBanner in App.jsx header confirms activation — no local modal needed */}
       {showModal && (
         <UpgradeModal
           featureId={featureId}
           onClose={() => setShowModal(false)}
-          onTrialStarted={() => setShowTrialBadge(true)}
         />
       )}
     </>

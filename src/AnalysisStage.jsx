@@ -2,9 +2,9 @@ import { useState, useRef, useMemo, useContext } from "react";
 import { DEFAULT_SCENARIOS, runEngine } from "./engine.js";
 import { EntitlementContext } from "./useEntitlement.js";
 import PremiumGate from "./PremiumGate.jsx";
-import TrialModal from "./TrialModal.jsx";
 import UpgradeModal from "./UpgradeModal.jsx";
 import ImprovePlanModal from "./ImprovePlanModal.jsx";
+import StrategyCentre from "./StrategyCentre.jsx";
 import { FEATURES } from "./features.js";
 import { trackGateClick } from "./analytics.js";
 import { runOpportunityDetectors } from "./opportunityEngine.js";
@@ -361,7 +361,7 @@ function ProjectionTable({ engine, data }) {
 
 // ─── ANALYSIS COMPONENTS ──────────────────────────────────────────────────────
 
-function MetricsRow({ engine, data }) {
+function MetricsRow({ engine, data, div293Locked = false }) {
   const { metrics, drawdown, mortgage } = engine;
   const retirementAge = parseFloat(data.retirementAge) || 65;
   const lifeExpectancy = parseFloat(data.lifeExpectancy) || 90;
@@ -454,6 +454,7 @@ function MetricsRow({ engine, data }) {
       value: taxValue,
       sub: taxSub,
       ok: null,
+      note: div293Locked ? "Div 293 modelled in Premium" : null,
     },
   ];
 
@@ -485,6 +486,14 @@ function MetricsRow({ engine, data }) {
           {card.sub && (
             <div style={{ fontSize: 11, color: subColor(card.ok), fontWeight: 500 }}>
               {card.sub}
+            </div>
+          )}
+          {card.note && (
+            <div style={{
+              marginTop: 6, fontSize: 10, fontWeight: 600,
+              color: "#C2A06B", display: "flex", alignItems: "center", gap: 3,
+            }}>
+              <span style={{ fontSize: 9 }}>🔒</span> {card.note}
             </div>
           )}
         </div>
@@ -570,6 +579,90 @@ function MonteCarloCard({ data, engine }) {
           <div style={{ fontSize: 10, color: "#9DB0A1" }}>{Math.round(stdDev * 100)}% annual volatility</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── MONTE CARLO FAN CHART ───────────────────────────────────────────────────
+
+function MonteCarloFanChart({ engine, data }) {
+  const fb = engine?.monteCarlo?.fanBands;
+  if (!fb || fb.length === 0) return null;
+
+  const retirementAge = parseInt(data.retirementAge) || 65;
+  const W = 600, H = 190;
+  const mg = { top: 18, right: 24, bottom: 28, left: 68 };
+  const cW = W - mg.left - mg.right;
+  const cH = H - mg.top - mg.bottom;
+
+  const minAge = fb[0].age;
+  const maxAge = fb[fb.length - 1].age;
+  const maxBal = Math.max(...fb.map(b => b.p90));
+
+  const xS = age => mg.left + ((age - minAge) / (maxAge - minAge || 1)) * cW;
+  const yS = v   => mg.top + cH - Math.max(0, (v / (maxBal || 1))) * cH;
+
+  const areaPath = (loKey, hiKey) => {
+    const fwd = fb.map((b, i) => `${i === 0 ? "M" : "L"} ${xS(b.age).toFixed(1)},${yS(b[loKey]).toFixed(1)}`).join(" ");
+    const bwd = [...fb].reverse().map(b => `L ${xS(b.age).toFixed(1)},${yS(b[hiKey]).toFixed(1)}`).join(" ");
+    return `${fwd} ${bwd} Z`;
+  };
+  const linePath = key => fb.map((b, i) => `${i === 0 ? "M" : "L"} ${xS(b.age).toFixed(1)},${yS(b[key]).toFixed(1)}`).join(" ");
+
+  const tickStep = maxBal > 4_000_000 ? 2_000_000 : maxBal > 2_000_000 ? 1_000_000 : maxBal > 1_000_000 ? 500_000 : 250_000;
+  const yTicks = [];
+  for (let v = 0; v <= maxBal * 1.05; v += tickStep) yTicks.push(v);
+
+  const fmtM = v => v >= 1_000_000 ? `$${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}m`
+    : `$${Math.round(v / 1000)}k`;
+
+  const retX = xS(retirementAge);
+  const xLabels = [...new Set([minAge, retirementAge, maxAge])].filter(a => a >= minAge && a <= maxAge);
+
+  return (
+    <div style={{ background: "#FBFAF6", border: "1.5px solid #ECE7DB", borderRadius: 12, padding: "14px 16px 8px", marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270" }}>
+          Super balance — probability fan
+        </div>
+        <div style={{ display: "flex", gap: 12, fontSize: 10, color: "#8A8270", flexWrap: "wrap" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ display: "inline-block", width: 14, height: 8, background: "rgba(194,160,107,0.18)", border: "1px solid rgba(194,160,107,0.35)", borderRadius: 2 }} />
+            P10–P90
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ display: "inline-block", width: 14, height: 8, background: "rgba(194,160,107,0.38)", border: "1px solid rgba(194,160,107,0.55)", borderRadius: 2 }} />
+            P25–P75
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ display: "inline-block", width: 14, height: 2, background: "#C2A06B", borderRadius: 1, marginTop: 3 }} />
+            Median
+          </span>
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", overflow: "visible" }}>
+        {yTicks.map(v => (
+          <g key={v}>
+            <line x1={mg.left} x2={W - mg.right} y1={yS(v)} y2={yS(v)} stroke="#ECE7DB" strokeWidth={0.6} />
+            <text x={mg.left - 6} y={yS(v) + 4} textAnchor="end" fontSize={10} fill="#9DB0A1" fontFamily="Albert Sans, sans-serif">
+              {fmtM(v)}
+            </text>
+          </g>
+        ))}
+        <path d={areaPath("p10", "p90")} fill="rgba(194,160,107,0.12)" />
+        <path d={areaPath("p25", "p75")} fill="rgba(194,160,107,0.28)" />
+        <path d={linePath("p50")} fill="none" stroke="#C2A06B" strokeWidth={2} strokeDasharray="5 3" />
+        <line x1={retX} x2={retX} y1={mg.top} y2={H - mg.bottom} stroke="#2E4A3D" strokeWidth={1.5} strokeDasharray="4 3" opacity={0.45} />
+        <text x={retX + 5} y={mg.top + 11} fontSize={9} fill="#2E4A3D" opacity={0.65} fontFamily="Albert Sans, sans-serif">
+          Age {retirementAge}
+        </text>
+        <line x1={mg.left} x2={W - mg.right} y1={H - mg.bottom} y2={H - mg.bottom} stroke="#D8D2C4" strokeWidth={0.6} />
+        {xLabels.map(age => (
+          <text key={age} x={xS(age)} y={H - mg.bottom + 14} textAnchor="middle" fontSize={10} fill="#9DB0A1" fontFamily="Albert Sans, sans-serif">
+            {age}
+          </text>
+        ))}
+      </svg>
     </div>
   );
 }
@@ -803,22 +896,66 @@ const SCENARIO_COMPARISON_SCENS = [
 
 function ScenarioComparisonRow({ data }) {
   const SCENS = SCENARIO_COMPARISON_SCENS;
+  const lifeExp = parseInt(data.lifeExpectancy) || 90;
   const engines = useMemo(() => {
     const assetTotals = deriveAssetTotals(data.assetItems);
     return SCENS.map(({ key }) =>
       runEngine({ ...data, ...assetTotals, activeScenario: key, useCustomAssumptions: false })
     );
   }, [data]);
+
+  // Overlaid trajectory mini-chart
+  const W = 600, H = 100;
+  const mg = { top: 8, right: 12, bottom: 8, left: 12 };
+  const cW = W - mg.left - mg.right;
+  const cH = H - mg.top - mg.bottom;
+  const allTrajectories = engines.map(e => e.trajectory || []);
+  const allAges = allTrajectories[0]?.map(t => t.age) ?? [];
+  const allNW   = allTrajectories.flatMap(t => t.map(p => p.netWorth));
+  const maxNW   = Math.max(1, ...allNW);
+  const minAge  = allAges[0] ?? 0;
+  const maxAge  = allAges[allAges.length - 1] ?? 90;
+  const xS = age => mg.left + ((age - minAge) / (maxAge - minAge || 1)) * cW;
+  const yS = v   => mg.top + cH - Math.max(0, v / maxNW) * cH;
+  const retAge = parseInt(data.retirementAge) || 65;
+
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A8270", marginBottom: 10 }}>
         Scenario Comparison
       </div>
+
+      {/* Overlaid net-worth trajectories */}
+      {allAges.length > 2 && (
+        <div style={{ background: "#FBFAF6", border: "1.5px solid #ECE7DB", borderRadius: 12, padding: "10px 14px", marginBottom: 10 }}>
+          <div style={{ fontSize: 10, color: "#9DB0A1", marginBottom: 4 }}>Net worth trajectory — all scenarios</div>
+          <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%" }}>
+            {allTrajectories.map((traj, idx) => {
+              const color = SCENS[idx].color;
+              const d = traj.map((pt, i) => `${i === 0 ? "M" : "L"} ${xS(pt.age).toFixed(1)},${yS(pt.netWorth).toFixed(1)}`).join(" ");
+              return <path key={idx} d={d} fill="none" stroke={color} strokeWidth={idx === 1 ? 2 : 1.5} opacity={0.85} />;
+            })}
+            <line x1={xS(retAge)} x2={xS(retAge)} y1={mg.top} y2={H - mg.bottom} stroke="#D8D2C4" strokeWidth={1} strokeDasharray="3 2" />
+          </svg>
+          <div style={{ display: "flex", gap: 14, marginTop: 4 }}>
+            {SCENS.map(s => (
+              <span key={s.key} style={{ fontSize: 10, color: s.color, display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ display: "inline-block", width: 14, height: 2, background: s.color, borderRadius: 1 }} />
+                {s.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="scenario-comparison-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
         {SCENS.map(({ key, label, color, bg, bdr }, idx) => {
           const eng = engines[idx];
           const mc  = eng.monteCarlo;
           const isActive = data.activeScenario === key && !data.useCustomAssumptions;
+          const fundedTo = eng.metrics.lastsToLifeExpectancy ? `Age ${lifeExp}` : (eng.metrics.depletionAge ? `Age ${eng.metrics.depletionAge}` : "—");
+          const fundedOk = eng.metrics.lastsToLifeExpectancy;
+          const fireAge  = eng.metrics.projectedFIAge;
           return (
             <div key={key} style={{
               background: isActive ? bg : "#FBFAF6",
@@ -846,6 +983,20 @@ function ScenarioComparisonRow({ data }) {
                   {currency(eng.metrics.retirementNetWorth)}
                 </div>
               </div>
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 9, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Funded to age</div>
+                <div style={{ fontSize: 15, fontFamily: "Spectral, serif", color: fundedOk ? "#2E4A3D" : "#9a3922" }}>
+                  {fundedTo}
+                </div>
+              </div>
+              {fireAge && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 9, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>FIRE age</div>
+                  <div style={{ fontSize: 15, fontFamily: "Spectral, serif", color: "#21241E" }}>
+                    Age {fireAge}
+                  </div>
+                </div>
+              )}
               {mc ? (
                 <div>
                   <div style={{ fontSize: 9, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Probability of success</div>
@@ -1339,10 +1490,9 @@ function AnalysisScreen({ data, set }) {
   const [viewPerson, setViewPerson] = useState("combined");
   const [chartView, setChartView] = useState("projection");
   const [showProbModal, setShowProbModal] = useState(false);
-  const [showProbTrialModal, setShowProbTrialModal] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
-  const [showCustomTrialModal, setShowCustomTrialModal] = useState(false);
   const [showImproveModal, setShowImproveModal] = useState(false);
+  const [showStrategyCentre, setShowStrategyCentre] = useState(false);
 
   const { can, status } = useContext(EntitlementContext);
 
@@ -1372,7 +1522,10 @@ function AnalysisScreen({ data, set }) {
     ...ssData, ...aT,
     targetRetirementSpending: effectiveSpend > 0 ? String(effectiveSpend) : data.targetRetirementSpending,
   };
-  const engine = runEngine(derivedData, { skipMonteCarlo: !can(FEATURES.PROBABILITY_VIEW) });
+  const engine = runEngine(derivedData, {
+    skipMonteCarlo: !can(FEATURES.PROBABILITY_VIEW),
+    skipAdvancedTax: !can(FEATURES.ADVANCED_TAX),
+  });
 
   function handleScenarioToggle(key) {
     if (data.activeScenario !== key) {
@@ -1499,8 +1652,20 @@ function AnalysisScreen({ data, set }) {
         </div>
       )}
 
-      <WarningsPanel data={derivedData} engine={engine} />
-      <MetricsRow engine={engine} data={derivedData} />
+      {(() => {
+        // Detect if Div293 would apply to this free-tier user but is being suppressed.
+        const _pf = v => parseFloat(String(v || "").replace(/,/g, "")) || 0;
+        const gross1 = _pf(data.grossIncome) + _pf(data.bonusIncome) + _pf(data.otherIncome);
+        const sgRate1 = (_pf(data.employerSgRate) || 12) / 100;
+        const concess1 = gross1 * sgRate1 + _pf(data.salarySacrifice);
+        const div293Locked = !can(FEATURES.ADVANCED_TAX) && (gross1 + concess1) > 250_000;
+        return (
+          <>
+            <WarningsPanel data={derivedData} engine={engine} />
+            <MetricsRow engine={engine} data={derivedData} div293Locked={div293Locked} />
+          </>
+        );
+      })()}
 
       {/* "Improve my plan" — primary premium entry point */}
       {(() => {
@@ -1573,29 +1738,39 @@ function AnalysisScreen({ data, set }) {
 
       {chartView === "projection"
         ? <NetWorthChart engine={engine} data={derivedData} />
-        : <MonteCarloCard data={derivedData} engine={engine} />}
+        : (
+          <>
+            <MonteCarloCard data={derivedData} engine={engine} />
+            <MonteCarloFanChart engine={engine} data={derivedData} />
+          </>
+        )}
 
       {showProbModal && (
         <UpgradeModal
           featureId={FEATURES.PROBABILITY_VIEW}
           onClose={() => setShowProbModal(false)}
-          onTrialStarted={() => { setShowProbTrialModal(true); setChartView("probability"); }}
+          onTrialStarted={() => setChartView("probability")}
         />
       )}
-      {showProbTrialModal && <TrialModal onClose={() => setShowProbTrialModal(false)} />}
       {showCustomModal && (
         <UpgradeModal
           featureId={FEATURES.CUSTOM_ASSUMPTIONS}
           onClose={() => setShowCustomModal(false)}
-          onTrialStarted={() => setShowCustomTrialModal(true)}
         />
       )}
-      {showCustomTrialModal && <TrialModal onClose={() => setShowCustomTrialModal(false)} />}
       {showImproveModal && (
         <ImprovePlanModal
           data={derivedData}
           engine={engine}
           onClose={() => setShowImproveModal(false)}
+          onOpenStrategyCentre={() => setShowStrategyCentre(true)}
+        />
+      )}
+      {showStrategyCentre && (
+        <StrategyCentre
+          data={derivedData}
+          engine={engine}
+          onClose={() => setShowStrategyCentre(false)}
         />
       )}
 

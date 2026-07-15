@@ -1,6 +1,5 @@
 import { useContext, useState } from "react";
 import { EntitlementContext } from "./useEntitlement.js";
-import TrialModal from "./TrialModal.jsx";
 import { trackGateClick } from "./analytics.js";
 
 const FEATURE_COPY = {
@@ -53,7 +52,6 @@ const FEATURE_COPY = {
 export default function UpgradeModal({ featureId, onClose, onTrialStarted }) {
   const { status, activateTrial } = useContext(EntitlementContext);
   const [activating, setActivating] = useState(false);
-  const [showTrialModal, setShowTrialModal] = useState(false);
 
   const copy = FEATURE_COPY[featureId] ?? FEATURE_COPY._default;
   const isFree = status === "free";
@@ -61,14 +59,10 @@ export default function UpgradeModal({ featureId, onClose, onTrialStarted }) {
   async function handleStartTrial() {
     trackGateClick(featureId, { source: "upgrade_modal", action: "start_trial" });
     setActivating(true);
-    await activateTrial();
+    await activateTrial(featureId);
     setActivating(false);
     onClose();
-    if (onTrialStarted) {
-      onTrialStarted();
-    } else {
-      setShowTrialModal(true);
-    }
+    onTrialStarted?.();
   }
 
   function handleSeePricing() {
@@ -211,7 +205,6 @@ export default function UpgradeModal({ featureId, onClose, onTrialStarted }) {
         </div>
       </div>
 
-      {showTrialModal && <TrialModal onClose={() => setShowTrialModal(false)} />}
     </>
   );
 }

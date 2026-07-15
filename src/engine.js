@@ -81,8 +81,9 @@ export function calculatePersonTax(taxableIncome, {
   superConcessional    = 0,
   hasPrivateHealth     = true,
   hecsDebt             = 0,
-  excessConcessional   = 0,   // amount above $30k cap — already in taxableIncome; credit 15% offset here
-  frankingCredits      = 0,   // dividend imputation credits — direct offset against income tax; excess is refundable
+  excessConcessional   = 0,
+  frankingCredits      = 0,
+  skipAdvancedTax      = false,
 } = {}) {
   const g = Math.max(0, taxableIncome);
   const zero = { taxableIncome: 0, incomeTax: 0, medicareLevy: 0, mls: 0, hecsRepayment: 0, division293: 0, totalTax: 0, afterTax: 0, effectiveRate: 0 };
@@ -112,8 +113,10 @@ export function calculatePersonTax(taxableIncome, {
   incomeTax = Math.max(0, incomeTax - lito - excessConcessionalCredit);
 
   // 1d. Franking credits (imputation) — offset income tax; excess is refundable by ATO
-  const fcApplied = Math.min(incomeTax, frankingCredits);
-  const frankingCreditRefund = Math.max(0, frankingCredits - fcApplied);
+  // Franking credits are an advanced AU tax feature; suppressed for free-tier users.
+  const effectiveFc = skipAdvancedTax ? 0 : frankingCredits;
+  const fcApplied = Math.min(incomeTax, effectiveFc);
+  const frankingCreditRefund = Math.max(0, effectiveFc - fcApplied);
   incomeTax = incomeTax - fcApplied;
 
   // 3. Medicare Levy (simplified: 2% above shade-in threshold)
@@ -140,8 +143,9 @@ export function calculatePersonTax(taxableIncome, {
 
   // 6. Division 293 — additional 15% on concessional contributions for high earners
   // Bill sent to individual (not deducted from fund); modelled as a cash outflow.
+  // Suppressed for free-tier users (skipAdvancedTax); a locked indicator appears in the UI.
   let division293 = 0;
-  if (superConcessional > 0) {
+  if (!skipAdvancedTax && superConcessional > 0) {
     const d293Base = g + superConcessional;
     if (d293Base > DIV_293.threshold) {
       const excess  = d293Base - DIV_293.threshold;
@@ -162,7 +166,7 @@ export function calculatePersonTax(taxableIncome, {
     hecsRepayment:        Math.round(hecsRepayment),
     division293:          Math.round(division293),
     excessConcessional:   Math.round(excessConcessional),
-    frankingCredits:      Math.round(frankingCredits),
+    frankingCredits:      Math.round(effectiveFc),
     frankingCreditRefund: Math.round(frankingCreditRefund),
     totalTax,
     afterTax,
@@ -174,7 +178,7 @@ export function calculatePersonTax(taxableIncome, {
  * Household tax model — per-person tax with rental income/loss allocated by ownership %.
  * Returns individual tax details and household aggregate.
  */
-export function calculateHouseholdTax(data, ipCashflows) {
+export function calculateHouseholdTax(data, ipCashflows, { skipAdvancedTax = false } = {}) {
   const isCouple = data.hasPartner === "yes";
 
   // Allocate rental income/loss per person by IP ownership %
@@ -195,17 +199,18 @@ export function calculateHouseholdTax(data, ipCashflows) {
   const gross2 = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0;
 
   // Carry-forward concessional cap (ATO: available when prior-year super balance < $500k)
+  // Suppressed for free-tier users.
   const CARRY_BALANCE_LIMIT = 500_000;
-  const cfCap1 = p(data.carryForwardCap || "0");
-  const cfCap2 = isCouple ? p(data.partnerCarryForwardCap || "0") : 0;
+  const cfCap1 = skipAdvancedTax ? 0 : p(data.carryForwardCap || "0");
+  const cfCap2 = skipAdvancedTax ? 0 : (isCouple ? p(data.partnerCarryForwardCap || "0") : 0);
   const effectiveConcCap1 = p(data.superBalance) < CARRY_BALANCE_LIMIT
     ? SUPER.concessionalCap + cfCap1 : SUPER.concessionalCap;
   const effectiveConcCap2 = isCouple && p(data.partnerSuperBalance) < CARRY_BALANCE_LIMIT
     ? SUPER.concessionalCap + cfCap2 : SUPER.concessionalCap;
 
-  // Franking credits (dividend imputation) per person
-  const fc1 = p(data.frankingCredits || "0");
-  const fc2 = isCouple ? p(data.partnerFrankingCredits || "0") : 0;
+  // Franking credits (dividend imputation) per person; suppressed for free-tier users.
+  const fc1 = skipAdvancedTax ? 0 : p(data.frankingCredits || "0");
+  const fc2 = skipAdvancedTax ? 0 : (isCouple ? p(data.partnerFrankingCredits || "0") : 0);
 
   // Concessional contributions (used for Div 293 test and excess cap detection)
   const sgRate1  = (p(data.employerSgRate) || SUPER.sgRate * 100) / 100;
@@ -226,15 +231,15 @@ export function calculateHouseholdTax(data, ipCashflows) {
   const hecs1   = p(data.hecsDebt);
   const hecs2   = isCouple ? p(data.partnerHecsDebt) : 0;
 
-  const p1Tax = calculatePersonTax(taxable1, { superConcessional: concess1, hasPrivateHealth: health1, hecsDebt: hecs1, excessConcessional: excessConc1, frankingCredits: fc1 });
-  const p2Tax = isCouple ? calculatePersonTax(taxable2, { superConcessional: concess2, hasPrivateHealth: health2, hecsDebt: hecs2, excessConcessional: excessConc2, frankingCredits: fc2 }) : null;
+  const p1Tax = calculatePersonTax(taxable1, { superConcessional: concess1, hasPrivateHealth: health1, hecsDebt: hecs1, excessConcessional: excessConc1, frankingCredits: fc1, skipAdvancedTax });
+  const p2Tax = isCouple ? calculatePersonTax(taxable2, { superConcessional: concess2, hasPrivateHealth: health2, hecsDebt: hecs2, excessConcessional: excessConc2, frankingCredits: fc2, skipAdvancedTax }) : null;
 
   // Negative gearing tax benefit: how much less tax because of rental losses
   const negGearBenefit1 = rentalPerson1 < 0
-    ? calculatePersonTax(taxable1 - rentalPerson1, { superConcessional: concess1, hasPrivateHealth: health1, hecsDebt: 0 }).incomeTax - p1Tax.incomeTax
+    ? calculatePersonTax(taxable1 - rentalPerson1, { superConcessional: concess1, hasPrivateHealth: health1, hecsDebt: 0, skipAdvancedTax }).incomeTax - p1Tax.incomeTax
     : 0;
   const negGearBenefit2 = (isCouple && rentalPerson2 < 0)
-    ? calculatePersonTax(taxable2 - rentalPerson2, { superConcessional: concess2, hasPrivateHealth: health2, hecsDebt: 0 }).incomeTax - p2Tax.incomeTax
+    ? calculatePersonTax(taxable2 - rentalPerson2, { superConcessional: concess2, hasPrivateHealth: health2, hecsDebt: 0, skipAdvancedTax }).incomeTax - p2Tax.incomeTax
     : 0;
 
   return {
@@ -913,12 +918,15 @@ export function runMonteCarlo(data, assumptions, iterations = 1000) {
   let successes = 0;
   const retirementBals = [];
   const finalBals      = [];
+  const totalYears = yearsToRetire + yearsInRetire;
+  const yearBalArrays = Array.from({ length: totalYears }, () => []);
 
   for (let i = 0; i < iterations; i++) {
     let bal = superBal;
     for (let y = 0; y < yearsToRetire; y++) {
       const r = normalRandom(meanReturn, stdDev);
       bal = bal * (1 + Math.max(r, -0.5)) + annualContribs;
+      yearBalArrays[y].push(bal);
     }
     retirementBals.push(bal);
 
@@ -929,7 +937,8 @@ export function runMonteCarlo(data, assumptions, iterations = 1000) {
       const r          = normalRandom(meanReturn, stdDev);
       const withdrawal = Math.max(futureSpending * Math.pow(1 + inf, y), abpMinDrawdown(drawBal, age));
       drawBal = drawBal * (1 + Math.max(r, -0.5)) - withdrawal;
-      if (drawBal <= 0) { depleted = true; break; }
+      if (drawBal <= 0) { depleted = true; drawBal = 0; }
+      yearBalArrays[yearsToRetire + y].push(drawBal);
     }
     if (!depleted) successes++;
     finalBals.push(depleted ? 0 : drawBal);
@@ -939,6 +948,19 @@ export function runMonteCarlo(data, assumptions, iterations = 1000) {
   finalBals.sort((a, b) => a - b);
 
   const pct = (arr, pc) => Math.round(arr[Math.floor(arr.length * pc / 100)] ?? 0);
+
+  const fanBands = yearBalArrays.map((bals, yi) => {
+    const sorted = bals.slice().sort((a, b) => a - b);
+    const age = yi < yearsToRetire
+      ? currentAge + yi + 1
+      : retirementAge + (yi - yearsToRetire) + 1;
+    return {
+      age,
+      p10: pct(sorted, 10), p25: pct(sorted, 25),
+      p50: pct(sorted, 50), p75: pct(sorted, 75),
+      p90: pct(sorted, 90),
+    };
+  });
 
   return {
     successRate: Math.round((successes / iterations) * 100),
@@ -952,6 +974,7 @@ export function runMonteCarlo(data, assumptions, iterations = 1000) {
     finalBalance: {
       p10: pct(finalBals, 10), p25: pct(finalBals, 25), p50: pct(finalBals, 50),
     },
+    fanBands,
   };
 }
 
@@ -1030,7 +1053,7 @@ function calculateTTR(data, assumptions) {
 
 // ── MAIN ENTRY POINT ──────────────────────────────────────────────────────────
 
-export function runEngine(data, { skipMonteCarlo = false } = {}) {
+export function runEngine(data, { skipMonteCarlo = false, skipAdvancedTax = false } = {}) {
   const assumptions = getActiveAssumptions(data);
 
   const propertyCashflows = (data.investmentProperties || []).map(ip => ({
@@ -1038,7 +1061,7 @@ export function runEngine(data, { skipMonteCarlo = false } = {}) {
     ...propertyAnnualCashflow(ip),
   }));
 
-  const householdTax = calculateHouseholdTax(data, propertyCashflows.filter(cf => cf.status === "existing"));
+  const householdTax = calculateHouseholdTax(data, propertyCashflows.filter(cf => cf.status === "existing"), { skipAdvancedTax });
 
   const superResult  = projectSuper(data, assumptions);
   const drawdown     = retirementDrawdown(data, assumptions, superResult.projectedBalance);
@@ -1070,8 +1093,8 @@ export function runEngine(data, { skipMonteCarlo = false } = {}) {
   const fire       = fireCalc(data, assumptions);
   const fireNumber = fire?.fireNumber || 0;
 
-  // TTR (Transition to Retirement) — primary person only
-  const ttr = calculateTTR(data, assumptions);
+  // TTR (Transition to Retirement) — primary person only; suppressed for free-tier users.
+  const ttr = skipAdvancedTax ? null : calculateTTR(data, assumptions);
 
   return {
     assumptions,

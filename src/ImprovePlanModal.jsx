@@ -1,6 +1,5 @@
 import { useContext, useState } from "react";
 import { EntitlementContext } from "./useEntitlement.js";
-import TrialModal from "./TrialModal.jsx";
 import { runOpportunityDetectors } from "./opportunityEngine.js";
 import { trackGateClick } from "./analytics.js";
 import { FEATURES } from "./features.js";
@@ -44,10 +43,9 @@ function OpportunityRow({ opp }) {
   );
 }
 
-export default function ImprovePlanModal({ data, engine, onClose }) {
+export default function ImprovePlanModal({ data, engine, onClose, onOpenStrategyCentre }) {
   const { can, status, activateTrial } = useContext(EntitlementContext);
   const [activating, setActivating] = useState(false);
-  const [showTrialModal, setShowTrialModal] = useState(false);
 
   const isPremium = can(FEATURES.STRATEGY_CENTRE);
   const opportunities = runOpportunityDetectors(data, engine);
@@ -56,10 +54,9 @@ export default function ImprovePlanModal({ data, engine, onClose }) {
   async function handleStartTrial() {
     trackGateClick("improve_my_plan", { source: "improve_modal", action: "start_trial" });
     setActivating(true);
-    await activateTrial();
+    await activateTrial("improve_my_plan");
     setActivating(false);
     onClose();
-    setShowTrialModal(true);
   }
 
   function handleExplorePremium() {
@@ -185,10 +182,10 @@ export default function ImprovePlanModal({ data, engine, onClose }) {
                   fontSize: 13, color: "#6B6655",
                   lineHeight: 1.6, marginBottom: 16,
                 }}>
-                  Full strategy modelling for each opportunity is coming in the Strategy Centre.
+                  Model each opportunity interactively using your numbers — move a slider and watch the outcome update in real time.
                 </div>
                 <button
-                  onClick={onClose}
+                  onClick={() => { onClose(); onOpenStrategyCentre?.(); }}
                   style={{
                     width: "100%",
                     background: "#2E4A3D",
@@ -197,6 +194,18 @@ export default function ImprovePlanModal({ data, engine, onClose }) {
                     padding: "13px 20px",
                     fontSize: 14, fontWeight: 600,
                     cursor: "pointer", fontFamily: "inherit",
+                    marginBottom: 8,
+                  }}
+                >
+                  Open Strategy Centre
+                </button>
+                <button
+                  onClick={onClose}
+                  style={{
+                    width: "100%", background: "none",
+                    border: "1px solid #D8D2C4", borderRadius: 12,
+                    padding: "11px 20px", fontSize: 13,
+                    color: "#6B6655", cursor: "pointer", fontFamily: "inherit",
                   }}
                 >
                   Continue planning
@@ -207,7 +216,6 @@ export default function ImprovePlanModal({ data, engine, onClose }) {
         </div>
       </div>
 
-      {showTrialModal && <TrialModal onClose={() => setShowTrialModal(false)} />}
     </>
   );
 }

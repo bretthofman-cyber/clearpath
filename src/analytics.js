@@ -12,3 +12,21 @@ export function trackGateClick(feature, context = {}) {
     window.plausible("Gate Click", { props: { feature, source: context.source ?? "gate" } });
   }
 }
+
+export function trackTrialStarted(featureId) {
+  if (import.meta.env.DEV) {
+    console.info("[trial-started]", { featureId, at: new Date().toISOString() });
+  }
+  if (typeof window !== "undefined" && typeof window.plausible === "function") {
+    window.plausible("Trial Started", { props: { feature: featureId ?? "unknown" } });
+  }
+}
+
+export function trackTrialExpired() {
+  if (import.meta.env.DEV) {
+    console.info("[trial-expired]", { at: new Date().toISOString() });
+  }
+  if (typeof window !== "undefined" && typeof window.plausible === "function") {
+    window.plausible("Trial Expired");
+  }
+}

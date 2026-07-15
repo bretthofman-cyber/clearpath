@@ -1179,6 +1179,11 @@ export default function IndependentMeans() {
         <div style={{ fontSize: 11, color: "#8A8270", lineHeight: 1.6, maxWidth: 620, margin: "0 auto" }}>
           <strong style={{ color: "#6B6655" }}>General information only.</strong> Independent Means is an educational planning tool and does not provide personal financial advice. All projections and analysis are illustrative estimates based on the information you enter. Before making financial decisions, consider seeking advice from a licensed Australian financial adviser (AFSL holder). Past performance is not a reliable indicator of future performance.
         </div>
+        <div style={{ marginTop: 8, fontSize: 11, color: "#9DB0A1" }}>
+          <a href="/privacy.html" style={{ color: "#9DB0A1", textDecoration: "none" }} onMouseOver={e => e.target.style.color="#6B6655"} onMouseOut={e => e.target.style.color="#9DB0A1"}>Privacy Policy</a>
+          {" · "}
+          <a href="/terms.html" style={{ color: "#9DB0A1", textDecoration: "none" }} onMouseOver={e => e.target.style.color="#6B6655"} onMouseOut={e => e.target.style.color="#9DB0A1"}>Terms of Service</a>
+        </div>
       </footer>
     </div>
     </EntitlementContext.Provider>

@@ -9,6 +9,7 @@ export const FEATURES = {
   STRATEGY_CENTRE:    "strategy_centre",
   CSV_EXPORT:         "csv_export",
   MULTI_PLAN:         "multi_plan",
+  ADVANCED_TAX:       "advanced_tax",
 };
 
 export const TIERS = {
