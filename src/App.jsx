@@ -5,6 +5,7 @@ import { currency, Field, Input, Select, Toggle, TwoCol, SectionDivider } from "
 import Stage2, { BUDGET_CATS } from "./BudgetStage.jsx";
 import AssetStage3, { deriveAssetTotals } from "./AssetStage.jsx";
 import { supabase } from "./supabase.js";
+import { useEntitlement } from "./useEntitlement.js";
 import LoginScreen from "./LandingPage.jsx";
 import AnalysisScreen from "./AnalysisStage.jsx";
 import ActionPlanScreen from "./ActionPlanStage.jsx";
@@ -896,12 +897,14 @@ function LoadingScreen() {
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 export default function IndependentMeans() {
-  const [user, setUser]           = useState(null);
+  const [user, setUser]               = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [data, setData]           = useState({ ...EMPTY_DATA });
-  const [stage, setStage]         = useState(1);
+  const [data, setData]               = useState({ ...EMPTY_DATA });
+  const [stage, setStage]             = useState(1);
   const scrollRef  = useRef(null);
   const saveTimer  = useRef(null);
+
+  const entitlement = useEntitlement(user?.id);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -972,7 +975,7 @@ export default function IndependentMeans() {
   function next() { goTo(Math.min(stage + 1, 7)); }
   function back() { goTo(Math.max(stage - 1, 1)); }
 
-  if (authLoading) return <LoadingScreen />;
+  if (authLoading || entitlement.isLoading) return <LoadingScreen />;
   if (!user) return <LoginScreen />;
 
   const progress = ((stage - 1) / 6) * 100;
@@ -1125,8 +1128,8 @@ export default function IndependentMeans() {
             {stage === 3 && <AssetStage3 data={data} setMany={setMany} />}
             {stage === 4 && <Stage4 data={data} set={set} />}
             {stage === 5 && <Stage5 data={data} set={set} />}
-            {stage === 6 && <AnalysisScreen data={data} set={set} />}
-            {stage === 7 && <ActionPlanScreen data={data} />}
+            {stage === 6 && <AnalysisScreen data={data} set={set} entitlement={entitlement} />}
+            {stage === 7 && <ActionPlanScreen data={data} entitlement={entitlement} />}
           </div>
 
           {stage < 6 && (
