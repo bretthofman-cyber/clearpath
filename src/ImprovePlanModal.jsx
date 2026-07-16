@@ -113,10 +113,10 @@ export default function ImprovePlanModal({ data, engine, onClose, onOpenStrategy
               fontSize: 22, fontWeight: 500,
               color: "#2E4A3D", marginBottom: 6,
             }}>
-              Your plan opportunities
+              Modelling insights
             </div>
             <div style={{ fontSize: 13, color: "#8A8270" }}>
-              {matchCount} of {opportunities.length} opportunities detected in your plan
+              {matchCount} of {opportunities.length} scenarios identified from your inputs
             </div>
           </div>
 

@@ -4,7 +4,7 @@ import { trackGateClick } from "./analytics.js";
 
 const FEATURE_COPY = {
   probability_view: {
-    headline: "See how likely your plan is to succeed",
+    headline: "See how likely your scenario is to succeed",
     body: "Run 1,000 simulations to understand the range of outcomes your current plan may produce.",
   },
   scenario_comparison: {
@@ -32,12 +32,12 @@ const FEATURE_COPY = {
     body: "Export a full report of your financial model to review offline or share with your adviser.",
   },
   multi_plan: {
-    headline: "Create a second financial plan",
+    headline: "Create a second financial model",
     body: "Model an alternative life scenario, a major decision, or a different income path alongside your current plan.",
   },
   strategy_centre: {
     headline: "Unlock the Strategy Centre",
-    body: "Get a personalised list of opportunities to improve your plan, each backed by your own numbers.",
+    body: "See which scenarios could strengthen your financial picture, each backed by your own numbers.",
   },
   csv_export: {
     headline: "Export your projections to a spreadsheet",

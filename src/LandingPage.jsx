@@ -67,7 +67,7 @@ We use your information to:
 • Improve the Service based on how it is used.
 • Communicate with you about the Service (e.g. important updates).
 
-We do not use your financial planning inputs to provide personalised financial advice.
+We do not use your financial data inputs to provide personalised financial advice.
 
 3. HOW WE STORE YOUR INFORMATION
 Your data is stored securely using Supabase (supabase.com), which uses Amazon Web Services (AWS) infrastructure. Data is encrypted at rest and in transit. Row-level security ensures that only you can access your plan data.
@@ -277,10 +277,10 @@ function LoginScreen() {
               }}>
                 {loading ? "Redirecting…" : "Get started free"}
               </button>
-              {["Full 8-stage plan", "Base-case projections", "Net worth trajectory", "FIRE number + Coast FIRE", "Basic AU tax modelling", "1 saved plan"].map(f => (
+              {["Full 8-stage financial model", "Base-case projections", "Net worth trajectory", "FIRE number + Coast FIRE", "Basic AU tax modelling", "1 saved model"].map(f => (
                 <div key={f} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                   <span style={{ color: "#9DB0A1", fontSize: 13 }}>✓</span>
-                  <span style={{ fontSize: 12, color: "#6B6655" }}>{f}</span>
+                  <span style={{ fontSize: 13, color: "#6B6655" }}>{f}</span>
                 </div>
               ))}
             </div>
@@ -304,7 +304,7 @@ function LoginScreen() {
               {["Everything in Free", "Monte Carlo probability view", "Scenario comparison", "Custom assumptions", "Division 293 modelling", "Carry-forward cap", "Franking credits", "Debt recycling", "Strategy Centre", "PDF + CSV export"].map(f => (
                 <div key={f} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                   <span style={{ color: "#C2A06B", fontSize: 13 }}>✓</span>
-                  <span style={{ fontSize: 12, color: "#9DB0A1" }}>{f}</span>
+                  <span style={{ fontSize: 13, color: "#9DB0A1" }}>{f}</span>
                 </div>
               ))}
             </div>

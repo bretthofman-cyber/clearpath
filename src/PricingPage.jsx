@@ -8,7 +8,7 @@ const ANNUAL_PM     = "A$12.42";
 const SAVE_PCT      = "17%";
 
 const FREE_FEATURES = [
-  "Full 8-stage financial plan",
+  "Full 8-stage financial model",
   "Base-case projections",
   "Net worth trajectory chart",
   "FIRE number + Coast FIRE",

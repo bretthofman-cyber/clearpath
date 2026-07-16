@@ -23,7 +23,7 @@ const STAGES = [
   { id: 4, label: "Property", icon: "🏠", title: "Property & Debt",        subtitle: "Leverage and obligations" },
   { id: 5, label: "Super",    icon: "📈", title: "Super & Goals",           subtitle: "Retirement engine and priorities" },
   { id: 6, label: "Analysis", icon: "✦",  title: "Your Financial Picture", subtitle: "Scenario, projections & discussion points" },
-  { id: 7, label: "Plan",     icon: "📋", title: "Your Plan Summary",      subtitle: "Observations based on your inputs" },
+  { id: 7, label: "Summary",  icon: "📋", title: "Your Financial Summary", subtitle: "Observations based on your inputs" },
 ];
 
 

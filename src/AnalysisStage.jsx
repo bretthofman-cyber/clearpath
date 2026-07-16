@@ -1686,7 +1686,7 @@ function AnalysisScreen({ data, set }) {
           >
             <div>
               <div style={{ fontFamily: "Spectral, serif", fontSize: 16, color: "#F5F2EB", marginBottom: 3 }}>
-                Improve your plan
+                Explore your scenarios
               </div>
               <div style={{ fontSize: 12, color: "#9DB0A1" }}>
                 {matched} of {opps.length} opportunities detected

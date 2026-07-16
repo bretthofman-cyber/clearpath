@@ -60,7 +60,7 @@ function ActionPlanScreen({ data }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 24 }}>
           {summaryCards.map((c, i) => (
             <div key={i} style={{ background: "white", border: "1px solid #ECE7DB", borderRadius: 10, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>{c.label}</div>
+              <div style={{ fontSize: 11, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>{c.label}</div>
               <div style={{ fontFamily: "Spectral, serif", fontSize: 18, color: "#2E4A3D", fontWeight: 500 }}>{c.value}</div>
             </div>
           ))}
@@ -78,7 +78,7 @@ function ActionPlanScreen({ data }) {
           <div key={key} style={{ marginBottom: 24 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <span style={{ fontSize: 14 }}>{cat.icon}</span>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "#6B6655" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "#6B6655" }}>
                 {cat.label}
               </div>
             </div>
@@ -88,7 +88,7 @@ function ActionPlanScreen({ data }) {
       })}
 
       <div style={{ marginTop: 8, background: "#F5F2EB", border: "1px solid #ECE7DB", borderRadius: 10, padding: "16px 18px" }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6B6655", marginBottom: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6B6655", marginBottom: 10 }}>
           Topics to explore with a financial adviser
         </div>
         {[
