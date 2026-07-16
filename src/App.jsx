@@ -1004,6 +1004,11 @@ export default function IndependentMeans() {
   function next() { goTo(Math.min(stage + 1, 7)); }
   function back() { goTo(Math.max(stage - 1, 1)); }
 
+  useEffect(() => {
+    const el = document.getElementById("static-links");
+    if (el) el.style.display = user ? "none" : "";
+  }, [user]);
+
   if (authLoading || entitlement.isLoading) return <LoadingScreen />;
   if (!user) return <LoginScreen />;
 
