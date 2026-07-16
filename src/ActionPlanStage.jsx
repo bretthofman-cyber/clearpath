@@ -117,11 +117,11 @@ function ActionPlanScreen({ data }) {
             background: "#C2A06B", color: "#2A2113", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
           }}>Download PDF Report</button>
         </PremiumGate>
-        <PremiumGate featureId={FEATURES.CSV_EXPORT} label="Download plan CSV">
+        <PremiumGate featureId={FEATURES.CSV_EXPORT} label="Download data CSV">
           <button onClick={() => exportPlanDataCsv(derivedData)} style={{
             padding: "10px 20px", border: "1.5px solid #D8D2C4", borderRadius: 10,
             background: "#FBFAF6", color: "#2E4A3D", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-          }}>Download Plan CSV</button>
+          }}>Download Data CSV</button>
         </PremiumGate>
       </div>
     </div>

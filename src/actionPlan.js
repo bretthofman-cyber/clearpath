@@ -267,7 +267,7 @@ export function generatePlanItems(data, engine) {
 
   add("estate", 3, "INSURANCE",
     "Insurance coverage — not modelled",
-    "This planner does not model life insurance, income protection, or total and permanent disability coverage. These are commonly held inside or outside superannuation. A gap in coverage may materially affect financial outcomes in the event of illness, injury, or death.",
+    "This tool does not model life insurance, income protection, or total and permanent disability coverage. These are commonly held inside or outside superannuation. A gap in coverage may materially affect financial outcomes in the event of illness, injury, or death.",
     "Discuss insurance needs with a licensed financial adviser (AFSL holder)."
   );
 

@@ -1,7 +1,7 @@
 # Independent Means — Launch Checklist
 
-This document covers every manual step required before going live, the four canonical
-QA journeys, and the post-launch roadmap of "coming soon" stubs.
+This document covers every manual step required before going live, the five canonical
+QA journeys, and the post-launch roadmap of genuine "coming soon" stubs.
 
 ---
 
@@ -66,7 +66,7 @@ Verify in Supabase Table Editor that both `events` and `subscriptions.trial_star
 
 ---
 
-## 4. Manual QA: Four Canonical Journeys
+## 4. Manual QA: Five Canonical Journeys
 
 Run these journeys against **production** (`https://www.independentmeans.com.au`) before
 announcing the launch. Use an incognito window for each journey to avoid cached state.
@@ -75,7 +75,7 @@ announcing the launch. Use an incognito window for each journey to avoid cached 
 
 ### Journey A — Free User: Full Profile → Projections → Charts → Save
 
-**Goal:** Confirm zero paywall interruptions on the free path; confirm locked toggles
+**Goal:** Confirm zero paywall interruptions on the free path; confirm locked features
 are visible but non-activatable without starting a trial.
 
 1. Sign in with Google (new or existing free account)
@@ -100,12 +100,13 @@ are visible but non-activatable without starting a trial.
    - [ ] "Custom assumptions" toggle shows Premium badge
    - [ ] Carry-forward and franking credit fields show PremiumGate overlay
    - [ ] Debt recycling toggle shows PremiumGate overlay
-   - [ ] PDF export button shows PremiumGate gate
-9. **Stage 7 — Financial Summary:** Confirm action plan items are visible
+   - [ ] "Download PDF Report" button shows PremiumGate gate
+   - [ ] "Download Projection CSV" button shows PremiumGate gate
+9. **Stage 7 — Financial Summary:** Confirm observation items are visible
 10. **Save:** Navigate away and back — confirm data is restored from Supabase
 
-**Pass criteria:** All 8 stages complete with no unexpected gate interruptions on free fields.
-Locked features show gate overlays. Plan saves and restores.
+**Pass criteria:** All stages complete with no unexpected gate interruptions on free fields.
+Locked features show gate overlays. Data saves and restores correctly.
 
 ---
 
@@ -139,7 +140,8 @@ Strategy Centre is reachable, and Stripe checkout upgrades tier to Premium.
    - Complete checkout → redirected back to app with `?checkout=success`
    - [ ] TrialBanner is gone
    - [ ] "Billing" button appears in header
-   - [ ] Monte Carlo, Scenario comparison, PDF export all remain accessible
+   - [ ] Monte Carlo, Scenario comparison, PDF export and CSV export buttons all accessible
+   - [ ] "Download Report" button visible in header
 6. **Billing portal:**
    - Click "Billing" in header → Stripe Customer Portal opens
    - [ ] Current subscription visible with correct price
@@ -163,7 +165,7 @@ checkout succeeds, tier reads Premium post-checkout.
    - [ ] Probability view toggle shows Premium badge (locked again)
    - [ ] Monte Carlo card is not visible
    - [ ] "Explore your scenarios" banner is gone (or if shown, clicking re-opens UpgradeModal with "Upgrade to Premium" CTA, not trial CTA)
-3. **Confirm base plan is fully usable:**
+3. **Confirm base scenario view is fully usable:**
    - [ ] All 8 stages are editable
    - [ ] Net worth chart shows (base scenario)
    - [ ] FIRE number, projected super, debt-free date, estimated tax all visible
@@ -173,7 +175,7 @@ checkout succeeds, tier reads Premium post-checkout.
    - Click any premium gate → UpgradeModal opens
    - [ ] CTA reads "Upgrade to Premium" (not "Start free trial") because `hadTrial = true`
 
-**Pass criteria:** Expired-trial user sees Free tier; base plan fully functional; no trial restart available.
+**Pass criteria:** Expired-trial user sees Free tier; base scenario view fully functional; no trial restart available.
 
 ---
 
@@ -184,14 +186,14 @@ checkout succeeds, tier reads Premium post-checkout.
 > Use the Journey B Stripe test subscription (sandbox mode). Webhook must fire to update DB.
 
 1. As a Premium user, click "Billing" → Stripe Customer Portal
-2. Click "Cancel plan" → confirm cancellation (immediate or end of period)
+2. Click "Cancel" → confirm cancellation (immediate or end of period)
 3. For sandbox, cancellation fires immediately and sends `customer.subscription.deleted`
 4. Reload the app
 5. **Confirm behaviour matches Journey C (trial expiry):**
    - [ ] TrialBanner is gone
    - [ ] Premium features are locked (same gate overlays as free user)
    - [ ] "Upgrade to Premium" CTA (no trial offer — `hadTrial = true`)
-   - [ ] Base plan: all 8 stages accessible, charts visible, data intact
+   - [ ] Base scenario: all 8 stages accessible, charts visible, data intact
 6. In Supabase, confirm `subscriptions.status = 'canceled'` for the user
 
 **Pass criteria:** Cancellation downgrade matches trial expiry behaviour; all base-case
@@ -199,32 +201,74 @@ data is intact; no data loss.
 
 ---
 
+### Journey E — Premium Exports: PDF Report and CSV Downloads
+
+**Goal:** Confirm both export features work end-to-end for a premium user.
+
+> Requires a premium or trial account. Use the Journey B account (post-checkout).
+
+1. With a full data set entered (Journeys A inputs), navigate to **Stage 6 — Analysis**
+2. **Projection CSV:**
+   - [ ] "Download Projection CSV" button is visible (not gated)
+   - Click it → browser downloads `independent-means-projection.csv`
+   - Open the file — confirm header row matches documented schema:
+     `age, year, net_worth, super_balance, liquid_assets, property_value, total_debt, is_retired, base_net_worth, conservative_net_worth, aggressive_net_worth`
+   - [ ] Numeric cells contain no `$` symbols or commas
+   - [ ] `is_retired` column contains `true` or `false` (not `1` or `0`)
+   - [ ] Row count equals life expectancy minus current age + 1 (e.g. 90 - 38 + 1 = 53 rows)
+3. **Navigate to Stage 7 — Financial Summary**
+4. **Data CSV:**
+   - [ ] "Download Data CSV" button is visible (not gated)
+   - Click it → browser downloads `independent-means-plan.csv`
+   - Open the file — confirm header row starts with `first_name, age, has_partner, ...`
+   - [ ] `first_name` cell contains the name entered in Stage 1
+   - [ ] Numeric cells (e.g. `gross_income`) contain no `$` symbols
+   - [ ] JSON columns (`asset_items_json` etc.) are valid parseable JSON
+5. **PDF Report:**
+   - [ ] "Download Report" button is visible in the header
+   - Click "Download Report" → browser print dialog opens
+   - Select "Save as PDF" (or equivalent in OS) → PDF saves successfully
+   - Open the PDF — confirm:
+     - [ ] Cover page: "Independent Means" heading, user name, generation date, AFSL disclaimer
+     - [ ] Page 2: net worth trajectory chart rendered (Pine line, Gold property dashes)
+     - [ ] Page 3: retirement projections and assumptions table
+     - [ ] Page 4 (premium): Scenario Analysis table with Base / Conservative / Aggressive columns
+     - [ ] Page 4: Monte Carlo success rate and fan chart
+     - [ ] Footer disclaimer appears on every page
+     - [ ] No em dashes anywhere in the report
+     - [ ] No use of the word "planner" or "plan" in user-visible text
+
+**Pass criteria:** Both CSV files download with correct schema; PDF renders all pages with
+Quiet Wealth visual identity; AFSL disclaimer appears on every page.
+
+---
+
 ## 5. Copy & Compliance Final Check
 
-- [x] Em dashes: removed from all user-facing copy (Phase 8 QA sweep)
-- [x] "Plan" as regulated document: replaced with "model", "scenario", "summary" throughout
+- [x] Em dashes: removed from all user-facing copy (Phase 10 QA sweep)
+- [x] "planner": replaced with "tool" in insurance observation (`actionPlan.js`)
+- [x] "Download Plan CSV": renamed to "Download Data CSV" (`ActionPlanStage.jsx`)
 - [x] "Improve my plan": replaced with "Explore your scenarios"
 - [x] "Opportunities": replaced with "Modelling insights" / "scenarios"
 - [x] "Recommended": replaced with "typically" in hint text
 - [x] "Financial planning inputs": replaced with "financial data inputs" in privacy policy
 - [ ] Confirm every screen shows the standard AFSL disclaimer footer
 - [ ] Confirm StrategyCentre Disclaimer components are present on all three strategy modules
-- [ ] Confirm ActionPlan AFSL notice is visible: "calculations and factual notes, not personal financial advice"
+- [ ] Confirm Financial Summary AFSL notice is visible: "calculations and factual notes, not personal financial advice"
+- [ ] Scan exported PDF for any use of "plan", "planner", "advice", or "you should"
 
 ---
 
 ## 6. Post-Launch Roadmap ("Coming Soon" Stubs)
 
-The following features are intentionally gated with "coming soon" labels. They are visible to
-Premium users but not functional. Build them in post-launch releases.
+The following features are intentionally gated or absent. Build them in post-launch releases.
 
 | Feature | Gate ID | Status |
 |---|---|---|
-| CSV export | `csv_export` | Built — plan data CSV and projection CSV (Phase 9) |
+| CSV import | — | Not built; schema documented in `docs/export-format.md` for round-trip design |
 | TTR (Transition to Retirement) strategy | — | Described in warnings; no interactive module |
-| Snapshots / version history | — | Not built; listed as post-launch in Phase 9 |
-| CSV import | — | Not built; listed as post-launch in Phase 9 |
-| Multi-plan support | `multi_plan` | Gate visible; schema is single-plan only |
+| Snapshots / version history | — | Not built |
+| Multi-household support | `multi_plan` | Gate visible; schema is single-household only |
 | Apple Sign In | — | Not built; requires Apple developer account |
 
 ---
