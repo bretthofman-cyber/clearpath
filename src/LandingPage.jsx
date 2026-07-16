@@ -22,8 +22,9 @@ function GoogleButton({ onClick, loading }) {
 }
 
 function LoginScreen() {
-  const [loading, setLoading] = useState(false);
-  const [modal, setModal]     = useState(null);
+  const [loading, setLoading]     = useState(false);
+  const [modal, setModal]         = useState(null);
+  const [hoveredBtn, setHoveredBtn] = useState(null);
 
   async function signInWithGoogle() {
     setLoading(true);
@@ -238,8 +239,8 @@ function LoginScreen() {
             Independent<span style={{ color: "#6B8F84" }}> Means</span>
           </div>
           <div style={{ fontSize: 11, color: "#6B6655", display: "flex", gap: 20, flexWrap: "wrap" }}>
-            <button onClick={() => setModal("terms")} style={{ background: "none", border: "none", color: "#6B6655", cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "inherit" }}>Terms of Service</button>
-            <button onClick={() => setModal("privacy")} style={{ background: "none", border: "none", color: "#6B6655", cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "inherit" }}>Privacy Policy</button>
+            <button onClick={() => setModal("terms")} onMouseEnter={() => setHoveredBtn("terms")} onMouseLeave={() => setHoveredBtn(null)} style={{ background: "none", border: "none", color: hoveredBtn === "terms" ? "#9DB0A1" : "#6B6655", cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "inherit", transition: "color 0.2s" }}>Terms of Service</button>
+            <button onClick={() => setModal("privacy")} onMouseEnter={() => setHoveredBtn("privacy")} onMouseLeave={() => setHoveredBtn(null)} style={{ background: "none", border: "none", color: hoveredBtn === "privacy" ? "#9DB0A1" : "#6B6655", cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "inherit", transition: "color 0.2s" }}>Privacy Policy</button>
             <span>hello@independentmeans.com.au</span>
           </div>
           <div style={{ fontSize: 11, color: "#4A4A42" }}>© {new Date().getFullYear()} Independent Means. General information only.</div>

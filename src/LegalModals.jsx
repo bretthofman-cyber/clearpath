@@ -115,6 +115,12 @@ export function LegalModal({ title, content, onClose }) {
 // Self-contained footer with its own modal state. Drop in anywhere.
 export function SiteFooter() {
   const [modal, setModal] = useState(null);
+  const [hoveredBtn, setHoveredBtn] = useState(null);
+  const btnStyle = (key) => ({
+    background: "none", border: "none", cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "inherit",
+    color: hoveredBtn === key ? "#9DB0A1" : "#6B6655",
+    transition: "color 0.2s",
+  });
   return (
     <>
       <footer className="no-print" style={{ background: "#21241E", padding: "24px 28px" }}>
@@ -123,8 +129,18 @@ export function SiteFooter() {
             Independent<span style={{ color: "#6B8F84" }}> Means</span>
           </div>
           <div style={{ fontSize: 11, color: "#6B6655", display: "flex", gap: 20, flexWrap: "wrap" }}>
-            <button onClick={() => setModal("terms")} style={{ background: "none", border: "none", color: "#6B6655", cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "inherit" }}>Terms of Service</button>
-            <button onClick={() => setModal("privacy")} style={{ background: "none", border: "none", color: "#6B6655", cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "inherit" }}>Privacy Policy</button>
+            <button
+              onClick={() => setModal("terms")}
+              onMouseEnter={() => setHoveredBtn("terms")}
+              onMouseLeave={() => setHoveredBtn(null)}
+              style={btnStyle("terms")}
+            >Terms of Service</button>
+            <button
+              onClick={() => setModal("privacy")}
+              onMouseEnter={() => setHoveredBtn("privacy")}
+              onMouseLeave={() => setHoveredBtn(null)}
+              style={btnStyle("privacy")}
+            >Privacy Policy</button>
             <span>hello@independentmeans.com.au</span>
           </div>
           <div style={{ fontSize: 11, color: "#4A4A42" }}>© {new Date().getFullYear()} Independent Means. General information only.</div>
