@@ -12,10 +12,16 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <div id="static-links" style="text-align:center;padding:12px;font-size:12px;font-family:sans-serif;color:#9DB0A1;background:#2E4A3D;">
-      <a href="/privacy.html" style="color:#9DB0A1;text-decoration:none;">Privacy Policy</a>
-      &nbsp;&middot;&nbsp;
-      <a href="/terms.html" style="color:#9DB0A1;text-decoration:none;">Terms of Service</a>
+    <style>
+      #static-links { text-align:center;padding:12px;font-size:12px;font-family:sans-serif;background:#2E4A3D;color:#2E4A3D; }
+      #static-links a { color:#2E4A3D;text-decoration:none;transition:color 0.2s; }
+      #static-links a:hover { color:#9DB0A1; }
+      #static-links span { color:#2E4A3D; }
+    </style>
+    <div id="static-links">
+      <a href="/privacy.html">Privacy Policy</a>
+      <span>&nbsp;&middot;&nbsp;</span>
+      <a href="/terms.html">Terms of Service</a>
     </div>
   </body>
 </html>
