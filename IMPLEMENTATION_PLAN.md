@@ -394,14 +394,25 @@ This is a 5-line change; do it in Phase 2 when gating is added.
 | `src/AssetStage.jsx` | Emergency fund hint: "recommended" → "typically" |
 | `src/ActionPlanStage.jsx` | Font sizes: summary card label 10→11; section header 10→11; category heading 11→12 |
 
-### Phase 8 — PDF and CSV export (Partially complete)
+### Phase 8 — PDF Report & CSV Export (COMPLETE)
 
-**Goal:** Premium export features working.
+**Goal:** Premium export features working. Implemented in Phase 9 session (renamed).
+
+**PDF approach decision:** Enhanced browser-print approach chosen over `@react-pdf/renderer` because:
+- Zero new dependencies (library would add ~300KB for an infrequently-used feature)
+- SVG trajectory and fan charts render as vectors (not rasterized screenshots)
+- Quiet Wealth palette applied via CSS with `-webkit-print-color-adjust: exact`
+- `window.print()` → browser "Save as PDF" is the standard AU professional workflow
 
 | Feature | Status |
 |---|---|
-| PDF export (print) | DONE — gated behind `pdf_export`; `window.print()` button in ActionPlanStage |
-| CSV export | STUB — listed as "coming soon" in Premium features; not built (post-launch) |
+| PDF export (print) | DONE — `PdfReport.jsx` renders cover + financial position + retirement projections + premium scenario analysis; gated behind `pdf_export`; "Download Report" button in header (stages 6-7) |
+| PDF chart rendering | DONE — purpose-built SVG charts in PdfReport (net worth trajectory + Monte Carlo fan chart); no interactive state, clean print output |
+| PDF disclaimer footers | DONE — fixed-position footer on every printed page; AFSL-compliant language throughout |
+| CSV plan data export | DONE — `exportPlanDataCsv()` in `exportCsv.js`; all EMPTY_DATA fields in snake_case for round-trip import; JSON columns for array fields; gated behind `csv_export`; button in ActionPlanStage |
+| CSV projection export | DONE — `exportProjectionCsv()` in `exportCsv.js`; year-by-year trajectory; per-scenario columns (base/conservative/aggressive) for premium users; gated behind `csv_export`; button in AnalysisStage |
+| Schema documentation | DONE — `docs/export-format.md` with full column specs + import round-trip instructions |
+| Tests | DONE — `exportCsv.test.js` (19 tests) + `pdfReport.test.jsx` (15 tests); 254 tests total passing |
 
 ### Phase 9 — Strategy Centre (COMPLETE)
 
@@ -429,9 +440,8 @@ AFSL compliance check; launch checklist produced.
 | `IMPLEMENTATION_PLAN.md` updated | DONE — all phases marked complete |
 
 **Post-launch roadmap (does not block launch):**
-- CSV export (featureId: `csv_export`)
+- CSV import (round-trip spec documented in `docs/export-format.md`; import UI not built)
 - Snapshots / version history
-- CSV import
 - Multi-plan support (requires schema migration)
 - Apple Sign In (requires Apple developer account)
 - App.jsx split if file grows beyond 4000 lines

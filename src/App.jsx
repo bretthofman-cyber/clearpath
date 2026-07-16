@@ -15,6 +15,7 @@ import { trackSubscriptionActivated } from "./analytics.js";
 import LoginScreen from "./LandingPage.jsx";
 import AnalysisScreen from "./AnalysisStage.jsx";
 import ActionPlanScreen from "./ActionPlanStage.jsx";
+import PdfReport from "./PdfReport.jsx";
 
 const STAGES = [
   { id: 1, label: "Profile",  icon: "👤", title: "Household Profile",     subtitle: "Let's start with the basics" },
@@ -1064,9 +1065,11 @@ export default function IndependentMeans() {
 }
 @media print {
   .no-print { display: none !important; }
+  .app-stage-content { display: none !important; }
+  .pdf-report-root { display: block !important; }
   body, html { background: white !important; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  @page { margin: 12mm 10mm; size: A4 portrait; }
+  @page { margin: 0; size: A4 portrait; }
 }
 @media (max-width: 480px) {
   .app-subtitle { max-width: 44vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1103,6 +1106,14 @@ export default function IndependentMeans() {
               onClick={() => entitlement.openPortal()}
               style={{ fontSize: 11, color: "#2E4A3D", background: "none", border: "1px solid #9DB0A1", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
             >Billing</button>
+          )}
+          {(stage === 6 || stage === 7) && (
+            <PremiumGate featureId={FEATURES.PDF_EXPORT} label="Download PDF report" onOpenPricing={() => setShowPricing(true)}>
+              <button
+                onClick={() => window.print()}
+                style={{ fontSize: 11, color: "#2E4A3D", background: "none", border: "1px solid #9DB0A1", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
+              >Download Report</button>
+            </PremiumGate>
           )}
           {entitlement.status === "free" && (
             <button
@@ -1167,7 +1178,7 @@ export default function IndependentMeans() {
         </div>
       )}
 
-      <div style={{ flex: 1, display: "flex", justifyContent: "center", padding: "32px 20px 100px" }}>
+      <div className="app-stage-content" style={{ flex: 1, display: "flex", justifyContent: "center", padding: "32px 20px 100px" }}>
         <div style={{ width: "100%", maxWidth: 620 }}>
           <div className="no-print" style={{ marginBottom: 28, animation: "fadeIn 0.3s ease" }}>
             <div style={{ fontSize: 11, color: "#8A8270", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>Step {stage} of 7</div>
@@ -1226,6 +1237,8 @@ export default function IndependentMeans() {
       {showPricing && (
         <PricingPage user={user} onClose={() => setShowPricing(false)} />
       )}
+
+      <PdfReport data={data} isPremium={entitlement.can(FEATURES.PDF_EXPORT)} />
     </div>
     </EntitlementContext.Provider>
   );

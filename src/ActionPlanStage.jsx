@@ -7,6 +7,7 @@ import { applyMaxedSS } from "./AnalysisStage.jsx";
 import { EntitlementContext } from "./useEntitlement.js";
 import PremiumGate from "./PremiumGate.jsx";
 import { FEATURES } from "./features.js";
+import { exportPlanDataCsv } from "./exportCsv.js";
 
 const PRIORITY_STYLE = {
   1: { border: "#9a3922", bg: "#fdf3f0", dot: "#9a3922", label: "Attention" },
@@ -109,12 +110,18 @@ function ActionPlanScreen({ data }) {
         </div>
       </div>
 
-      <div className="no-print" style={{ marginTop: 20, display: "flex", gap: 10 }}>
-        <PremiumGate featureId="pdf_export" label="Print / Save PDF">
+      <div className="no-print" style={{ marginTop: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <PremiumGate featureId={FEATURES.PDF_EXPORT} label="Download PDF report">
           <button onClick={() => window.print()} style={{
             padding: "10px 20px", border: "none", borderRadius: 10,
             background: "#C2A06B", color: "#2A2113", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-          }}>Print / Save PDF</button>
+          }}>Download PDF Report</button>
+        </PremiumGate>
+        <PremiumGate featureId={FEATURES.CSV_EXPORT} label="Download plan CSV">
+          <button onClick={() => exportPlanDataCsv(derivedData)} style={{
+            padding: "10px 20px", border: "1.5px solid #D8D2C4", borderRadius: 10,
+            background: "#FBFAF6", color: "#2E4A3D", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+          }}>Download Plan CSV</button>
         </PremiumGate>
       </div>
     </div>

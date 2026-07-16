@@ -13,6 +13,7 @@ import { generateWarnings } from "./warnings.js";
 import { currency, SectionDivider } from "./ui.jsx";
 import { budgetTotal, estimateNetMonthly, CashflowCalendar, buildCashflowCalendar } from "./BudgetStage.jsx";
 import { deriveAssetTotals } from "./AssetStage.jsx";
+import { exportProjectionCsv } from "./exportCsv.js";
 
 // ─── ASSUMPTION RATIONALE ─────────────────────────────────────────────────────
 
@@ -1791,12 +1792,21 @@ function AnalysisScreen({ data, set }) {
       })()}
       <AnalysisSummary data={derivedData} engine={engine} />
       <AssumptionsRegister engine={engine} data={derivedData} />
-      <div style={{ marginTop: 24, display: "flex", gap: 10 }}>
-        <PremiumGate featureId="pdf_export" label="Print / Save PDF">
+      <div style={{ marginTop: 24, display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <PremiumGate featureId={FEATURES.PDF_EXPORT} label="Download PDF report">
           <button onClick={() => window.print()} style={{
             padding: "10px 20px", border: "none", borderRadius: 10,
             background: "#C2A06B", color: "#2A2113", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-          }}>Print / Save PDF</button>
+          }}>Download PDF Report</button>
+        </PremiumGate>
+        <PremiumGate featureId={FEATURES.CSV_EXPORT} label="Download projection CSV">
+          <button
+            onClick={() => exportProjectionCsv(derivedData, engine, can(FEATURES.SCENARIO_COMPARE))}
+            style={{
+              padding: "10px 20px", border: "1.5px solid #D8D2C4", borderRadius: 10,
+              background: "#FBFAF6", color: "#2E4A3D", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+            }}
+          >Download Projection CSV</button>
         </PremiumGate>
       </div>
     </div>

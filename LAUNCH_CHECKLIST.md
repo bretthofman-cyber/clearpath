@@ -220,7 +220,7 @@ Premium users but not functional. Build them in post-launch releases.
 
 | Feature | Gate ID | Status |
 |---|---|---|
-| CSV export | `csv_export` | Stub — "coming soon" in Premium feature list |
+| CSV export | `csv_export` | Built — plan data CSV and projection CSV (Phase 9) |
 | TTR (Transition to Retirement) strategy | — | Described in warnings; no interactive module |
 | Snapshots / version history | — | Not built; listed as post-launch in Phase 9 |
 | CSV import | — | Not built; listed as post-launch in Phase 9 |
