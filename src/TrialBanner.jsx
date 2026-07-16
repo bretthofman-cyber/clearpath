@@ -1,6 +1,6 @@
 import { trackGateClick } from "./analytics.js";
 
-export default function TrialBanner({ isTrial, trialDaysLeft }) {
+export default function TrialBanner({ isTrial, trialDaysLeft, onOpenPricing }) {
   if (!isTrial) return null;
 
   const urgent = trialDaysLeft <= 3;
@@ -24,7 +24,7 @@ export default function TrialBanner({ isTrial, trialDaysLeft }) {
       <button
         onClick={() => {
           trackGateClick("upgrade_banner", { source: "trial_banner" });
-          // Phase 5: navigate to Stripe checkout / pricing page
+          onOpenPricing?.();
         }}
         style={{
           background: "none", border: "none", padding: 0,

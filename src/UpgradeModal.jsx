@@ -49,7 +49,7 @@ const FEATURE_COPY = {
   },
 };
 
-export default function UpgradeModal({ featureId, onClose, onTrialStarted }) {
+export default function UpgradeModal({ featureId, onClose, onTrialStarted, onOpenPricing }) {
   const { status, activateTrial } = useContext(EntitlementContext);
   const [activating, setActivating] = useState(false);
 
@@ -67,7 +67,8 @@ export default function UpgradeModal({ featureId, onClose, onTrialStarted }) {
 
   function handleSeePricing() {
     trackGateClick(featureId, { source: "upgrade_modal", action: "see_pricing" });
-    // Phase 6: link to pricing page
+    onClose();
+    onOpenPricing?.();
   }
 
   return (
@@ -171,7 +172,7 @@ export default function UpgradeModal({ featureId, onClose, onTrialStarted }) {
                 marginBottom: 10,
               }}
             >
-              Upgrade to Premium
+              See pricing
             </button>
           )}
 

@@ -1,7 +1,7 @@
 import { LIMITS, PREMIUM_FEATURES } from "./features.js";
 
 export function tierOf({ status, trialEndsAt }) {
-  if (status === "active") return "active";
+  if (status === "active" || status === "past_due") return "active";
   if (status === "trialing" && trialEndsAt && new Date(trialEndsAt) > new Date()) return "trialing";
   return "free";
 }

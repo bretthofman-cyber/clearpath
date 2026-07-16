@@ -8,7 +8,9 @@ import { supabase } from "./supabase.js";
 import { useEntitlement, EntitlementContext } from "./useEntitlement.js";
 import PremiumGate from "./PremiumGate.jsx";
 import TrialBanner from "./TrialBanner.jsx";
+import PricingPage from "./PricingPage.jsx";
 import { FEATURES } from "./features.js";
+import { trackSubscriptionActivated } from "./analytics.js";
 import LoginScreen from "./LandingPage.jsx";
 import AnalysisScreen from "./AnalysisStage.jsx";
 import ActionPlanScreen from "./ActionPlanStage.jsx";
@@ -910,10 +912,23 @@ export default function IndependentMeans() {
   const [authLoading, setAuthLoading] = useState(true);
   const [data, setData]               = useState({ ...EMPTY_DATA });
   const [stage, setStage]             = useState(1);
+  const [showPricing, setShowPricing] = useState(false);
   const scrollRef  = useRef(null);
   const saveTimer  = useRef(null);
 
   const entitlement = useEntitlement(user?.id);
+
+  // Handle return from Stripe Checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("checkout");
+    if (result === "success") {
+      window.history.replaceState({}, "", window.location.pathname);
+      entitlement.refreshSubscription?.();
+      trackSubscriptionActivated(params.get("plan") ?? "unknown");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -1015,7 +1030,7 @@ export default function IndependentMeans() {
   const runway = monthlyLiquid > 0 && monthlyExp > 0 ? (monthlyLiquid / monthlyExp).toFixed(1) : "—";
 
   return (
-    <EntitlementContext.Provider value={entitlement}>
+    <EntitlementContext.Provider value={{ ...entitlement, openPricing: () => setShowPricing(true) }}>
     <div style={{ minHeight: "100vh", background: "#F5F2EB", fontFamily: "'Albert Sans', sans-serif", display: "flex", flexDirection: "column" }}>
       <style>{"@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Albert+Sans:wght@300;400;500;600&display=swap'); @keyframes bounce { 0%,80%,100% { transform: translateY(0); opacity: .5; } 40% { transform: translateY(-5px); opacity: 1; } } @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } * { box-sizing: border-box; } input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }"}</style>
       <style>{`:root {
@@ -1069,11 +1084,23 @@ export default function IndependentMeans() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {data.firstName && <div style={{ fontSize: 12, color: "#6B6655" }}>Hi, {data.firstName} 👋</div>}
-          <PremiumGate featureId={FEATURES.MULTI_PLAN} label="Multiple plans">
+          <PremiumGate featureId={FEATURES.MULTI_PLAN} label="Multiple plans" onOpenPricing={() => setShowPricing(true)}>
             <button
               style={{ fontSize: 11, color: "#2E4A3D", background: "none", border: "1px solid #9DB0A1", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
             >+ New plan</button>
           </PremiumGate>
+          {entitlement.status === "active" && (
+            <button
+              onClick={() => entitlement.openPortal()}
+              style={{ fontSize: 11, color: "#2E4A3D", background: "none", border: "1px solid #9DB0A1", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
+            >Billing</button>
+          )}
+          {entitlement.status === "free" && (
+            <button
+              onClick={() => setShowPricing(true)}
+              style={{ fontSize: 11, color: "#F5F2EB", background: "#2E4A3D", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}
+            >Upgrade</button>
+          )}
           <button
             onClick={async () => { if (window.confirm("Clear all saved data? This cannot be undone.")) { await supabase.from("plans").delete().eq("user_id", user.id); setData({ ...EMPTY_DATA }); setStage(1); } }}
             style={{ fontSize: 11, color: "#8A8270", background: "none", border: "1px solid #ECE7DB", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}
@@ -1085,7 +1112,7 @@ export default function IndependentMeans() {
         </div>
       </header>
 
-      <TrialBanner isTrial={entitlement.isTrial} trialDaysLeft={entitlement.trialDaysLeft} />
+      <TrialBanner isTrial={entitlement.isTrial} trialDaysLeft={entitlement.trialDaysLeft} onOpenPricing={() => setShowPricing(true)} />
 
       <div className="no-print" style={{ background: "white", borderBottom: "1px solid #ECE7DB", padding: "0 28px 14px" }}>
         <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
@@ -1185,6 +1212,10 @@ export default function IndependentMeans() {
           <a href="/terms.html" style={{ color: "#9DB0A1", textDecoration: "none" }} onMouseOver={e => e.target.style.color="#6B6655"} onMouseOut={e => e.target.style.color="#9DB0A1"}>Terms of Service</a>
         </div>
       </footer>
+
+      {showPricing && (
+        <PricingPage user={user} onClose={() => setShowPricing(false)} />
+      )}
     </div>
     </EntitlementContext.Provider>
   );

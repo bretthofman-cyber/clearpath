@@ -7,60 +7,68 @@ import { trackTrialStarted, trackTrialExpired } from "./analytics.js";
 export const EntitlementContext = createContext({
   isPremium: false, isTrial: false, trialDaysLeft: 0,
   trialEndsAt: null, isLoading: false, status: "free", tier: "free",
-  hadTrial: false,
+  hadTrial: false, stripeCustomerId: null,
   can: () => false,
   limit: (resource) => LIMITS.free[resource],
   activateTrial: async (_fromFeature) => {},
+  refreshSubscription: async () => {},
+  openPortal: async () => {},
 });
 
 const TRIAL_DAYS = 14;
 
+async function fetchSubscription(userId) {
+  const { data: row } = await supabase
+    .from("subscriptions")
+    .select("status, trial_ends_at, stripe_customer_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return row ?? null;
+}
+
 export function useEntitlement(userId) {
-  const [status, setStatus]           = useState("free");
-  const [trialEndsAt, setTrialEndsAt] = useState(null);
-  const [isLoading, setIsLoading]     = useState(true);
-  const expiredFiredRef               = useRef(false);
+  const [status,           setStatus]           = useState("free");
+  const [trialEndsAt,      setTrialEndsAt]      = useState(null);
+  const [stripeCustomerId, setStripeCustomerId] = useState(null);
+  const [isLoading,        setIsLoading]        = useState(true);
+  const expiredFiredRef = useRef(false);
+
+  const applyRow = useCallback((row) => {
+    if (row) {
+      setStatus(row.status);
+      setTrialEndsAt(row.trial_ends_at ? new Date(row.trial_ends_at) : null);
+      setStripeCustomerId(row.stripe_customer_id ?? null);
+    } else {
+      setStatus("free");
+      setTrialEndsAt(null);
+      setStripeCustomerId(null);
+    }
+  }, []);
 
   useEffect(() => {
     if (!userId) {
       setStatus("free");
       setTrialEndsAt(null);
+      setStripeCustomerId(null);
       setIsLoading(false);
       return;
     }
     setIsLoading(true);
-    supabase
-      .from("subscriptions")
-      .select("status, trial_ends_at")
-      .eq("user_id", userId)
-      .maybeSingle()
-      .then(({ data: row }) => {
-        if (row) {
-          setStatus(row.status);
-          setTrialEndsAt(row.trial_ends_at ? new Date(row.trial_ends_at) : null);
-        } else {
-          setStatus("free");
-          setTrialEndsAt(null);
-        }
-        setIsLoading(false);
-      })
-      .catch(() => {
-        setStatus("free");
-        setIsLoading(false);
-      });
-  }, [userId]);
+    fetchSubscription(userId)
+      .then(applyRow)
+      .catch(() => setStatus("free"))
+      .finally(() => setIsLoading(false));
+  }, [userId, applyRow]);
 
   const now         = new Date();
   const tier        = tierOf({ status, trialEndsAt });
   const isPremium   = tier !== "free";
   const isTrial     = tier === "trialing";
-  // hadTrial: a row exists in subscriptions — user has had or currently has a trial/subscription
   const hadTrial    = status !== "free";
   const trialDaysLeft = trialEndsAt
     ? Math.max(0, Math.ceil((trialEndsAt - now) / (1000 * 60 * 60 * 24)))
     : 0;
 
-  // Emit trial_expired once per session when we detect an expired trial on load
   useEffect(() => {
     if (
       !isLoading &&
@@ -87,21 +95,47 @@ export function useEntitlement(userId) {
         trial_ends_at:              trialEnd.toISOString(),
         trial_started_from_feature: fromFeature,
       })
-      .select("status, trial_ends_at")
+      .select("status, trial_ends_at, stripe_customer_id")
       .single();
     if (row) {
-      setStatus(row.status);
-      setTrialEndsAt(new Date(row.trial_ends_at));
+      applyRow(row);
       trackTrialStarted(fromFeature);
     }
-  }, [userId, status]);
+  }, [userId, status, applyRow]);
+
+  const refreshSubscription = useCallback(async () => {
+    if (!userId) return;
+    const row = await fetchSubscription(userId);
+    applyRow(row);
+  }, [userId, applyRow]);
+
+  const openPortal = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    try {
+      const res = await fetch("/api/stripe-portal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ returnUrl: window.location.origin }),
+      });
+      const { url, error } = await res.json();
+      if (error) throw new Error(error);
+      window.location.href = url;
+    } catch (err) {
+      console.error("[openPortal]", err.message);
+    }
+  }, []);
 
   const can   = (feature)  => _can(tier, feature);
   const limit = (resource) => _limit(tier, resource);
 
   return {
     isPremium, isTrial, trialDaysLeft, trialEndsAt,
-    isLoading, status, tier, hadTrial,
-    can, limit, activateTrial,
+    isLoading, status, tier, hadTrial, stripeCustomerId,
+    can, limit,
+    activateTrial, refreshSubscription, openPortal,
   };
 }

@@ -325,23 +325,37 @@ This is a 5-line change; do it in Phase 2 when gating is added.
 
 **Test count after Phase 4:** 142 passing
 
-**Next: Phase 5 — Stripe billing**
+### Phase 5 — Stripe Billing (COMPLETE)
 
-| File | Change |
+**Goal:** Full subscription billing — A$15/mo and A$149/yr plans via Stripe Checkout; webhooks keep DB in sync; Customer Portal for self-service; trial-to-paid transition; analytics events.
+
+| File | Status |
 |---|---|
-| `api/stripe-checkout.js` | New Vercel serverless function — creates Stripe Checkout Session (mode: subscription); takes user_id, price_id, success_url, cancel_url |
-| `api/stripe-webhook.js` | New Vercel serverless function — handles `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`; upserts `subscriptions` table via service_role key |
-| `src/UpgradeModal.jsx` | Update: "Upgrade to Premium" CTA (expired-trial / paid path) calls `/api/stripe-checkout`; redirects to Stripe Checkout |
-| `src/TrialBanner.jsx` | Update: "Upgrade" link calls `/api/stripe-checkout` |
-| `src/LandingPage.jsx` | Add pricing section to landing page |
-| `index.html` | Add Plausible `<script>` tag |
-| `vercel.json` | Add webhook route rewrites if needed |
-| `.env.local` | Add VITE_STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET (server-side vars only — last two never in client bundle) |
+| `src/stripeWebhookHandlers.js` | DONE — pure handler logic (no Stripe/Supabase imports); `mapStripeStatus()` + `handleWebhookEvent()` covering all 4 event types; extracted for Vitest |
+| `api/stripe-checkout.js` | DONE — JWT-verified; planType → price ID resolved server-side from env vars (never exposed to client); looks up existing stripe_customer_id from DB; returns hosted Checkout URL |
+| `api/stripe-webhook.js` | DONE — raw body buffering (`bodyParser: false`); Stripe signature verification; delegates to `handleWebhookEvent`; always returns 200 |
+| `api/stripe-portal.js` | DONE — JWT-verified; looks up stripe_customer_id from DB (never trusted from client); creates billing portal session; returns URL |
+| `src/analytics.js` | DONE — added `trackCheckoutStarted`, `trackSubscriptionActivated`, `trackSubscriptionCancelled` |
+| `src/entitlement.js` | DONE — `past_due` now maps to active tier (grace period for payment update) |
+| `src/useEntitlement.js` | DONE — added `stripeCustomerId`, `refreshSubscription`, `openPortal` |
+| `src/PricingPage.jsx` | DONE — full-screen overlay; monthly/annual toggle (annual default, "Save 17%" gold badge); feature comparison table; calls `/api/stripe-checkout` |
+| `src/UpgradeModal.jsx` | DONE — added `onOpenPricing` prop; "See Premium" routes to PricingPage |
+| `src/TrialBanner.jsx` | DONE — added `onOpenPricing` prop; "Upgrade" button opens PricingPage |
+| `src/PremiumGate.jsx` | DONE — reads `openPricing` from EntitlementContext; passes to UpgradeModal |
+| `src/AnalysisStage.jsx` | DONE — reads `openPricing` from context; passes to all UpgradeModal renders |
+| `src/App.jsx` | DONE — `showPricing` state; checkout-success handler (refreshes subscription, fires trackSubscriptionActivated); `openPricing` on EntitlementContext; Billing/Upgrade header buttons; PricingPage render |
+| `src/LandingPage.jsx` | DONE — pricing section: Free vs Premium two-column grid, annual as recommended with "Save 17%", monthly alternative |
+| `src/stripe.test.js` | DONE — 24 unit tests: mapStripeStatus, all 4 webhook event types, missing metadata, idempotency, unknown events, tier transitions |
+| `.env.example` | DONE — all required environment variables documented with comments |
+| `STRIPE_SETUP.md` | DONE — exact step-by-step manual checklist: products/prices, webhook endpoint, Customer Portal, API keys, Vercel env vars, end-to-end test steps, going-live instructions |
 
-**Stripe products to create:**
-- Product: "Independent Means Premium"
-- Price 1: A$15.00/month, recurring
-- Price 2: A$149.00/year, recurring
+**Security constraints applied:**
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_ANNUAL` — all server-side only, never VITE_ prefixed
+- JWT verification on every Stripe API endpoint
+- `stripe_customer_id` looked up server-side from DB, never trusted from client request body
+- Price IDs resolved server-side from env vars; client sends only `planType: 'monthly'|'annual'`
+
+**Test count after Phase 5:** 166 passing (142 + 24 new)
 
 ### Phase 6 — Plausible Analytics
 

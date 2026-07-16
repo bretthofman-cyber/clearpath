@@ -1494,7 +1494,7 @@ function AnalysisScreen({ data, set }) {
   const [showImproveModal, setShowImproveModal] = useState(false);
   const [showStrategyCentre, setShowStrategyCentre] = useState(false);
 
-  const { can, status } = useContext(EntitlementContext);
+  const { can, status, openPricing } = useContext(EntitlementContext);
 
   function handleProbabilityClick() {
     if (can(FEATURES.PROBABILITY_VIEW)) {
@@ -1750,12 +1750,14 @@ function AnalysisScreen({ data, set }) {
           featureId={FEATURES.PROBABILITY_VIEW}
           onClose={() => setShowProbModal(false)}
           onTrialStarted={() => setChartView("probability")}
+          onOpenPricing={openPricing}
         />
       )}
       {showCustomModal && (
         <UpgradeModal
           featureId={FEATURES.CUSTOM_ASSUMPTIONS}
           onClose={() => setShowCustomModal(false)}
+          onOpenPricing={openPricing}
         />
       )}
       {showImproveModal && (

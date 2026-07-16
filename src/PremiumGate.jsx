@@ -11,7 +11,7 @@ import { trackGateClick } from "./analytics.js";
  * Premium / trial users: renders children normally with no overlay.
  */
 export default function PremiumGate({ featureId, children }) {
-  const { can } = useContext(EntitlementContext);
+  const { can, openPricing } = useContext(EntitlementContext);
   const [showModal, setShowModal] = useState(false);
 
   if (can(featureId)) return <>{children}</>;
@@ -67,6 +67,7 @@ export default function PremiumGate({ featureId, children }) {
         <UpgradeModal
           featureId={featureId}
           onClose={() => setShowModal(false)}
+          onOpenPricing={openPricing}
         />
       )}
     </>

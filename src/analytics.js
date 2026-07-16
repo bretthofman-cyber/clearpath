@@ -30,3 +30,30 @@ export function trackTrialExpired() {
     window.plausible("Trial Expired");
   }
 }
+
+export function trackCheckoutStarted(planType) {
+  if (import.meta.env.DEV) {
+    console.info("[checkout-started]", { planType, at: new Date().toISOString() });
+  }
+  if (typeof window !== "undefined" && typeof window.plausible === "function") {
+    window.plausible("Checkout Started", { props: { plan: planType } });
+  }
+}
+
+export function trackSubscriptionActivated(planType) {
+  if (import.meta.env.DEV) {
+    console.info("[subscription-activated]", { planType, at: new Date().toISOString() });
+  }
+  if (typeof window !== "undefined" && typeof window.plausible === "function") {
+    window.plausible("Subscription Activated", { props: { plan: planType ?? "unknown" } });
+  }
+}
+
+export function trackSubscriptionCancelled() {
+  if (import.meta.env.DEV) {
+    console.info("[subscription-cancelled]", { at: new Date().toISOString() });
+  }
+  if (typeof window !== "undefined" && typeof window.plausible === "function") {
+    window.plausible("Subscription Cancelled");
+  }
+}

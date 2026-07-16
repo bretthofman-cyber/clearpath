@@ -256,6 +256,65 @@ function LoginScreen() {
         </div>
       </section>
 
+      {/* PRICING */}
+      <section id="pricing" style={{ background: "#F5F2EB", padding: "72px 24px" }}>
+        <div style={{ maxWidth: 760, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "#C2A06B", fontWeight: 600, marginBottom: 8 }}>Pricing</div>
+            <div style={{ fontFamily: "Spectral, serif", fontSize: 30, fontWeight: 400, color: "#21241E", lineHeight: 1.25, marginBottom: 12 }}>Simple, transparent pricing</div>
+            <div style={{ fontSize: 14, color: "#6B6655", lineHeight: 1.6 }}>Start free. Upgrade when you want the full picture.</div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, maxWidth: 680, margin: "0 auto" }}>
+            {/* Free */}
+            <div style={{ background: "#FBFAF6", borderRadius: 20, padding: "32px 28px", border: "1px solid #E8E3D9" }}>
+              <div style={{ fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", color: "#9DB0A1", fontWeight: 600, marginBottom: 12 }}>Free</div>
+              <div style={{ fontFamily: "Spectral, serif", fontSize: 34, fontWeight: 400, color: "#21241E", lineHeight: 1 }}>A$0</div>
+              <div style={{ fontSize: 12, color: "#9DB0A1", marginTop: 4, marginBottom: 24 }}>Forever free</div>
+              <button onClick={signInWithGoogle} disabled={loading} style={{
+                width: "100%", padding: "11px 0", background: "transparent",
+                border: "1.5px solid #D8D2C4", borderRadius: 10, fontSize: 13,
+                fontWeight: 600, color: "#2E4A3D", cursor: "pointer", fontFamily: "inherit", marginBottom: 24,
+              }}>
+                {loading ? "Redirecting…" : "Get started free"}
+              </button>
+              {["Full 8-stage plan", "Base-case projections", "Net worth trajectory", "FIRE number + Coast FIRE", "Basic AU tax modelling", "1 saved plan"].map(f => (
+                <div key={f} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                  <span style={{ color: "#9DB0A1", fontSize: 13 }}>✓</span>
+                  <span style={{ fontSize: 12, color: "#6B6655" }}>{f}</span>
+                </div>
+              ))}
+            </div>
+            {/* Premium */}
+            <div style={{ background: "#2E4A3D", borderRadius: 20, padding: "32px 28px", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 14, right: 14, background: "#C2A06B", color: "#FBFAF6", fontSize: 10, fontWeight: 700, borderRadius: 6, padding: "3px 8px", letterSpacing: "0.04em" }}>RECOMMENDED</div>
+              <div style={{ fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", color: "#9DB0A1", fontWeight: 600, marginBottom: 12 }}>Premium</div>
+              <div style={{ fontFamily: "Spectral, serif", fontSize: 34, fontWeight: 400, color: "#F5F2EB", lineHeight: 1 }}>A$149
+                <span style={{ fontSize: 16, fontWeight: 400, color: "#9DB0A1" }}>/yr</span>
+              </div>
+              <div style={{ fontSize: 12, color: "#9DB0A1", marginTop: 4, marginBottom: 24 }}>
+                A$12.42/mo · or A$15/mo monthly · <span style={{ color: "#C2A06B", fontWeight: 600 }}>Save 17%</span>
+              </div>
+              <button onClick={signInWithGoogle} disabled={loading} style={{
+                width: "100%", padding: "11px 0", background: "#C2A06B",
+                border: "none", borderRadius: 10, fontSize: 13,
+                fontWeight: 600, color: "#FBFAF6", cursor: "pointer", fontFamily: "inherit", marginBottom: 24,
+              }}>
+                {loading ? "Redirecting…" : "Start 14-day free trial"}
+              </button>
+              {["Everything in Free", "Monte Carlo probability view", "Scenario comparison", "Custom assumptions", "Division 293 modelling", "Carry-forward cap", "Franking credits", "Debt recycling", "Strategy Centre", "PDF + CSV export"].map(f => (
+                <div key={f} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                  <span style={{ color: "#C2A06B", fontSize: 13 }}>✓</span>
+                  <span style={{ fontSize: 12, color: "#9DB0A1" }}>{f}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ textAlign: "center", marginTop: 24, fontSize: 11, color: "#9DB0A1" }}>
+            14-day free trial included with Premium. No credit card required to start. Cancel any time.
+          </div>
+        </div>
+      </section>
+
       {/* BOTTOM CTA */}
       <section style={{ background: "#2E4A3D", padding: "72px 24px", textAlign: "center" }}>
         <div style={{ maxWidth: 560, margin: "0 auto" }}>
