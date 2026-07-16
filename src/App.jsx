@@ -13,6 +13,7 @@ import AdminDashboard from "./AdminDashboard.jsx";
 import { FEATURES } from "./features.js";
 import { trackSubscriptionActivated } from "./analytics.js";
 import LoginScreen from "./LandingPage.jsx";
+import { SiteFooter } from "./LegalModals.jsx";
 import AnalysisScreen from "./AnalysisStage.jsx";
 import ActionPlanScreen from "./ActionPlanStage.jsx";
 import PdfReport from "./PdfReport.jsx";
@@ -1222,11 +1223,7 @@ export default function IndependentMeans() {
         </div>
       </div>
 
-      <footer className="no-print" style={{ background: "white", borderTop: "1px solid #ECE7DB", padding: "16px 28px", textAlign: "center", marginTop: "auto" }}>
-        <div style={{ fontSize: 11, color: "#8A8270", lineHeight: 1.6, maxWidth: 620, margin: "0 auto" }}>
-          <strong style={{ color: "#6B6655" }}>General information only.</strong> Independent Means is an educational planning tool and does not provide personal financial advice. All projections and analysis are illustrative estimates based on the information you enter. Before making financial decisions, consider seeking advice from a licensed Australian financial adviser (AFSL holder). Past performance is not a reliable indicator of future performance.
-        </div>
-      </footer>
+      <SiteFooter />
 
       {showAdmin   && <AdminDashboard onClose={() => setShowAdmin(false)} />}
       {showPricing && (
