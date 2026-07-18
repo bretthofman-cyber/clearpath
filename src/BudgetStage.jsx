@@ -10,17 +10,17 @@ import { currency, Field, Input, Toggle, TwoCol, SectionDivider } from "./ui.jsx
 // ─── CATEGORIES ──────────────────────────────────────────────────────────────
 
 export const BUDGET_CATS = [
-  { key: "housing",       label: "Housing",                       icon: "🏠" },
-  { key: "utilities",     label: "Utilities & bills",             icon: "⚡" },
-  { key: "groceries",     label: "Groceries & food",              icon: "🛒" },
-  { key: "transport",     label: "Transport",                     icon: "🚗" },
-  { key: "insurance",     label: "Insurance",                     icon: "🛡️" },
-  { key: "health",        label: "Health & medical",              icon: "🏥" },
-  { key: "sport",         label: "Sport & recreation",            icon: "🏆" },
-  { key: "children",      label: "Children & education",          icon: "🎓" },
-  { key: "entertainment", label: "Entertainment & subscriptions", icon: "🎬" },
-  { key: "personal",      label: "Personal & memberships",        icon: "👕" },
-  { key: "other",         label: "Other",                         icon: "📦" },
+  { key: "housing",       label: "Housing",                       icon: "/icons/housing.svg" },
+  { key: "utilities",     label: "Utilities & bills",             icon: "/icons/utilities-bills.svg" },
+  { key: "groceries",     label: "Groceries & food",              icon: "/icons/groceries-food.svg" },
+  { key: "transport",     label: "Transport",                     icon: "/icons/transport.svg" },
+  { key: "insurance",     label: "Insurance",                     icon: "/icons/insurance.svg" },
+  { key: "health",        label: "Health & medical",              icon: "/icons/health-medical.svg" },
+  { key: "sport",         label: "Sport & recreation",            icon: "/icons/sport-recreation.svg" },
+  { key: "children",      label: "Children & education",          icon: "/icons/children-education.svg" },
+  { key: "entertainment", label: "Entertainment & subscriptions", icon: "/icons/entertainment-subscriptions.svg" },
+  { key: "personal",      label: "Personal & memberships",        icon: "/icons/personal-memberships.svg" },
+  { key: "other",         label: "Other",                         icon: "/icons/other.svg" },
 ];
 
 const BUDGET_SUGGESTIONS = {
@@ -783,7 +783,7 @@ function BudgetCategory({ cat, items, onAddItems, onUpdateItem, onRemoveItem }) 
           background: catTotal > 0 ? "white" : "transparent",
         }}
       >
-        <span style={{ fontSize: 15, width: 22, textAlign: "center", flexShrink: 0 }}>{cat.icon}</span>
+        <img src={cat.icon} width="22" height="22" alt="" style={{ flexShrink: 0, display: "block" }} />
         <div style={{ flex: 1, fontSize: 15, fontWeight: 500, color: "#21241E" }}>{cat.label}</div>
         {catTotal > 0 ? (
           <div style={{ textAlign: "right", flexShrink: 0 }}>

@@ -6,11 +6,11 @@ import { currency, Field, Input, SectionDivider } from "./ui.jsx";
 // ─── CATEGORIES ──────────────────────────────────────────────────────────────
 
 export const ASSET_CATS = [
-  { key: "cash",   label: "Cash & bank accounts", icon: "🏦" },
-  { key: "shares", label: "Shares & ETFs",         icon: "📈" },
-  { key: "funds",  label: "Managed funds",         icon: "📊" },
-  { key: "crypto", label: "Cryptocurrency",        icon: "₿"  },
-  { key: "other",  label: "Other investments",     icon: "🏢" },
+  { key: "cash",   label: "Cash & bank accounts", icon: "/icons/cash-bank-accounts.svg" },
+  { key: "shares", label: "Shares & ETFs",         icon: "/icons/shares-etfs.svg" },
+  { key: "funds",  label: "Managed funds",         icon: "/icons/managed-funds.svg" },
+  { key: "crypto", label: "Cryptocurrency",        icon: "/icons/cryptocurrency.svg" },
+  { key: "other",  label: "Other investments",     icon: "/icons/other-investments.svg" },
 ];
 
 const ASSET_SUGGESTIONS = {
@@ -253,7 +253,7 @@ function AssetCategory({ cat, items, onAddItem, onUpdateItem, onRemoveItem }) {
           background: catTotal > 0 ? "white" : "transparent",
         }}
       >
-        <span style={{ fontSize: 15, width: 22, textAlign: "center", flexShrink: 0 }}>{cat.icon}</span>
+        <img src={cat.icon} width="22" height="22" alt="" style={{ flexShrink: 0, display: "block" }} />
         <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "#21241E" }}>{cat.label}</div>
         {catTotal > 0 ? (
           <div style={{ fontSize: 13, fontFamily: "Spectral, serif", color: "#21241E", flexShrink: 0 }}>
@@ -351,7 +351,7 @@ export default function AssetStage3({ data, setMany }) {
                 flex: "1 1 auto", background: "#F5F2EB", border: "1px solid #ECE7DB",
                 borderRadius: 8, padding: "8px 12px",
               }}>
-                <div style={{ fontSize: 10, color: "#8A8270", marginBottom: 2 }}>{cat.icon} {cat.label}</div>
+                <div style={{ fontSize: 10, color: "#8A8270", marginBottom: 2, display: "flex", alignItems: "center", gap: 3 }}><img src={cat.icon} width="12" height="12" alt="" />{cat.label}</div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#21241E" }}>{currency(val)}</div>
                 <div style={{ fontSize: 10, color: "#9DB0A1" }}>{pct}%</div>
               </div>
