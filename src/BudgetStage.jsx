@@ -1,7 +1,10 @@
 // ─── CLEARPATH — STAGE 2: INCOME & CASHFLOW (ITEM-LEVEL BUDGET) ──────────────
 
-import { useState, useRef, useEffect } from "react";
-import { exportBudgetXlsx } from "./exportBudgetXlsx.js";
+import { useState, useRef, useEffect, useContext } from "react";
+import { exportBudgetXlsx, getFYInfo } from "./exportBudgetXlsx.js";
+import { EntitlementContext } from "./useEntitlement.js";
+import PremiumGate from "./PremiumGate.jsx";
+import { FEATURES } from "./features.js";
 import { currency, Field, Input, Toggle, TwoCol, SectionDivider } from "./ui.jsx";
 
 // ─── CATEGORIES ──────────────────────────────────────────────────────────────
@@ -828,6 +831,9 @@ export default function Stage2({ data, setMany }) {
   const items  = data.budgetItems || [];
   const n      = v => parseFloat(String(v || "").replace(/,/g, "")) || 0;
   const bTotal = budgetTotal(items);
+  const { can } = useContext(EntitlementContext);
+  const [startMonth, setStartMonth] = useState(7);
+  const fyInfo = getFYInfo(startMonth);
 
   function addItems(categoryKey, newItemsList) {
     // newItemsList: [{label, amount, frequency, month}]
@@ -1031,20 +1037,59 @@ export default function Stage2({ data, setMany }) {
       {items.length > 0 && (
         <>
           <SectionDivider label="Export" />
-          <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "4px 0 8px" }}>
-            <button
-              onClick={() => exportBudgetXlsx(data)}
-              style={{
-                padding: "10px 20px", border: "none", borderRadius: 10,
-                background: "#2E4A3D", color: "white",
-                fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-              }}
-            >
-              Download Annual Budget
-            </button>
-            <span style={{ fontSize: 11, color: "#9DB0A1", lineHeight: 1.4 }}>
-              12-month budget breakdown · Excel &amp; Google Sheets
-            </span>
+          <div style={{ padding: "4px 0 12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11, color: "#8A8270" }}>Financial year</span>
+              {can(FEATURES.BUDGET_CUSTOM_FY) ? (
+                <select
+                  value={startMonth}
+                  onChange={e => setStartMonth(Number(e.target.value))}
+                  style={{
+                    padding: "5px 10px", border: "1.5px solid #2E4A3D", borderRadius: 8,
+                    fontSize: 12, fontWeight: 500, color: "#2E4A3D", background: "#EAF0EC",
+                    cursor: "pointer", fontFamily: "inherit", outline: "none",
+                  }}
+                >
+                  {MONTH_SHORT.map((m, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {m} – {MONTH_SHORT[(i + 11) % 12]}{i + 1 === 7 ? "  (Australian FY)" : ""}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{
+                    padding: "5px 12px", borderRadius: 8,
+                    background: "#2E4A3D", color: "white", fontSize: 12, fontWeight: 600,
+                  }}>
+                    Jul – Jun (Australian FY)
+                  </span>
+                  <PremiumGate featureId={FEATURES.BUDGET_CUSTOM_FY} label="Custom year start">
+                    <span style={{
+                      padding: "5px 12px", borderRadius: 8, cursor: "pointer",
+                      border: "1.5px dashed #D8D2C4", fontSize: 12, color: "#9DB0A1",
+                    }}>
+                      Custom start month
+                    </span>
+                  </PremiumGate>
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+              <button
+                onClick={() => exportBudgetXlsx(data, startMonth)}
+                style={{
+                  padding: "10px 20px", border: "none", borderRadius: 10,
+                  background: "#2E4A3D", color: "white",
+                  fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                Download {fyInfo.label} Budget
+              </button>
+              <span style={{ fontSize: 11, color: "#9DB0A1", lineHeight: 1.4 }}>
+                {fyInfo.range} · Excel &amp; Google Sheets
+              </span>
+            </div>
           </div>
         </>
       )}

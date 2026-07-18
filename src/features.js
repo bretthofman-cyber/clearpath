@@ -10,6 +10,7 @@ export const FEATURES = {
   CSV_EXPORT:         "csv_export",
   MULTI_PLAN:         "multi_plan",
   ADVANCED_TAX:       "advanced_tax",
+  BUDGET_CUSTOM_FY:   "budget_custom_fy",
 };
 
 export const TIERS = {

@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { currency } from "./ui.jsx";
 import { generatePlanItems, PLAN_CATEGORIES } from "./actionPlan.js";
 import { runEngine } from "./engine.js";
@@ -8,7 +8,7 @@ import { EntitlementContext } from "./useEntitlement.js";
 import PremiumGate from "./PremiumGate.jsx";
 import { FEATURES } from "./features.js";
 import { exportPlanDataCsv } from "./exportCsv.js";
-import { exportBudgetXlsx } from "./exportBudgetXlsx.js";
+import { exportBudgetXlsx, getFYInfo } from "./exportBudgetXlsx.js";
 
 const PRIORITY_STYLE = {
   1: { border: "#9a3922", bg: "#fdf3f0", dot: "#9a3922", label: "Attention" },
@@ -32,8 +32,12 @@ function PlanItem({ item }) {
   );
 }
 
+const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
 function ActionPlanScreen({ data }) {
   const { can } = useContext(EntitlementContext);
+  const [startMonth, setStartMonth] = useState(7);
+  const fyInfo = getFYInfo(startMonth);
   const aT = deriveAssetTotals(data.assetItems);
   const ssData = applyMaxedSS({ ...data, ...aT });
   const derivedData = { ...ssData, ...aT };
@@ -118,10 +122,56 @@ function ActionPlanScreen({ data }) {
             background: "#C2A06B", color: "#2A2113", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
           }}>Download PDF Report</button>
         </PremiumGate>
-        <button onClick={() => exportBudgetXlsx(derivedData)} style={{
-          padding: "10px 20px", border: "1.5px solid #2E4A3D", borderRadius: 10,
-          background: "#2E4A3D", color: "white", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-        }}>Download Annual Budget</button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, color: "#8A8270" }}>Financial year</span>
+            {can(FEATURES.BUDGET_CUSTOM_FY) ? (
+              <select
+                value={startMonth}
+                onChange={e => setStartMonth(Number(e.target.value))}
+                style={{
+                  padding: "5px 10px", border: "1.5px solid #2E4A3D", borderRadius: 8,
+                  fontSize: 12, fontWeight: 500, color: "#2E4A3D", background: "#EAF0EC",
+                  cursor: "pointer", fontFamily: "inherit", outline: "none",
+                }}
+              >
+                {MONTH_SHORT.map((m, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    {m} – {MONTH_SHORT[(i + 11) % 12]}{i + 1 === 7 ? "  (Australian FY)" : ""}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{
+                  padding: "5px 12px", borderRadius: 8,
+                  background: "#2E4A3D", color: "white", fontSize: 12, fontWeight: 600,
+                }}>
+                  Jul – Jun (Australian FY)
+                </span>
+                <PremiumGate featureId={FEATURES.BUDGET_CUSTOM_FY} label="Custom year start">
+                  <span style={{
+                    padding: "5px 12px", borderRadius: 8, cursor: "pointer",
+                    border: "1.5px dashed #D8D2C4", fontSize: 12, color: "#9DB0A1",
+                  }}>
+                    Custom start month
+                  </span>
+                </PremiumGate>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => exportBudgetXlsx(derivedData, startMonth)}
+            style={{
+              padding: "10px 20px", border: "none", borderRadius: 10,
+              background: "#2E4A3D", color: "white",
+              fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              alignSelf: "flex-start",
+            }}
+          >
+            Download {fyInfo.label} Budget
+          </button>
+        </div>
         <PremiumGate featureId={FEATURES.CSV_EXPORT} label="Download data CSV">
           <button onClick={() => exportPlanDataCsv(derivedData)} style={{
             padding: "10px 20px", border: "1.5px solid #D8D2C4", borderRadius: 10,
