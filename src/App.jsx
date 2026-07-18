@@ -1085,9 +1085,16 @@ export default function IndependentMeans() {
   .scenario-comparison-grid { grid-template-columns: 1fr !important; }
   .metrics-card-grid { grid-template-columns: 1fr !important; }
   .fire-card-grid { grid-template-columns: 1fr !important; }
+  .app-header { padding: 10px 16px !important; }
+  .mobile-hide { display: none !important; }
+  .stage-nav { padding: 0 8px 10px !important; }
+  .stage-nav-label { display: none !important; }
+  .app-stage-content { padding: 16px 12px 80px !important; }
+  .stage-content-card { padding: 16px !important; border-radius: 12px !important; }
+  .stage-step-header { margin-bottom: 16px !important; }
 }`}</style>
 
-      <header className="no-print" style={{ background: "#FBFAF6", borderBottom: "1px solid #ECE7DB", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
+      <header className="no-print app-header" style={{ background: "#FBFAF6", borderBottom: "1px solid #ECE7DB", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
         <div>
           <div style={{ fontFamily: "Spectral, serif", fontSize: 20, color: "#21241E" }}>
             Independent<span style={{ color: "#2E4A3D" }}> Means</span>
@@ -1095,31 +1102,33 @@ export default function IndependentMeans() {
           <div className="app-subtitle" style={{ fontSize: 10, color: "#8A8270", letterSpacing: "0.08em", textTransform: "uppercase" }}>Personal Financial Modelling & Scenario Planning</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {data.firstName && <div style={{ fontSize: 13, color: "#6B6655" }}>Hi, {data.firstName} 👋</div>}
+          {data.firstName && <div className="mobile-hide" style={{ fontSize: 13, color: "#6B6655" }}>Hi, {data.firstName} 👋</div>}
           {isAdmin && (
             <button
               onClick={() => setShowAdmin(true)}
+              className="mobile-hide"
               style={{ fontSize: 12, color: "#8A8270", background: "none", border: "1px solid #ECE7DB", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}
             >Analytics</button>
           )}
-          <PremiumGate featureId={FEATURES.MULTI_PLAN} label="Multiple plans" onOpenPricing={() => setShowPricing(true)}>
+          <div className="mobile-hide"><PremiumGate featureId={FEATURES.MULTI_PLAN} label="Multiple plans" onOpenPricing={() => setShowPricing(true)}>
             <button
               style={{ fontSize: 12, color: "#2E4A3D", background: "none", border: "1px solid #9DB0A1", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
             >+ New plan</button>
-          </PremiumGate>
+          </PremiumGate></div>
           {entitlement.status === "active" && (
             <button
               onClick={() => entitlement.openPortal()}
+              className="mobile-hide"
               style={{ fontSize: 12, color: "#2E4A3D", background: "none", border: "1px solid #9DB0A1", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
             >Billing</button>
           )}
           {(stage === 6 || stage === 7) && (
-            <PremiumGate featureId={FEATURES.PDF_EXPORT} label="Download PDF report" onOpenPricing={() => setShowPricing(true)}>
+            <div className="mobile-hide"><PremiumGate featureId={FEATURES.PDF_EXPORT} label="Download PDF report" onOpenPricing={() => setShowPricing(true)}>
               <button
                 onClick={() => window.print()}
                 style={{ fontSize: 12, color: "#2E4A3D", background: "none", border: "1px solid #9DB0A1", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
               >Download Report</button>
-            </PremiumGate>
+            </PremiumGate></div>
           )}
           {entitlement.status === "free" && (
             <button
@@ -1129,6 +1138,7 @@ export default function IndependentMeans() {
           )}
           <button
             onClick={async () => { if (window.confirm("Clear all saved data? This cannot be undone.")) { await supabase.from("plans").delete().eq("user_id", user.id); setData({ ...EMPTY_DATA }); setStage(1); } }}
+            className="mobile-hide"
             style={{ fontSize: 12, color: "#8A8270", background: "none", border: "1px solid #ECE7DB", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}
           >Clear data</button>
           <button
@@ -1140,7 +1150,7 @@ export default function IndependentMeans() {
 
       <TrialBanner isTrial={entitlement.isTrial} trialDaysLeft={entitlement.trialDaysLeft} onOpenPricing={() => setShowPricing(true)} />
 
-      <div className="no-print" style={{ background: "white", borderBottom: "1px solid #ECE7DB", padding: "0 28px 14px" }}>
+      <div className="no-print stage-nav" style={{ background: "white", borderBottom: "1px solid #ECE7DB", padding: "0 28px 14px" }}>
         <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
           {STAGES.map(s => {
             const isActive = s.id === stage;
@@ -1154,7 +1164,7 @@ export default function IndependentMeans() {
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 2, transition: "all 0.2s",
                 }}>
                 <div style={{ lineHeight: 0 }}>{s.icon(isActive)}</div>
-                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", color: isActive ? "#EDE7D7" : s.id < stage ? "#2E4A3D" : "#9DB0A1", textTransform: "uppercase" }}>{s.label}</div>
+                <div className="stage-nav-label" style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", color: isActive ? "#EDE7D7" : s.id < stage ? "#2E4A3D" : "#9DB0A1", textTransform: "uppercase" }}>{s.label}</div>
                 {hasData && !isActive && (
                   <div style={{ position: "absolute", top: 4, right: 4, width: 5, height: 5, borderRadius: "50%", background: "#2E4A3D" }} />
                 )}
@@ -1186,13 +1196,13 @@ export default function IndependentMeans() {
 
       <div className="app-stage-content" style={{ flex: 1, display: "flex", justifyContent: "center", padding: "32px 20px 100px" }}>
         <div style={{ width: "100%", maxWidth: 620 }}>
-          <div className="no-print" style={{ marginBottom: 28, animation: "fadeIn 0.3s ease" }}>
+          <div className="no-print stage-step-header" style={{ marginBottom: 28, animation: "fadeIn 0.3s ease" }}>
             <div style={{ fontSize: 12, color: "#8A8270", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>Step {stage} of 7</div>
             <div style={{ fontFamily: "Spectral, serif", fontSize: 28, color: "#21241E", marginBottom: 4 }}>{currentStage.title}</div>
             <div style={{ fontSize: 15, color: "#6B6655" }}>{currentStage.subtitle}</div>
           </div>
 
-          <div ref={scrollRef} style={{ background: "#FBFAF6", borderRadius: 18, border: "1px solid #ECE7DB", padding: "28px", animation: "fadeIn 0.25s ease", boxShadow: "0 2px 16px rgba(0,0,0,0.04)" }}>
+          <div ref={scrollRef} className="stage-content-card" style={{ background: "#FBFAF6", borderRadius: 18, border: "1px solid #ECE7DB", padding: "28px", animation: "fadeIn 0.25s ease", boxShadow: "0 2px 16px rgba(0,0,0,0.04)" }}>
             {stage === 1 && <Stage1 data={data} set={set} />}
             {stage === 2 && <Stage2 data={data} setMany={setMany} />}
             {stage === 3 && <AssetStage3 data={data} setMany={setMany} />}
