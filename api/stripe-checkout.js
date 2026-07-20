@@ -31,11 +31,28 @@ export default async function handler(req, res) {
     process.env.VITE_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
   );
-  const { data: sub } = await supabaseAdmin
-    .from("subscriptions")
-    .select("stripe_customer_id")
-    .eq("user_id", clerkUserId)
-    .maybeSingle();
+
+  let sub;
+  try {
+    const { data } = await supabaseAdmin
+      .from("subscriptions")
+      .select("stripe_customer_id")
+      .eq("user_id", clerkUserId)
+      .maybeSingle();
+    sub = data;
+  } catch {
+    return res.status(500).json({ error: "Failed to look up subscription" });
+  }
+
+  let customerEmail;
+  if (!sub?.stripe_customer_id) {
+    try {
+      const clerkUser = await clerkClient.users.getUser(clerkUserId);
+      customerEmail = clerkUser.emailAddresses.find(e => e.id === clerkUser.primaryEmailAddressId)?.emailAddress;
+    } catch {
+      return res.status(500).json({ error: "Failed to look up user" });
+    }
+  }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -51,10 +68,8 @@ export default async function handler(req, res) {
 
   if (sub?.stripe_customer_id) {
     sessionParams.customer = sub.stripe_customer_id;
-  } else {
-    const clerkUser = await clerkClient.users.getUser(clerkUserId);
-    const email = clerkUser.emailAddresses.find(e => e.id === clerkUser.primaryEmailAddressId)?.emailAddress;
-    if (email) sessionParams.customer_email = email;
+  } else if (customerEmail) {
+    sessionParams.customer_email = customerEmail;
   }
 
   try {

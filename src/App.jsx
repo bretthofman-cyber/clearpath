@@ -931,6 +931,8 @@ export default function IndependentMeans() {
   const scrollRef  = useRef(null);
   const saveTimer  = useRef(null);
 
+  useEffect(() => () => clearTimeout(saveTimer.current), []);
+
   const entitlement = useEntitlement(clerkUser?.id, getToken);
 
   // Handle return from Stripe Checkout
@@ -987,7 +989,7 @@ export default function IndependentMeans() {
       supabase.from("plans").upsert(
         { user_id: clerkUser.id, data: nextData, stage: nextStage },
         { onConflict: "user_id" }
-      );
+      ).catch(err => console.error("[savePlan]", err.message));
     }, 800);
   }
 
@@ -1008,8 +1010,8 @@ export default function IndependentMeans() {
   }
 
   function goTo(s) {
+    setData(prev => { savePlan(prev, s); return prev; });
     setStage(s);
-    savePlan(data, s);
     window.scrollTo({ top: 0, behavior: "smooth" });
     setTimeout(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, 50);
   }

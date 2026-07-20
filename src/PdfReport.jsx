@@ -434,7 +434,7 @@ function RetirementPage({ data, engine }) {
     { label: "Investment return",  value: `${asmn.returnRate}% p.a.` },
     { label: "Inflation",          value: `${asmn.inflation}% p.a.` },
     { label: "Property growth",    value: `${asmn.propertyGrowth}% p.a.` },
-    { label: "Safe withdrawal",    value: `${asmn.swr}% p.a.` },
+    { label: "Safe withdrawal",    value: `${asmn.safeWithdrawal}% p.a.` },
     { label: "Scenario",           value: (asmn.label || data.activeScenario || "Base") },
   ] : [];
 

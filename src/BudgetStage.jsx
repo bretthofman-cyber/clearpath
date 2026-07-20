@@ -9,7 +9,8 @@ import { currency, Field, Input, Toggle, TwoCol, SectionDivider } from "./ui.jsx
 
 // ─── CATEGORIES ──────────────────────────────────────────────────────────────
 
-export { BUDGET_CATS } from "./budgetCats.js";
+import { BUDGET_CATS } from "./budgetCats.js";
+export { BUDGET_CATS };
 
 const BUDGET_SUGGESTIONS = {
   housing: [

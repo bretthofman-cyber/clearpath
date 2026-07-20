@@ -536,11 +536,13 @@ export function debtFreeDate(data) {
         }
         return { id: ip.id, label: ip.label || "IP", type: "io", debtFreeYear: null, monthlyPayment: ipIoMonthly };
       }
+      const ipStartYr         = p(ip.purchaseYear) || currentYear;
+      const ipRemainingMonths = Math.max(12, (ipStartYr + 30 - currentYear) * 12);
       const pmt = ipMonthlyRate > 0
-        ? monthlyPayment(ipEffective, ipMonthlyRate, LOAN_MONTHS)
-        : ipEffective / LOAN_MONTHS;
+        ? monthlyPayment(ipEffective, ipMonthlyRate, ipRemainingMonths)
+        : ipEffective / ipRemainingMonths;
       let bal = ipEffective, months = 0;
-      while (bal > 0.01 && months < LOAN_MONTHS + 1) {
+      while (bal > 0.01 && months < ipRemainingMonths + 1) {
         bal -= pmt - bal * ipMonthlyRate;
         months++;
       }
@@ -786,9 +788,12 @@ export function netWorthTrajectory(data, assumptions, householdTax) {
 
   const targetSpending = p(data.targetRetirementSpending);
 
-  const mortgageMonthlyRate = p(data.mortgageRate) / 100 / 12;
+  const mortgageMonthlyRate   = p(data.mortgageRate) / 100 / 12;
+  const mortStartYear         = p(data.mortgageStartYear) || currentYear;
+  const mortTenure            = p(data.mortgageTenure) || 30;
+  const mortRemainingMonths   = Math.max(12, (mortTenure - Math.max(0, currentYear - mortStartYear)) * 12);
   const mortgagePmt = (mortgage > 0 && mortgageMonthlyRate > 0 && data.loanType === "pi")
-    ? monthlyPayment(mortgage, mortgageMonthlyRate, 360) : 0;
+    ? monthlyPayment(mortgage, mortgageMonthlyRate, mortRemainingMonths) : 0;
   const annualMortgagePmt = mortgagePmt * 12;
 
   const trajectory = [];
@@ -846,12 +851,12 @@ export function netWorthTrajectory(data, assumptions, householdTax) {
       const withdrawal = targetSpending * Math.pow(1 + inf, y - (retirementAge - currentAge));
       if (superBal >= withdrawal) {
         superBal = superBal * (1 + r) - withdrawal;
+        liquid   = liquid * (1 + r);
       } else {
         const remainder = withdrawal - superBal;
         superBal = 0;
         liquid   = Math.max(0, liquid * (1 + r) - remainder);
       }
-      if (liquid > 0) liquid = liquid * (1 + r);
     }
 
     ppor    = ppor    > 0 ? ppor    * (1 + propGrowth) : 0;
@@ -1080,7 +1085,9 @@ export function runEngine(data, { skipMonteCarlo = false, skipAdvancedTax = fals
   const isHomeowner      = data.homeOwnership === "owner" || data.homeOwnership === "mortgage";
   const atRetirementNW   = atRetirement?.netWorth || 0;
   const ppOrVal          = p(data.ppOrValue);
-  const retirementAssets = Math.max(0, atRetirementNW + p(data.mortgageBalance) - ppOrVal);
+  const yearsToRet       = Math.max(0, retirementAge - p(data.age));
+  const projectedPPOR    = ppOrVal > 0 ? ppOrVal * Math.pow(1 + assumptions.propertyGrowth / 100, yearsToRet) : 0;
+  const retirementAssets = Math.max(0, atRetirementNW - projectedPPOR);
   // Assessable income at retirement = drawdown target (conservative)
   const assessableIncome = p(data.targetRetirementSpending);
   const agePension       = estimateAgePension(isCouple, isHomeowner, retirementAssets, assessableIncome, retirementAge);

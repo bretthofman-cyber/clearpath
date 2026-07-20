@@ -250,7 +250,6 @@ function ExtraMortgageModule({ data, engine }) {
     }
     const year = new Date().getFullYear() + Math.ceil(Math.max(0, months) / 12);
     const yearsSaved = baseDFY ? Math.max(0, baseDFY - year) : 0;
-    const interestSaved = extraMonthly * months * 0; // placeholder — see below
     return { debtFreeYear: year, yearsSaved, monthsSaved: Math.max(0, baseDFY ? (baseDFY - year) * 12 : 0) };
   }, [balance, rate, monthlyRate, baseMonthly, extraMonthly, baseDFY]);
 

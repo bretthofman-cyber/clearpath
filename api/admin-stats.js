@@ -24,8 +24,13 @@ export default async function handler(req, res) {
   }
 
   // Look up email to verify admin access
-  const clerkUser = await clerkClient.users.getUser(clerkUserId);
-  const userEmail = clerkUser.emailAddresses.find(e => e.id === clerkUser.primaryEmailAddressId)?.emailAddress;
+  let userEmail;
+  try {
+    const clerkUser = await clerkClient.users.getUser(clerkUserId);
+    userEmail = clerkUser.emailAddresses.find(e => e.id === clerkUser.primaryEmailAddressId)?.emailAddress;
+  } catch {
+    return res.status(500).json({ error: "Auth lookup failed" });
+  }
   if (userEmail !== process.env.ADMIN_EMAIL) {
     return res.status(403).json({ error: "Forbidden" });
   }
@@ -39,6 +44,7 @@ export default async function handler(req, res) {
 
   const toDate   = to   ? new Date(to)   : new Date();
   const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  if (isNaN(toDate) || isNaN(fromDate)) return res.status(400).json({ error: "Invalid date range" });
   const range = { from: fromDate.toISOString(), to: toDate.toISOString() };
 
   try {

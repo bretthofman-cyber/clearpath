@@ -21,11 +21,18 @@ export default async function handler(req, res) {
     process.env.VITE_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
   );
-  const { data: sub } = await supabaseAdmin
-    .from("subscriptions")
-    .select("stripe_customer_id")
-    .eq("user_id", clerkUserId)
-    .maybeSingle();
+
+  let sub;
+  try {
+    const { data } = await supabaseAdmin
+      .from("subscriptions")
+      .select("stripe_customer_id")
+      .eq("user_id", clerkUserId)
+      .maybeSingle();
+    sub = data;
+  } catch {
+    return res.status(500).json({ error: "Failed to look up subscription" });
+  }
 
   if (!sub?.stripe_customer_id) {
     return res.status(404).json({ error: "No Stripe customer found" });

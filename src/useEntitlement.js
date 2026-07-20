@@ -86,20 +86,23 @@ export function useEntitlement(userId, getToken) {
     if (!userId || status !== "free") return;
     const start    = new Date();
     const trialEnd = new Date(start.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-    const { data: row } = await supabase
-      .from("subscriptions")
-      .insert({
-        user_id:                    userId,
-        status:                     "trialing",
-        trial_started_at:           start.toISOString(),
-        trial_ends_at:              trialEnd.toISOString(),
-        trial_started_from_feature: fromFeature,
-      })
-      .select("status, trial_ends_at, stripe_customer_id")
-      .single();
-    if (row) {
+    try {
+      const { data: row, error } = await supabase
+        .from("subscriptions")
+        .insert({
+          user_id:                    userId,
+          status:                     "trialing",
+          trial_started_at:           start.toISOString(),
+          trial_ends_at:              trialEnd.toISOString(),
+          trial_started_from_feature: fromFeature,
+        })
+        .select("status, trial_ends_at, stripe_customer_id")
+        .single();
+      if (error) throw error;
       applyRow(row);
       trackTrialStarted(fromFeature);
+    } catch (err) {
+      console.error("[activateTrial]", err.message);
     }
   }, [userId, status, applyRow]);
 

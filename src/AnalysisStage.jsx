@@ -306,7 +306,7 @@ function ProjectionTable({ engine, data }) {
   const traj = engine?.trajectory;
   if (!traj || traj.length < 2) return null;
 
-  const rows = traj.filter((_, i) => i % 1 === 0);
+  const rows = traj;
 
   return (
     <div style={{ marginBottom: 20 }}>
@@ -901,7 +901,10 @@ function ScenarioComparisonRow({ data }) {
   const engines = useMemo(() => {
     const assetTotals = deriveAssetTotals(data.assetItems);
     return SCENS.map(({ key }) =>
-      runEngine({ ...data, ...assetTotals, activeScenario: key, useCustomAssumptions: false })
+      runEngine(
+        { ...data, ...assetTotals, activeScenario: key, useCustomAssumptions: false },
+        { skipMonteCarlo: true, skipAdvancedTax: true },
+      )
     );
   }, [data]);
 
