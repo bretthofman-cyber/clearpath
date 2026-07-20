@@ -136,7 +136,6 @@ Pricing: A$15/month or A$149/year. Stripe Checkout + Customer Portal.
 ## Security Constraints (Non-Negotiable)
 
 - `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` must **never** have `VITE_` prefix
-- `ANTHROPIC_API_KEY` must **never** appear in client code
 - Supabase anon key `sb_publishable_*` is publishable (safe for frontend); secret key must never go client-side
 - Price IDs resolved server-side only; client sends only `planType: 'monthly'|'annual'`
 - JWT verification on all Stripe API endpoints
@@ -193,7 +192,7 @@ Trajectory row shape: `{ age, year, netWorth, superBalance, liquidAssets, proper
 - Always frame projections as modelling assumptions with uncertainty
 - Always suggest adviser review (AFSL holder) for tax, super strategy, debt, insurance, investment allocation
 - Standard disclaimer: *"General information only. Not personal financial advice."*
-- No AI features in the app — `api/chat.js` exists but is intentionally unwired (AFSL risk)
+- No AI features in the app (AFSL compliance risk)
 
 ---
 
