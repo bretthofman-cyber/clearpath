@@ -1115,11 +1115,12 @@ export default function IndependentMeans() {
               style={{ fontSize: 12, color: "#8A8270", background: "none", border: "1px solid #ECE7DB", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}
             >Analytics</button>
           )}
-          <div className="mobile-hide"><PremiumGate featureId={FEATURES.MULTI_PLAN} label="Multiple plans" onOpenPricing={() => setShowPricing(true)}>
+          <div className="mobile-hide">
             <button
+              onClick={() => setShowPricing(true)}
               style={{ fontSize: 12, color: "#2E4A3D", background: "none", border: "1px solid #9DB0A1", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
             >+ New plan</button>
-          </PremiumGate></div>
+          </div>
           {entitlement.status === "active" && (
             <button
               onClick={() => entitlement.openPortal()}
@@ -1128,12 +1129,12 @@ export default function IndependentMeans() {
             >Billing</button>
           )}
           {(stage === 6 || stage === 7) && (
-            <div className="mobile-hide"><PremiumGate featureId={FEATURES.PDF_EXPORT} label="Download PDF report" onOpenPricing={() => setShowPricing(true)}>
+            <div className="mobile-hide">
               <button
-                onClick={() => window.print()}
+                onClick={() => entitlement.can(FEATURES.PDF_EXPORT) ? window.print() : setShowPricing(true)}
                 style={{ fontSize: 12, color: "#2E4A3D", background: "none", border: "1px solid #9DB0A1", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
               >Download Report</button>
-            </PremiumGate></div>
+            </div>
           )}
           {entitlement.status === "free" && (
             <button
