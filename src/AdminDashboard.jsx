@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "./supabase.js";
+import { useAuth } from "@clerk/clerk-react";
 
 const FEATURE_LABELS = {
   probability_view:      "Probability view",
@@ -42,9 +42,8 @@ function defaultRange() {
 
 // ── Fetch helper ──────────────────────────────────────────────────────────────
 
-async function adminFetch(action, params = {}) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
+async function adminFetch(getToken, action, params = {}) {
+  const token = await getToken();
   if (!token) throw new Error("Not signed in");
 
   const qs = new URLSearchParams({ action, ...params }).toString();
@@ -60,14 +59,14 @@ async function adminFetch(action, params = {}) {
 
 // ── Sub-panels ────────────────────────────────────────────────────────────────
 
-function GateClicksPanel({ from, to }) {
+function GateClicksPanel({ from, to, getToken }) {
   const [rows, setRows]   = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     setRows(null);
     setError(null);
-    adminFetch("gate_clicks", { from, to })
+    adminFetch(getToken, "gate_clicks", { from, to })
       .then(r => setRows(r.data))
       .catch(e => setError(e.message));
   }, [from, to]);
@@ -107,14 +106,14 @@ function GateClicksPanel({ from, to }) {
   );
 }
 
-function FunnelPanel({ from, to }) {
+function FunnelPanel({ from, to, getToken }) {
   const [data, setData]   = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     setData(null);
     setError(null);
-    adminFetch("funnel", { from, to })
+    adminFetch(getToken, "funnel", { from, to })
       .then(r => setData(r.data))
       .catch(e => setError(e.message));
   }, [from, to]);
@@ -151,12 +150,12 @@ function FunnelPanel({ from, to }) {
   );
 }
 
-function TrialConversionPanel() {
+function TrialConversionPanel({ getToken }) {
   const [rows, setRows]   = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    adminFetch("trial_conversion")
+    adminFetch(getToken, "trial_conversion")
       .then(r => setRows(r.data))
       .catch(e => setError(e.message));
   }, []);
@@ -210,6 +209,7 @@ const errorStyle  = { color: "#9a3922", fontSize: 13 };
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function AdminDashboard({ onClose }) {
+  const { getToken } = useAuth();
   const [range, setRange] = useState(defaultRange);
 
   const setFrom = useCallback(v => setRange(r => ({ ...r, from: v })), []);
@@ -278,9 +278,9 @@ export default function AdminDashboard({ onClose }) {
           ))}
         </div>
 
-        <FunnelPanel     from={range.from} to={range.to} />
-        <GateClicksPanel from={range.from} to={range.to} />
-        <TrialConversionPanel />
+        <FunnelPanel          from={range.from} to={range.to} getToken={getToken} />
+        <GateClicksPanel      from={range.from} to={range.to} getToken={getToken} />
+        <TrialConversionPanel getToken={getToken} />
 
       </div>
     </div>

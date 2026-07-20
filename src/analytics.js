@@ -9,10 +9,12 @@
  * categorical counts only.
  */
 
-import { supabase } from "./supabase.js";
+// Populated by App.jsx after Clerk loads. Regular Clerk session token (no
+// template) — the /api/track route verifies it server-side with Clerk's SDK.
+let _getToken = null;
+export function setAnalyticsTokenGetter(fn) { _getToken = fn; }
 
 function _post(eventName, feature, context) {
-  // Synchronous layers — fire immediately so tests can assert without awaiting
   if (import.meta.env.DEV) {
     console.info(`[analytics] ${eventName}`, { feature, context });
   }
@@ -20,9 +22,8 @@ function _post(eventName, feature, context) {
     window.plausible(eventName, { props: { feature: feature ?? undefined, ...context } });
   }
 
-  // Async DB write — fire-and-forget, never blocks the UI
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    const token = session?.access_token;
+  if (!_getToken) return;
+  _getToken().then(token => {
     if (!token) return;
     fetch("/api/track", {
       method:  "POST",
@@ -32,7 +33,7 @@ function _post(eventName, feature, context) {
   }).catch(() => {});
 }
 
-// ── Existing events (call-site signatures unchanged) ─────────────────────────
+// ── Events ───────────────────────────────────────────────────────────────────
 
 export function logGateClick(featureId) {
   trackGateClick(featureId, {});
@@ -61,8 +62,6 @@ export function trackSubscriptionActivated(planType) {
 export function trackSubscriptionCancelled() {
   _post("subscription_cancelled", null, {});
 }
-
-// ── New events (Phase 7) ─────────────────────────────────────────────────────
 
 export function trackImprovePlanOpened(matchedCount) {
   _post("improve_plan_opened", null, { matched_count: matchedCount });

@@ -1,4 +1,5 @@
 import { useState, useContext } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import { EntitlementContext } from "./useEntitlement.js";
 import { trackCheckoutStarted } from "./analytics.js";
 
@@ -33,25 +34,25 @@ const PREMIUM_FEATURES = [
 
 export default function PricingPage({ onClose, user }) {
   const { refreshSubscription } = useContext(EntitlementContext);
+  const { getToken, isSignedIn } = useAuth();
   const [selected,    setSelected]    = useState("annual");
   const [checkingOut, setCheckingOut] = useState(false);
   const [apiError,    setApiError]    = useState(null);
 
   async function startCheckout() {
-    if (!user) return;
+    if (!isSignedIn) return;
     setApiError(null);
     setCheckingOut(true);
     trackCheckoutStarted(selected);
 
     try {
-      const { data: { session } } = await import("./supabase.js")
-        .then(m => m.supabase.auth.getSession());
+      const token = await getToken();
 
       const res = await fetch("/api/stripe-checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token ?? ""}`,
+          Authorization: `Bearer ${token ?? ""}`,
         },
         body: JSON.stringify({
           planType:   selected,

@@ -1,9 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
+import { verifyToken, createClerkClient } from "@clerk/backend";
 import {
   gateClicksByFeature,
   funnelStats,
   trialConversionByFeature,
 } from "../src/adminStatsQueries.js";
+
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
@@ -12,15 +15,18 @@ export default async function handler(req, res) {
   const token = authHeader.replace("Bearer ", "");
   if (!token) return res.status(401).json({ error: "Unauthorized" });
 
-  const supabaseAuth = createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.VITE_SUPABASE_ANON_KEY,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
-  );
-  const { data: { user }, error: authErr } = await supabaseAuth.auth.getUser();
-  if (authErr || !user) return res.status(401).json({ error: "Unauthorized" });
+  let clerkUserId;
+  try {
+    const payload = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY });
+    clerkUserId = payload.sub;
+  } catch {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
 
-  if (user.email !== process.env.ADMIN_EMAIL) {
+  // Look up email to verify admin access
+  const clerkUser = await clerkClient.users.getUser(clerkUserId);
+  const userEmail = clerkUser.emailAddresses.find(e => e.id === clerkUser.primaryEmailAddressId)?.emailAddress;
+  if (userEmail !== process.env.ADMIN_EMAIL) {
     return res.status(403).json({ error: "Forbidden" });
   }
 
@@ -31,7 +37,6 @@ export default async function handler(req, res) {
 
   const { action, from, to } = req.query;
 
-  // Default date range: last 30 days
   const toDate   = to   ? new Date(to)   : new Date();
   const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const range = { from: fromDate.toISOString(), to: toDate.toISOString() };

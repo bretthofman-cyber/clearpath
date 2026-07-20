@@ -1,17 +1,18 @@
 import { useState, useRef, useEffect } from "react";
+import { useUser, useAuth } from "@clerk/clerk-react";
 import { DEFAULT_SCENARIOS } from "./engine.js";
 import { LIFE_EVENT_TYPES, newLifeEvent } from "./lifeEvents.js";
 import { currency, Field, Input, Select, Toggle, TwoCol, SectionDivider } from "./ui.jsx";
 import Stage2, { BUDGET_CATS } from "./BudgetStage.jsx";
 import AssetStage3, { deriveAssetTotals } from "./AssetStage.jsx";
-import { supabase } from "./supabase.js";
+import { supabase, setClerkTokenGetter } from "./supabase.js";
 import { useEntitlement, EntitlementContext } from "./useEntitlement.js";
 import PremiumGate from "./PremiumGate.jsx";
 import TrialBanner from "./TrialBanner.jsx";
 import PricingPage from "./PricingPage.jsx";
 import AdminDashboard from "./AdminDashboard.jsx";
 import { FEATURES } from "./features.js";
-import { trackSubscriptionActivated } from "./analytics.js";
+import { trackSubscriptionActivated, setAnalyticsTokenGetter } from "./analytics.js";
 import LoginScreen from "./LandingPage.jsx";
 import { SiteFooter } from "./LegalModals.jsx";
 import AnalysisScreen from "./AnalysisStage.jsx";
@@ -911,17 +912,18 @@ function LoadingScreen() {
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 export default function IndependentMeans() {
-  const [user, setUser]               = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
+  const { getToken, signOut }                       = useAuth();
+  const [planLoading, setPlanLoading]               = useState(true);
   const [data, setData]               = useState({ ...EMPTY_DATA });
   const [stage, setStage]             = useState(1);
   const [showPricing, setShowPricing] = useState(false);
   const [showAdmin,   setShowAdmin]   = useState(false);
-  const isAdmin = user?.email === import.meta.env.VITE_ADMIN_EMAIL;
+  const isAdmin = clerkUser?.primaryEmailAddress?.emailAddress === import.meta.env.VITE_ADMIN_EMAIL;
   const scrollRef  = useRef(null);
   const saveTimer  = useRef(null);
 
-  const entitlement = useEntitlement(user?.id);
+  const entitlement = useEntitlement(clerkUser?.id, getToken);
 
   // Handle return from Stripe Checkout
   useEffect(() => {
@@ -935,26 +937,29 @@ export default function IndependentMeans() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Wire Supabase and analytics token getters once Clerk is ready
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) loadPlan(u.id);
-      else setAuthLoading(false);
-    });
+    if (clerkLoaded && getToken) {
+      setClerkTokenGetter(getToken);
+      setAnalyticsTokenGetter(() => getToken());
+    }
+  }, [clerkLoaded, getToken]);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) loadPlan(u.id);
-      else { setData({ ...EMPTY_DATA }); setStage(1); setAuthLoading(false); }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  // Load or clear plan when the signed-in user changes
+  useEffect(() => {
+    if (!clerkLoaded) return;
+    if (!clerkUser) {
+      setData({ ...EMPTY_DATA });
+      setStage(1);
+      setPlanLoading(false);
+      return;
+    }
+    loadPlan(clerkUser.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clerkUser?.id, clerkLoaded]);
 
   async function loadPlan(userId) {
-    setAuthLoading(true);
+    setPlanLoading(true);
     const { data: row } = await supabase
       .from("plans")
       .select("data, stage")
@@ -964,15 +969,15 @@ export default function IndependentMeans() {
       setData(parseData(row.data));
       setStage(Math.max(1, Math.min(7, row.stage || 1)));
     }
-    setAuthLoading(false);
+    setPlanLoading(false);
   }
 
   function savePlan(nextData, nextStage) {
-    if (!user) return;
+    if (!clerkUser) return;
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       supabase.from("plans").upsert(
-        { user_id: user.id, data: nextData, stage: nextStage },
+        { user_id: clerkUser.id, data: nextData, stage: nextStage },
         { onConflict: "user_id" }
       );
     }, 800);
@@ -1006,11 +1011,11 @@ export default function IndependentMeans() {
 
   useEffect(() => {
     const el = document.getElementById("static-links");
-    if (el) el.style.display = user ? "none" : "";
-  }, [user]);
+    if (el) el.style.display = clerkUser ? "none" : "";
+  }, [clerkUser]);
 
-  if (authLoading || entitlement.isLoading) return <LoadingScreen />;
-  if (!user) return <LoginScreen />;
+  if (!clerkLoaded || planLoading || entitlement.isLoading) return <LoadingScreen />;
+  if (!clerkUser) return <LoginScreen />;
 
   const progress = ((stage - 1) / 6) * 100;
   const currentStage = STAGES[stage - 1];
@@ -1137,12 +1142,12 @@ export default function IndependentMeans() {
             >Upgrade</button>
           )}
           <button
-            onClick={async () => { if (window.confirm("Clear all saved data? This cannot be undone.")) { await supabase.from("plans").delete().eq("user_id", user.id); setData({ ...EMPTY_DATA }); setStage(1); } }}
+            onClick={async () => { if (window.confirm("Clear all saved data? This cannot be undone.")) { await supabase.from("plans").delete().eq("user_id", clerkUser.id); setData({ ...EMPTY_DATA }); setStage(1); } }}
             className="mobile-hide"
             style={{ fontSize: 12, color: "#8A8270", background: "none", border: "1px solid #ECE7DB", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}
           >Clear data</button>
           <button
-            onClick={() => supabase.auth.signOut()}
+            onClick={() => signOut()}
             style={{ fontSize: 12, color: "#8A8270", background: "none", border: "1px solid #ECE7DB", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}
           >Sign out</button>
         </div>
@@ -1242,7 +1247,7 @@ export default function IndependentMeans() {
 
       {showAdmin   && <AdminDashboard onClose={() => setShowAdmin(false)} />}
       {showPricing && (
-        <PricingPage user={user} onClose={() => setShowPricing(false)} />
+        <PricingPage user={clerkUser} onClose={() => setShowPricing(false)} />
       )}
 
       <PdfReport data={data} isPremium={entitlement.can(FEATURES.PDF_EXPORT)} />

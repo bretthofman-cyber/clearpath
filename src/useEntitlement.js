@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, createContext } from "react";
-import { supabase } from "./supabase.js";
+import { supabase } from "./supabase.js"; // DB queries only — auth token supplied via getToken param
 import { tierOf, can as _can, limit as _limit } from "./entitlement.js";
 import { LIMITS } from "./features.js";
 import { trackTrialStarted, trackTrialExpired } from "./analytics.js";
@@ -26,7 +26,7 @@ async function fetchSubscription(userId) {
   return row ?? null;
 }
 
-export function useEntitlement(userId) {
+export function useEntitlement(userId, getToken) {
   const [status,           setStatus]           = useState("free");
   const [trialEndsAt,      setTrialEndsAt]      = useState(null);
   const [stripeCustomerId, setStripeCustomerId] = useState(null);
@@ -110,14 +110,15 @@ export function useEntitlement(userId) {
   }, [userId, applyRow]);
 
   const openPortal = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) return;
+    if (!getToken) return;
+    const token = await getToken();
+    if (!token) return;
     try {
       const res = await fetch("/api/stripe-portal", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ returnUrl: window.location.origin }),
       });
@@ -127,7 +128,7 @@ export function useEntitlement(userId) {
     } catch (err) {
       console.error("[openPortal]", err.message);
     }
-  }, []);
+  }, [getToken]);
 
   const can   = (feature)  => _can(tier, feature);
   const limit = (resource) => _limit(tier, resource);

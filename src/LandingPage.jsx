@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { supabase } from "./supabase.js";
+import { useSignIn } from "@clerk/clerk-react";
 import { LegalModal, TERMS_CONTENT, PRIVACY_CONTENT } from "./LegalModals.jsx";
+
+const SSO_CALLBACK = `${window.location.origin}/sso-callback`;
 
 function GoogleButton({ onClick, loading }) {
   return (
@@ -21,19 +23,39 @@ function GoogleButton({ onClick, loading }) {
   );
 }
 
-function LoginScreen() {
-  const [loading, setLoading]     = useState(false);
-  const [modal, setModal]         = useState(null);
-  const [hoveredBtn, setHoveredBtn] = useState(null);
+function AppleButton({ onClick, loading }) {
+  return (
+    <button onClick={onClick} disabled={loading} style={{
+      padding: "13px 28px", background: "transparent",
+      color: "#2E4A3D", border: "1.5px solid #2E4A3D", borderRadius: 10, fontSize: 15, fontWeight: 500,
+      cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit",
+      display: "inline-flex", alignItems: "center", gap: 10,
+    }}>
+      <svg width="16" height="18" viewBox="0 0 814 1000" fill="currentColor">
+        <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105.5-57-155.5-127.7C46.7 790.7 0 663 0 541.8c0-194.3 126.4-297.5 250.8-297.5 66.1 0 121.2 43.4 162.7 43.4 39.5 0 101.1-46 176.3-46 28.5 0 130.9 2.6 198.3 99.2zm-234-181.5c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/>
+      </svg>
+      {loading ? "Redirecting…" : "Continue with Apple"}
+    </button>
+  );
+}
 
-  async function signInWithGoogle() {
-    setLoading(true);
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin },
+function LoginScreen() {
+  const [loadingProvider, setLoadingProvider] = useState(null);
+  const [modal, setModal]                     = useState(null);
+  const [hoveredBtn, setHoveredBtn]           = useState(null);
+  const { signIn, isLoaded }                  = useSignIn();
+
+  async function signInWith(strategy) {
+    if (!isLoaded || loadingProvider) return;
+    setLoadingProvider(strategy);
+    await signIn.authenticateWithRedirect({
+      strategy,
+      redirectUrl:          SSO_CALLBACK,
+      redirectUrlComplete:  window.location.origin,
     });
   }
 
+  const loading = !!loadingProvider;
   const W = { maxWidth: 960, margin: "0 auto", padding: "0 24px" };
 
   return (
@@ -47,7 +69,7 @@ function LoginScreen() {
           <div style={{ fontFamily: "Spectral, serif", fontSize: 20, color: "#21241E" }}>
             Independent<span style={{ color: "#2E4A3D" }}> Means</span>
           </div>
-          <button onClick={signInWithGoogle} disabled={loading} style={{
+          <button onClick={() => signInWith("oauth_google")} disabled={loading} style={{
             fontSize: 15, fontWeight: 500, color: "#2E4A3D", background: "none",
             border: "1.5px solid #2E4A3D", borderRadius: 8, padding: "7px 16px",
             cursor: "pointer", fontFamily: "inherit",
@@ -69,9 +91,10 @@ function LoginScreen() {
           <p style={{ fontSize: 18, color: "#6B6655", lineHeight: 1.65, margin: "0 0 40px", maxWidth: 520, marginLeft: "auto", marginRight: "auto" }}>
             Project your super, model your net worth, and see the probability your money lasts as long as you do, built specifically for Australian households.
           </p>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <GoogleButton onClick={signInWithGoogle} loading={loading} />
-            <div style={{ fontSize: 13, color: "#9DB0A1" }}>Free to use · No credit card required</div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+            <GoogleButton onClick={() => signInWith("oauth_google")} loading={loadingProvider === "oauth_google"} />
+            <AppleButton  onClick={() => signInWith("oauth_apple")}  loading={loadingProvider === "oauth_apple"} />
+            <div style={{ fontSize: 13, color: "#9DB0A1", marginTop: 2 }}>Free to use · No credit card required</div>
           </div>
         </div>
       </section>
@@ -158,7 +181,7 @@ function LoginScreen() {
               <div style={{ fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", color: "#9DB0A1", fontWeight: 600, marginBottom: 12 }}>Free</div>
               <div style={{ fontFamily: "Spectral, serif", fontSize: 34, fontWeight: 400, color: "#21241E", lineHeight: 1 }}>A$0</div>
               <div style={{ fontSize: 13, color: "#9DB0A1", marginTop: 4, marginBottom: 24 }}>Forever free</div>
-              <button onClick={signInWithGoogle} disabled={loading} style={{
+              <button onClick={() => signInWith("oauth_google")} disabled={loading} style={{
                 width: "100%", padding: "11px 0", background: "transparent",
                 border: "1.5px solid #D8D2C4", borderRadius: 10, fontSize: 15,
                 fontWeight: 600, color: "#2E4A3D", cursor: "pointer", fontFamily: "inherit", marginBottom: 24,
@@ -182,7 +205,7 @@ function LoginScreen() {
               <div style={{ fontSize: 13, color: "#9DB0A1", marginTop: 4, marginBottom: 24 }}>
                 A$12.42/mo · or A$15/mo monthly · <span style={{ color: "#C2A06B", fontWeight: 600 }}>Save 17%</span>
               </div>
-              <button onClick={signInWithGoogle} disabled={loading} style={{
+              <button onClick={() => signInWith("oauth_google")} disabled={loading} style={{
                 width: "100%", padding: "11px 0", background: "#C2A06B",
                 border: "none", borderRadius: 10, fontSize: 15,
                 fontWeight: 600, color: "#FBFAF6", cursor: "pointer", fontFamily: "inherit", marginBottom: 24,
@@ -210,10 +233,10 @@ function LoginScreen() {
             Ready to see your number?
           </div>
           <div style={{ fontSize: 15, color: "#9DB0A1", marginBottom: 36, lineHeight: 1.6 }}>
-            Sign in with Google and start modelling in under a minute. Your plan is saved securely to your account.
+            Sign in with Google or Apple and start modelling in under a minute. Your plan is saved securely to your account.
           </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <button onClick={signInWithGoogle} disabled={loading} style={{
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+            <button onClick={() => signInWith("oauth_google")} disabled={loading} style={{
               padding: "14px 32px", background: loading ? "#6B8F84" : "#C2A06B",
               color: "white", border: "none", borderRadius: 10, fontSize: 15, fontWeight: 600,
               cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit",

@@ -1,21 +1,23 @@
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { verifyToken, createClerkClient } from "@clerk/backend";
+
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  // Verify the caller's Supabase JWT so we never trust client-supplied user IDs
   const authHeader = req.headers.authorization ?? "";
   const token = authHeader.replace("Bearer ", "");
   if (!token) return res.status(401).json({ error: "Unauthorized" });
 
-  const supabaseUser = createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.VITE_SUPABASE_ANON_KEY,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
-  );
-  const { data: { user }, error: authErr } = await supabaseUser.auth.getUser();
-  if (authErr || !user) return res.status(401).json({ error: "Unauthorized" });
+  let clerkUserId;
+  try {
+    const payload = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY });
+    clerkUserId = payload.sub;
+  } catch {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
 
   const { planType, successUrl, cancelUrl } = req.body ?? {};
   const priceMap = {
@@ -25,7 +27,6 @@ export default async function handler(req, res) {
   const priceId = priceMap[planType];
   if (!priceId) return res.status(400).json({ error: "Invalid plan type" });
 
-  // Look up existing Stripe customer ID (if user has subscribed before)
   const supabaseAdmin = createClient(
     process.env.VITE_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -33,7 +34,7 @@ export default async function handler(req, res) {
   const { data: sub } = await supabaseAdmin
     .from("subscriptions")
     .select("stripe_customer_id")
-    .eq("user_id", user.id)
+    .eq("user_id", clerkUserId)
     .maybeSingle();
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -43,15 +44,17 @@ export default async function handler(req, res) {
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: successUrl ?? `${process.env.APP_URL}?checkout=success`,
     cancel_url:  cancelUrl  ?? `${process.env.APP_URL}?checkout=cancelled`,
-    metadata: { user_id: user.id },
-    subscription_data: { metadata: { user_id: user.id } },
+    metadata: { user_id: clerkUserId },
+    subscription_data: { metadata: { user_id: clerkUserId } },
     allow_promotion_codes: true,
   };
 
   if (sub?.stripe_customer_id) {
     sessionParams.customer = sub.stripe_customer_id;
   } else {
-    sessionParams.customer_email = user.email;
+    const clerkUser = await clerkClient.users.getUser(clerkUserId);
+    const email = clerkUser.emailAddresses.find(e => e.id === clerkUser.primaryEmailAddressId)?.emailAddress;
+    if (email) sessionParams.customer_email = email;
   }
 
   try {

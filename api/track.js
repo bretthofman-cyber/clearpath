@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { verifyToken } from "@clerk/backend";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -7,22 +8,20 @@ export default async function handler(req, res) {
   const token = authHeader.replace("Bearer ", "");
   if (!token) return res.status(401).json({ error: "Unauthorized" });
 
-  // Verify JWT — just need the user_id; anon key is sufficient for getUser()
-  const supabaseAuth = createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.VITE_SUPABASE_ANON_KEY,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
-  );
-  const { data: { user }, error: authErr } = await supabaseAuth.auth.getUser();
-  if (authErr || !user) return res.status(401).json({ error: "Unauthorized" });
+  let clerkUserId;
+  try {
+    const payload = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY });
+    clerkUserId = payload.sub;
+  } catch {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
 
   const { event_name, feature = null, context = {} } = req.body ?? {};
   if (!event_name || typeof event_name !== "string") {
     return res.status(400).json({ error: "event_name required" });
   }
 
-  // Sanitise — strip any keys whose values look like financial amounts (numbers > 100)
-  // to enforce the privacy rule: no plan financial values in event payloads.
+  // Strip keys whose values look like financial amounts to enforce privacy rule
   const safeContext = Object.fromEntries(
     Object.entries(context).filter(([, v]) => typeof v !== "number" || v <= 100)
   );
@@ -33,7 +32,7 @@ export default async function handler(req, res) {
   );
 
   const { error: insertErr } = await supabaseAdmin.from("events").insert({
-    user_id:    user.id,
+    user_id:    clerkUserId,
     event_name: event_name.slice(0, 80),
     feature:    feature ? String(feature).slice(0, 80) : null,
     context:    safeContext,
