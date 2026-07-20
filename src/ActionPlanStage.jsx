@@ -2,7 +2,7 @@ import { useContext, useState } from "react";
 import { currency } from "./ui.jsx";
 import { generatePlanItems, PLAN_CATEGORIES } from "./actionPlan.js";
 import { runEngine } from "./engine.js";
-import { deriveAssetTotals } from "./AssetStage.jsx";
+import { deriveAssetTotals } from "./assetUtils.js";
 import { applyMaxedSS } from "./AnalysisStage.jsx";
 import { EntitlementContext } from "./useEntitlement.js";
 import PremiumGate from "./PremiumGate.jsx";

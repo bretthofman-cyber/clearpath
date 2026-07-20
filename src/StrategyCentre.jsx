@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { runEngine } from "./engine.js";
-import { deriveAssetTotals } from "./AssetStage.jsx";
+import { deriveAssetTotals } from "./assetUtils.js";
 import { runOpportunityDetectors } from "./opportunityEngine.js";
 import { currency } from "./ui.jsx";
 import { trackStrategyModuleUsed } from "./analytics.js";

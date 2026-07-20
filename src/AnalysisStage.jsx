@@ -12,7 +12,7 @@ import { LIFE_EVENT_TYPES } from "./lifeEvents.js";
 import { generateWarnings } from "./warnings.js";
 import { currency, SectionDivider } from "./ui.jsx";
 import { budgetTotal, estimateNetMonthly, CashflowCalendar, buildCashflowCalendar } from "./BudgetStage.jsx";
-import { deriveAssetTotals } from "./AssetStage.jsx";
+import { deriveAssetTotals } from "./assetUtils.js";
 import { exportProjectionCsv } from "./exportCsv.js";
 
 // ─── ASSUMPTION RATIONALE ─────────────────────────────────────────────────────

@@ -43,24 +43,8 @@ const ASSET_SUGGESTIONS = {
 };
 
 // ─── DERIVE FLAT FIELDS FOR ENGINE ───────────────────────────────────────────
-// Engine.js reads flat fields (cashSavings, sharesEtfs, etc.).
-// This aggregator converts the items array back to those flat fields
-// so the engine requires zero changes.
 
-export function deriveAssetTotals(assetItems = []) {
-  const p = v => parseFloat(String(v || "").replace(/,/g, "")) || 0;
-  const sumCat = key => (assetItems || [])
-    .filter(i => i.categoryKey === key)
-    .reduce((s, i) => s + p(i.amount), 0);
-  return {
-    cashSavings:     sumCat("cash"),
-    offsetBalance:   0,            // captured in cashSavings (cash category)
-    sharesEtfs:      sumCat("shares"),
-    managedFunds:    sumCat("funds"),
-    crypto:          sumCat("crypto"),
-    otherInvestments: sumCat("other"),
-  };
-}
+export { deriveAssetTotals } from "./assetUtils.js";
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 

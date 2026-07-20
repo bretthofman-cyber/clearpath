@@ -1,23 +1,31 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { useUser, useAuth } from "@clerk/clerk-react";
-import { DEFAULT_SCENARIOS } from "./engine.js";
 import { LIFE_EVENT_TYPES, newLifeEvent } from "./lifeEvents.js";
 import { currency, Field, Input, Select, Toggle, TwoCol, SectionDivider } from "./ui.jsx";
-import Stage2, { BUDGET_CATS } from "./BudgetStage.jsx";
-import AssetStage3, { deriveAssetTotals } from "./AssetStage.jsx";
+import { BUDGET_CATS } from "./budgetCats.js";
+import { deriveAssetTotals } from "./assetUtils.js";
 import { supabase, setClerkTokenGetter } from "./supabase.js";
 import { useEntitlement, EntitlementContext } from "./useEntitlement.js";
 import PremiumGate from "./PremiumGate.jsx";
 import TrialBanner from "./TrialBanner.jsx";
-import PricingPage from "./PricingPage.jsx";
-import AdminDashboard from "./AdminDashboard.jsx";
 import { FEATURES } from "./features.js";
 import { trackSubscriptionActivated, setAnalyticsTokenGetter } from "./analytics.js";
-import LoginScreen from "./LandingPage.jsx";
 import { SiteFooter } from "./LegalModals.jsx";
-import AnalysisScreen from "./AnalysisStage.jsx";
-import ActionPlanScreen from "./ActionPlanStage.jsx";
-import PdfReport from "./PdfReport.jsx";
+
+const Stage2           = lazy(() => import("./BudgetStage.jsx"));
+const AssetStage3      = lazy(() => import("./AssetStage.jsx"));
+const AnalysisScreen   = lazy(() => import("./AnalysisStage.jsx"));
+const ActionPlanScreen = lazy(() => import("./ActionPlanStage.jsx"));
+const PdfReport        = lazy(() => import("./PdfReport.jsx"));
+const AdminDashboard   = lazy(() => import("./AdminDashboard.jsx"));
+const PricingPage      = lazy(() => import("./PricingPage.jsx"));
+const LoginScreen      = lazy(() => import("./LandingPage.jsx"));
+
+const DEFAULT_SCENARIOS = {
+  base:         { returnRate: 6.5, inflation: 2.5, propertyGrowth: 4.5, rentalGrowth: 3.0, safeWithdrawal: 4.0 },
+  conservative: { returnRate: 5.5, inflation: 3.0, propertyGrowth: 3.5, rentalGrowth: 2.5, safeWithdrawal: 4.0 },
+  aggressive:   { returnRate: 7.5, inflation: 2.0, propertyGrowth: 5.5, rentalGrowth: 3.5, safeWithdrawal: 4.0 },
+};
 
 const STAGES = [
   { id: 1, label: "Profile",  icon: (a) => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="15" r="9" fill={a ? "#EDE7D7" : "#2E4A3D"}/><path d="M8 41 C8 28 40 28 40 41 Z" fill={a ? "#EDE7D7" : "#2E4A3D"}/></svg>), title: "Household Profile",     subtitle: "Let's start with the basics" },
@@ -1015,7 +1023,7 @@ export default function IndependentMeans() {
   }, [clerkUser]);
 
   if (!clerkLoaded || planLoading || entitlement.isLoading) return <LoadingScreen />;
-  if (!clerkUser) return <LoginScreen />;
+  if (!clerkUser) return <Suspense fallback={<LoadingScreen />}><LoginScreen /></Suspense>;
 
   const progress = ((stage - 1) / 6) * 100;
   const currentStage = STAGES[stage - 1];
@@ -1208,6 +1216,7 @@ export default function IndependentMeans() {
             <div style={{ fontSize: 15, color: "#6B6655" }}>{currentStage.subtitle}</div>
           </div>
 
+          <Suspense fallback={null}>
           <div ref={scrollRef} className="stage-content-card" style={{ background: "#FBFAF6", borderRadius: 18, border: "1px solid #ECE7DB", padding: "28px", animation: "fadeIn 0.25s ease", boxShadow: "0 2px 16px rgba(0,0,0,0.04)" }}>
             {stage === 1 && <Stage1 data={data} set={set} />}
             {stage === 2 && <Stage2 data={data} setMany={setMany} />}
@@ -1217,6 +1226,7 @@ export default function IndependentMeans() {
             {stage === 6 && <AnalysisScreen data={data} set={set} entitlement={entitlement} />}
             {stage === 7 && <ActionPlanScreen data={data} entitlement={entitlement} />}
           </div>
+          </Suspense>
 
           {stage < 6 && (
             <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
@@ -1246,12 +1256,13 @@ export default function IndependentMeans() {
 
       <SiteFooter />
 
-      {showAdmin   && <AdminDashboard onClose={() => setShowAdmin(false)} />}
-      {showPricing && (
-        <PricingPage user={clerkUser} onClose={() => setShowPricing(false)} />
-      )}
-
-      <PdfReport data={data} isPremium={entitlement.can(FEATURES.PDF_EXPORT)} />
+      <Suspense fallback={null}>
+        {showAdmin   && <AdminDashboard onClose={() => setShowAdmin(false)} />}
+        {showPricing && (
+          <PricingPage user={clerkUser} onClose={() => setShowPricing(false)} />
+        )}
+        <PdfReport data={data} isPremium={entitlement.can(FEATURES.PDF_EXPORT)} />
+      </Suspense>
     </div>
     </EntitlementContext.Provider>
   );

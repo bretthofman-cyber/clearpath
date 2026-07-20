@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { runEngine } from "./engine.js";
-import { deriveAssetTotals } from "./AssetStage.jsx";
+import { deriveAssetTotals } from "./assetUtils.js";
 import { applyMaxedSS } from "./AnalysisStage.jsx";
 
 const PIN  = "#2E4A3D";
