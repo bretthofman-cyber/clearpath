@@ -21,7 +21,7 @@ Australian personal financial modelling and scenario analysis web app, live at *
 |---|---|
 | Frontend | React 19 + Vite (SPA) |
 | Styling | Inline styles throughout — no CSS framework |
-| Auth | Supabase (Google OAuth) |
+| Auth | Clerk (Google OAuth) |
 | Database | Supabase Postgres with Row Level Security |
 | Payments | Stripe Checkout + Customer Portal + webhooks |
 | Hosting | Vercel (auto-deploys on GitHub push to `main`) |
@@ -50,6 +50,7 @@ Australian personal financial modelling and scenario analysis web app, live at *
 ~/independentMeans/
 ├── CLAUDE.md                     ← You are here
 ├── CHANGELOG.md                  ← Session-by-session change log
+├── STACK.md                      ← Full technology stack description
 ├── LAUNCH_CHECKLIST.md           ← Pre-launch QA (5 canonical journeys)
 ├── IMPLEMENTATION_PLAN.md        ← Phase-by-phase build plan
 ├── src/
