@@ -141,7 +141,7 @@ Pricing: A$15/month or A$149/year. Stripe Checkout + Customer Portal.
 - Price IDs resolved server-side only; client sends only `planType: 'monthly'|'annual'`
 - JWT verification on all Stripe API endpoints
 - `stripe_customer_id` looked up server-side from DB, never trusted from client
-- `localStorage` keys `clearpath_v1` and `clearpath_stage` must **not** be renamed (breaks existing user sessions)
+- Supabase `plans` table stores wizard inputs as JSONB — `user_id` is the Clerk sub (text, not UUID)
 
 ---
 

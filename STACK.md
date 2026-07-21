@@ -87,7 +87,7 @@ The database has two main tables:
 
 **Row Level Security (RLS)** is enabled on both tables. Policies use `auth.jwt() ->> 'sub'` to match Clerk's `sub` claim, so no user can read or write another user's data. The Vercel API functions use the **service role key** (bypasses RLS) to write subscription state from webhooks — this key is never exposed to the browser.
 
-**Financial data is not stored in Supabase.** The wizard's inputs live in `localStorage` under the key `clearpath_v1` (the key cannot be renamed without breaking existing sessions). Saving to Supabase (`plans` table or similar) is planned but not yet built. The app works offline after first load.
+**Financial data is stored in Supabase** in the `plans` table — one row per user, with a `data` JSONB column holding the full wizard input object and a `stage` integer tracking where the user is up to. Saves are debounced at 800ms: every field edit triggers a debounce timer, and the upsert fires once the user pauses. On sign-in, `loadPlan` fetches the row and rehydrates the wizard state. RLS ensures users can only read and write their own row (`auth.jwt() ->> 'sub' = user_id`).
 
 ---
 
@@ -245,8 +245,8 @@ Run tests: `npm test` (watch mode) or `npm run test:run` (single pass).
 
 ## Key architectural decisions
 
-### Why localStorage for financial data
-Financial wizard inputs are stored in `localStorage` under `clearpath_v1`. This keeps all personal financial data on the user's device by default. Supabase cloud save is planned (the `savePlan` function in `App.jsx` already debounces and calls Supabase) but the schema and UX for it are not finalised. The localStorage key cannot be renamed without breaking existing user sessions.
+### Why Supabase for financial data (and not localStorage)
+Financial wizard inputs are stored server-side in the Supabase `plans` table. This was chosen over localStorage so users can pick up their plan on any device or browser. The tradeoff is that the app requires a network connection to load a saved plan, but given that the app requires sign-in anyway, offline-first was not a meaningful use case.
 
 ### Why no routing library
 Navigation between the 7 stages is managed by a single `stage` state variable in `App.jsx`. There are no URL routes for wizard stages — the URL stays at `/` throughout. This was a deliberate simplification: back/forward browser navigation within the wizard would be confusing, the wizard is a linear flow, and linking to a specific stage is not a use case. React Router would add complexity without benefit here.

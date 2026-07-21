@@ -1,4 +1,4 @@
-// ─── CLEARPATH SHARED UI PRIMITIVES ──────────────────────────────────────────
+// ─── SHARED UI PRIMITIVES ────────────────────────────────────────────────────
 // Imported by App.jsx and any stage component files.
 
 import { useState } from "react";

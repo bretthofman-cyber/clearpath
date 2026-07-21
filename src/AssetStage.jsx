@@ -1,4 +1,4 @@
-// ─── CLEARPATH — STAGE 3: ASSETS & SAVINGS (ITEM-LEVEL) ──────────────────────
+// ─── STAGE 3: ASSETS & SAVINGS (ITEM-LEVEL) ──────────────────────────────────
 
 import { useState, useRef, useEffect } from "react";
 import { currency, Field, Input, SectionDivider } from "./ui.jsx";

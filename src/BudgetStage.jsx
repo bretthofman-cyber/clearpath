@@ -1,4 +1,4 @@
-// ─── CLEARPATH — STAGE 2: INCOME & CASHFLOW (ITEM-LEVEL BUDGET) ──────────────
+// ─── STAGE 2: INCOME & CASHFLOW (ITEM-LEVEL BUDGET) ──────────────────────────
 
 import { useState, useRef, useEffect, useContext } from "react";
 import { exportBudgetXlsx, getFYInfo } from "./exportBudgetXlsx.js";
