@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef, createContext } from "react";
-import { supabase } from "./supabase.js"; // DB queries only — auth token supplied via getToken param
 import { tierOf, can as _can, limit as _limit } from "./entitlement.js";
 import { LIMITS } from "./features.js";
 import { trackTrialStarted, trackTrialExpired } from "./analytics.js";
@@ -15,15 +14,13 @@ export const EntitlementContext = createContext({
   openPortal: async () => {},
 });
 
-const TRIAL_DAYS = 14;
-
-async function fetchSubscription(userId) {
-  const { data: row, error } = await supabase
-    .from("subscriptions")
-    .select("status, trial_ends_at, stripe_customer_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) throw error;
+async function fetchSubscription(getToken) {
+  const token = await getToken();
+  const res = await fetch("/api/subscription", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const { row } = await res.json();
   return row ?? null;
 }
 
@@ -47,7 +44,7 @@ export function useEntitlement(userId, getToken) {
   }, []);
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !getToken) {
       setStatus("free");
       setTrialEndsAt(null);
       setStripeCustomerId(null);
@@ -55,11 +52,11 @@ export function useEntitlement(userId, getToken) {
       return;
     }
     setIsLoading(true);
-    fetchSubscription(userId)
+    fetchSubscription(getToken)
       .then(applyRow)
       .catch(err => console.error("[fetchSubscription]", err.message))
       .finally(() => setIsLoading(false));
-  }, [userId, applyRow]);
+  }, [userId, getToken, applyRow]);
 
   const now         = new Date();
   const tier        = tierOf({ status, trialEndsAt });
@@ -84,38 +81,32 @@ export function useEntitlement(userId, getToken) {
   }, [isLoading, status, trialEndsAt]);
 
   const activateTrial = useCallback(async (fromFeature = null) => {
-    if (!userId || status !== "free") return;
-    const start    = new Date();
-    const trialEnd = new Date(start.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+    if (!userId || !getToken || status !== "free") return;
     try {
-      const { data: row, error } = await supabase
-        .from("subscriptions")
-        .insert({
-          user_id:                    userId,
-          status:                     "trialing",
-          trial_started_at:           start.toISOString(),
-          trial_ends_at:              trialEnd.toISOString(),
-          trial_started_from_feature: fromFeature,
-        })
-        .select("status, trial_ends_at, stripe_customer_id")
-        .single();
-      if (error) throw error;
+      const token = await getToken();
+      const res = await fetch("/api/subscription", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ fromFeature }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { row } = await res.json();
       applyRow(row);
       trackTrialStarted(fromFeature);
     } catch (err) {
       console.error("[activateTrial]", err.message);
     }
-  }, [userId, status, applyRow]);
+  }, [userId, getToken, status, applyRow]);
 
   const refreshSubscription = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || !getToken) return;
     try {
-      const row = await fetchSubscription(userId);
+      const row = await fetchSubscription(getToken);
       applyRow(row);
     } catch (err) {
       console.error("[refreshSubscription]", err.message);
     }
-  }, [userId, applyRow]);
+  }, [userId, getToken, applyRow]);
 
   const openPortal = useCallback(async () => {
     if (!getToken) return;

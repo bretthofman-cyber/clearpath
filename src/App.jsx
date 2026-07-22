@@ -964,19 +964,19 @@ export default function IndependentMeans() {
       setPlanLoading(false);
       return;
     }
-    loadPlan(clerkUser.id);
+    loadPlan();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clerkUser?.id, clerkLoaded]);
 
-  async function loadPlan(userId) {
+  async function loadPlan() {
     setPlanLoading(true);
     try {
-      const { data: row, error } = await supabase
-        .from("plans")
-        .select("data, stage")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (error) throw error;
+      const token = await getToken();
+      const res = await fetch("/api/plan", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { row } = await res.json();
       if (row) {
         setData(parseData(row.data));
         setStage(Math.max(1, Math.min(7, row.stage || 1)));
@@ -991,11 +991,18 @@ export default function IndependentMeans() {
   function savePlan(nextData, nextStage) {
     if (!clerkUser) return;
     clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      supabase.from("plans").upsert(
-        { user_id: clerkUser.id, data: nextData, stage: nextStage },
-        { onConflict: "user_id" }
-      ).catch(err => console.error("[savePlan]", err.message));
+    saveTimer.current = setTimeout(async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch("/api/plan", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ data: nextData, stage: nextStage }),
+        });
+        if (!res.ok) console.error("[savePlan]", await res.text());
+      } catch (err) {
+        console.error("[savePlan]", err.message);
+      }
     }, 800);
   }
 
