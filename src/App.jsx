@@ -82,9 +82,10 @@ const EMPTY_DATA = {
   activeScenario: "base",
   useCustomAssumptions: false,
   customAssumptions: {
-    base: { ...DEFAULT_SCENARIOS.base },
+    base:         { ...DEFAULT_SCENARIOS.base },
     conservative: { ...DEFAULT_SCENARIOS.conservative },
-    aggressive: { ...DEFAULT_SCENARIOS.aggressive },
+    aggressive:   { ...DEFAULT_SCENARIOS.aggressive },
+    asic:         { ...DEFAULT_SCENARIOS.asic },
   },
 };
 
@@ -163,9 +164,10 @@ function parseData(parsed) {
       assetItems,
       goals,
       customAssumptions: {
-        base: { ...DEFAULT_SCENARIOS.base, ...(parsed.customAssumptions?.base || {}) },
+        base:         { ...DEFAULT_SCENARIOS.base,         ...(parsed.customAssumptions?.base         || {}) },
         conservative: { ...DEFAULT_SCENARIOS.conservative, ...(parsed.customAssumptions?.conservative || {}) },
-        aggressive: { ...DEFAULT_SCENARIOS.aggressive, ...(parsed.customAssumptions?.aggressive || {}) },
+        aggressive:   { ...DEFAULT_SCENARIOS.aggressive,   ...(parsed.customAssumptions?.aggressive   || {}) },
+        asic:         { ...DEFAULT_SCENARIOS.asic,         ...(parsed.customAssumptions?.asic         || {}) },
       },
     };
   } catch { return { ...EMPTY_DATA }; }
@@ -1213,7 +1215,7 @@ export default function IndependentMeans() {
             { label: "Super", value: currency(data.superBalance) },
             { label: "Monthly Savings", value: currency(data.savingsPerMonth) },
             { label: "Emergency Runway", value: runway === "—" ? "—" : (runway + " mo") },
-            { label: "Scenario", value: { base: "Base", conservative: "Conservative", aggressive: "Aggressive" }[data.activeScenario] || "Base" },
+            { label: "Scenario", value: { base: "Base", conservative: "Conservative", aggressive: "Aggressive", asic: "ASIC 2025" }[data.activeScenario] || "Base" },
           ].map((item, i) => (
             <div key={i} style={{ flexShrink: 0 }}>
               <div style={{ fontSize: 9, color: "rgba(237,231,215,0.65)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{item.label}</div>

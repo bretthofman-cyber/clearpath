@@ -38,6 +38,14 @@ const ASSUMPTION_RATIONALE = {
     label: "Safe withdrawal rate (% p.a.)",
     source: "The 4% rule originates from the Bengen (1994) study and is widely referenced in personal financial modelling & scenario planning. ASFA and Vanguard research suggests 3.5–4.5% is a reasonable sustainable drawdown rate for a 25–30 year retirement, depending on portfolio composition.",
   },
+  inflationAccumulation: {
+    label: "Wage inflation — accumulation (% p.a.)",
+    source: "Prescribed by ASIC Instrument 2022/603 (RG 276.191). Based on Treasury modelling in the 2023 Intergenerational Report and the Retirement Income Review final report. Applied during the working/accumulation phase to convert future projections to today's dollars.",
+  },
+  inflationRetirement: {
+    label: "CPI — retirement phase (% p.a.)",
+    source: "Prescribed by ASIC Instrument 2022/603 (RG 276.192). Based on the midpoint of the Reserve Bank of Australia's 2–3% target band, reaffirmed in the December 2023 Statement on the Conduct of Monetary Policy. Applied during the drawdown phase.",
+  },
 };
 
 // ─── STAGE 6 — GOALS & SCENARIOS ─────────────────────────────────────────────
@@ -110,11 +118,13 @@ function ScenarioPanel({ scenarioKey, label, data, set, isActive, isExpanded, on
   }
 
   const colors = {
-    base: { bg: "#EAF0EC", border: "#D8D2C4", active: "#2E4A3D" },
+    base:         { bg: "#EAF0EC", border: "#D8D2C4", active: "#2E4A3D" },
     conservative: { bg: "#F5F0E8", border: "#D8D2C4", active: "#7A5E30" },
-    aggressive: { bg: "#eaf0f7", border: "#c4d5e8", active: "#3a5a8a" },
+    aggressive:   { bg: "#eaf0f7", border: "#c4d5e8", active: "#3a5a8a" },
+    asic:         { bg: "#f3f0fa", border: "#c9bfe8", active: "#5a3d8a" },
   };
-  const c = colors[scenarioKey];
+  const c = colors[scenarioKey] || colors.base;
+  const isAsic = scenarioKey === "asic";
 
   return (
     <div style={{
@@ -141,22 +151,49 @@ function ScenarioPanel({ scenarioKey, label, data, set, isActive, isExpanded, on
           <div style={{ fontSize: 14, fontWeight: 600, color: isActive ? c.active : "#21241E" }}>{label}</div>
         </div>
         <div style={{ fontSize: 12, color: "#8A8270" }}>
-          {assumptions.returnRate}% return · {assumptions.inflation}% inflation · {assumptions.propertyGrowth}% property
+          {assumptions.returnRate}% return ·{" "}
+          {isAsic
+            ? `${assumptions.inflationAccumulation}%/${assumptions.inflationRetirement}% wage/CPI`
+            : `${assumptions.inflation}% inflation`}{" "}
+          · {assumptions.propertyGrowth}% property
         </div>
       </button>
 
       {isExpanded && (
         <div style={{ padding: "16px", background: "white", borderTop: "1px solid", borderColor: c.border }}>
-          {Object.keys(ASSUMPTION_RATIONALE).map(key => (
-            <AssumptionRow
-              key={key}
-              fieldKey={key}
-              value={assumptions[key]}
-              defaultValue={DEFAULT_SCENARIOS[scenarioKey][key]}
-              onChange={v => updateAssumption(key, v)}
-              isCustom={isCustom}
-            />
-          ))}
+          {isAsic && (
+            <div style={{ background: "#f3f0fa", border: "1.5px solid #c9bfe8", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: "#3d2a6b", lineHeight: 1.6 }}>
+              <strong>ASIC Instrument 2022/603 defaults.</strong> Wage inflation (3.7% p.a.) and CPI (2.5% p.a.) are prescribed by ASIC. Projections are displayed in today's dollars using these rates (RG 276.188). Investment return and other assumptions remain provider-set — you can adjust them below or with Custom mode.
+            </div>
+          )}
+          {Object.keys(ASSUMPTION_RATIONALE).map(key => {
+            if (isAsic && key === "inflation") return null;
+            if (key === "inflationAccumulation" || key === "inflationRetirement") return null;
+            return (
+              <AssumptionRow
+                key={key}
+                fieldKey={key}
+                value={assumptions[key]}
+                defaultValue={DEFAULT_SCENARIOS[scenarioKey][key]}
+                onChange={v => updateAssumption(key, v)}
+                isCustom={isCustom}
+              />
+            );
+          })}
+          {isAsic && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {["inflationAccumulation", "inflationRetirement"].map(key => (
+                <AssumptionRow
+                  key={key}
+                  fieldKey={key}
+                  value={assumptions[key]}
+                  defaultValue={DEFAULT_SCENARIOS.asic[key]}
+                  onChange={v => updateAssumption(key, v)}
+                  isCustom={isCustom}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -369,10 +406,13 @@ function MetricsRow({ engine, data, div293Locked = false }) {
   const hasSpendingTarget = parseFloat(String(data.targetRetirementSpending).replace(/,/g, "")) > 0;
 
   const superOk = metrics.onTrack;
+  const showReal = metrics.displayInTodaysDollars;
+  const superDisplayValue = showReal ? metrics.projectedSuperReal : metrics.projectedSuper;
+  const surplusDisplayValue = showReal ? metrics.superSurplusReal : metrics.superSurplus;
   const superSub = hasSpendingTarget
     ? (superOk
-        ? `+${currency(metrics.superSurplus)} surplus`
-        : `−${currency(Math.abs(metrics.superSurplus))} short`)
+        ? `+${currency(surplusDisplayValue)} surplus`
+        : `−${currency(Math.abs(surplusDisplayValue))} short`)
     : "Enter spending target";
 
   let debtValue, debtSub, debtOk;
@@ -402,10 +442,11 @@ function MetricsRow({ engine, data, div293Locked = false }) {
   const nwOk = metrics.retirementNetWorth > 0;
   const fireValue  = metrics.fireNumber > 0 ? currency(metrics.fireNumber) : "—";
   const fireSub2   = metrics.fireNumber > 0 ? `at ${engine.assumptions?.safeWithdrawal ?? 4}% withdrawal rate` : null;
+  const fireCompare = showReal ? metrics.projectedSuperReal : metrics.projectedSuper;
   const fireSub    = metrics.fireNumber > 0
-    ? (metrics.projectedSuper >= metrics.fireNumber
+    ? (fireCompare >= metrics.fireNumber
         ? `On track: super exceeds target`
-        : `${currency(metrics.fireNumber - metrics.projectedSuper)} gap`)
+        : `${currency(metrics.fireNumber - fireCompare)} gap`)
     : "Enter spending target";
 
   const hasTax     = metrics.annualHouseholdTax > 0;
@@ -416,8 +457,8 @@ function MetricsRow({ engine, data, div293Locked = false }) {
   const cards = [
     {
       label: "Projected Super",
-      sub2: `at age ${retirementAge}`,
-      value: currency(metrics.projectedSuper),
+      sub2: showReal ? `at age ${retirementAge} · today's dollars` : `at age ${retirementAge}`,
+      value: currency(superDisplayValue),
       sub: superSub,
       ok: hasSpendingTarget ? superOk : null,
     },
@@ -447,7 +488,7 @@ function MetricsRow({ engine, data, div293Locked = false }) {
       sub2: fireSub2,
       value: fireValue,
       sub: hasSpendingTarget ? fireSub : "Enter spending target",
-      ok: hasSpendingTarget ? (metrics.projectedSuper >= metrics.fireNumber ? true : false) : null,
+      ok: hasSpendingTarget ? (fireCompare >= metrics.fireNumber ? true : false) : null,
     },
     {
       label: "Annual Tax",
@@ -976,9 +1017,11 @@ function ScenarioComparisonRow({ data }) {
                 )}
               </div>
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 9, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Super at retirement</div>
+                <div style={{ fontSize: 9, color: "#8A8270", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+                  Super at retirement{eng.metrics.displayInTodaysDollars ? " (today's $)" : ""}
+                </div>
                 <div style={{ fontSize: 17, fontFamily: "Spectral, serif", color: "#21241E" }}>
-                  {currency(eng.metrics.projectedSuper)}
+                  {currency(eng.metrics.displayInTodaysDollars ? eng.metrics.projectedSuperReal : eng.metrics.projectedSuper)}
                 </div>
               </div>
               <div style={{ marginBottom: 10 }}>
@@ -1037,7 +1080,7 @@ function AnalysisSummary({ data, engine }) {
   const firstName = data.firstName || "";
   const partnerFirstName = data.partnerName || "Partner";
   const possessive = firstName ? `${firstName}'s` : (couple ? "Your household's" : "Your");
-  const scenarioLabel = { base: "Base", conservative: "Conservative", aggressive: "Aggressive" }[data.activeScenario || "base"];
+  const scenarioLabel = { base: "Base", conservative: "Conservative", aggressive: "Aggressive", asic: "ASIC 2025" }[data.activeScenario || "base"];
   const retireAge = n(data.retirementAge) || 65;
   const lifeExp = n(data.lifeExpectancy) || 90;
 
@@ -1094,9 +1137,12 @@ function AnalysisSummary({ data, engine }) {
     }
     parts.push(pos + ".");
     if (hasSuperData && m) {
+      const superDisp    = m.displayInTodaysDollars ? m.projectedSuperReal : m.projectedSuper;
+      const surplusDisp  = m.displayInTodaysDollars ? m.superSurplusReal   : m.superSurplus;
+      const todayNote    = m.displayInTodaysDollars ? " (in today's dollars)" : "";
       parts.push(m.onTrack
-        ? `Under the ${scenarioLabel} scenario, super is projected to reach ${currency(m.projectedSuper)} at age ${retireAge}, ${currency(m.superSurplus)} ahead of the modelled retirement target.`
-        : `Under the ${scenarioLabel} scenario, super is projected to reach ${currency(m.projectedSuper)} at age ${retireAge}, ${currency(Math.abs(m.superSurplus))} below what's needed to fund the retirement spending target entered.`);
+        ? `Under the ${scenarioLabel} scenario, super is projected to reach ${currency(superDisp)}${todayNote} at age ${retireAge}, ${currency(surplusDisp)} ahead of the modelled retirement target.`
+        : `Under the ${scenarioLabel} scenario, super is projected to reach ${currency(superDisp)}${todayNote} at age ${retireAge}, ${currency(Math.abs(surplusDisp))} below what's needed to fund the retirement spending target entered.`);
     }
     sections.push({ title: "Financial position", color: "#2E4A3D", text: parts.join(" ") });
   }
@@ -1155,9 +1201,14 @@ function AnalysisSummary({ data, engine }) {
         : `Targeting retirement from age ${retireAge}, spending ${currency(dd.futureSpending)}/year (${currency(baseSpend)}/year in today's dollars${inflationNote}).`;
       parts.push(spendSentence);
       if (m?.lastsToLifeExpectancy) {
-        parts.push(`Projected super of ${currency(m.projectedSuper)} is sufficient to fund spending all the way to age ${lifeExp}, the full life expectancy modelled.`);
+        const superDisp = m.displayInTodaysDollars ? m.projectedSuperReal : m.projectedSuper;
+        const todayNote = m.displayInTodaysDollars ? " (in today's dollars)" : "";
+        parts.push(`Projected super of ${currency(superDisp)}${todayNote} is sufficient to fund spending all the way to age ${lifeExp}, the full life expectancy modelled.`);
       } else if (m?.depletionAge) {
-        parts.push(`This scenario projects super of ${currency(m.projectedSuper)} exhausted at age ${m.depletionAge}, ${m.depletionAge - retireAge} years into retirement. The modelled gap is ${currency(Math.abs(m?.superSurplus || 0))}. Adjusting the scenario assumptions, contributions, or spending target will change this outcome.`);
+        const superDisp   = m.displayInTodaysDollars ? m.projectedSuperReal : m.projectedSuper;
+        const surplusDisp = m.displayInTodaysDollars ? m.superSurplusReal   : m.superSurplus;
+        const todayNote   = m.displayInTodaysDollars ? " (in today's dollars)" : "";
+        parts.push(`This scenario projects super of ${currency(superDisp)}${todayNote} exhausted at age ${m.depletionAge}, ${m.depletionAge - retireAge} years into retirement. The modelled gap is ${currency(Math.abs(surplusDisp))}. Adjusting the scenario assumptions, contributions, or spending target will change this outcome.`);
       }
       if (mc) {
         const confidence = mc.successRate >= 85 ? "a strong result" : mc.successRate >= 70 ? "a zone worth monitoring" : "an area that needs attention";
@@ -1166,7 +1217,9 @@ function AnalysisSummary({ data, engine }) {
     } else {
       const combinedNote = couple && n(data.partnerSuperBalance) > 0
         ? ` (${currency(n(data.superBalance) + n(data.partnerSuperBalance))} combined)` : "";
-      parts.push(`Current super of ${currency(n(data.superBalance))}${combinedNote} is projected to reach ${currency(m?.projectedSuper || 0)} by age ${retireAge}. Enter a retirement spending target in the Super & Goals stage to unlock the full funded-to-age and Monte Carlo analysis.`);
+      const superDisp = m?.displayInTodaysDollars ? (m.projectedSuperReal || 0) : (m?.projectedSuper || 0);
+      const todayNote = m?.displayInTodaysDollars ? " (in today's dollars)" : "";
+      parts.push(`Current super of ${currency(n(data.superBalance))}${combinedNote} is projected to reach ${currency(superDisp)}${todayNote} by age ${retireAge}. Enter a retirement spending target in the Super & Goals stage to unlock the full funded-to-age and Monte Carlo analysis.`);
     }
     if (concCapHeadroom > 5000) {
       parts.push(`${currency(Math.round(concCapHeadroom))} of the $30,000 concessional cap remains unused based on inputs entered (SG plus salary sacrifice entered so far).`);
@@ -1180,7 +1233,7 @@ function AnalysisSummary({ data, engine }) {
       }
     }
     if (m?.capExceeded) {
-      parts.push(`Projected super of ${currency(m.projectedSuper)} exceeds the Transfer Balance Cap ($1.9M). The excess stays in accumulation phase (earnings taxed at 15%). Pension-phase structuring above the Transfer Balance Cap is a specialist area; an AFSL-licensed adviser can model strategies specific to your circumstances.`);
+      parts.push(`Projected super of ${currency(m.displayInTodaysDollars ? m.projectedSuperReal : m.projectedSuper)} exceeds the Transfer Balance Cap ($1.9M). The excess stays in accumulation phase (earnings taxed at 15%). Pension-phase structuring above the Transfer Balance Cap is a specialist area; an AFSL-licensed adviser can model strategies specific to your circumstances.`);
     }
     sections.push({ title: "Superannuation & retirement", color: "#5a7840", text: parts.join(" ") });
   }
@@ -1213,7 +1266,7 @@ function AnalysisSummary({ data, engine }) {
   if (hasSuperData && concCapHeadroom > 5000)
     adviserPoints.push(`Salary sacrifice and concessional contributions: ${currency(Math.round(concCapHeadroom))} of unused cap this year`);
   if (hasSuperData && m && !m.onTrack && hasTarget)
-    adviserPoints.push(`Strategies to close the ${currency(Math.abs(m.superSurplus))} retirement gap: contributions timing, retirement age, or spending adjustments`);
+    adviserPoints.push(`Strategies to close the ${currency(Math.abs(m.displayInTodaysDollars ? m.superSurplusReal : m.superSurplus))} retirement gap: contributions timing, retirement age, or spending adjustments`);
   if (engine?.householdTax?.person1?.mls > 0 || engine?.householdTax?.person2?.mls > 0)
     adviserPoints.push("Medicare Levy Surcharge: taking out hospital-level private health cover would eliminate this charge and may be cost-effective");
   if (engine?.householdTax?.person1?.division293 > 0 || engine?.householdTax?.person2?.division293 > 0)
@@ -1481,7 +1534,11 @@ function AssumptionsRegister({ engine }) {
             </div>
           ))}
           <div style={{ fontSize: 11, color: "#8A8270", lineHeight: 1.5, marginTop: 4, paddingTop: 12, borderTop: "1px solid #ECE7DB" }}>
-            Assumptions are reviewed periodically. Projections are illustrative. Actual outcomes will differ. This is general information only and does not constitute financial advice.
+            Assumptions are reviewed periodically. Projections are illustrative. Actual outcomes will differ.
+            {engine?.metrics?.displayInTodaysDollars
+              ? " Super projections are in today's dollars, deflated at 3.7% p.a. (accumulation) and 2.5% p.a. (retirement) per ASIC Instrument 2022/603."
+              : " Super projections are in future (nominal) dollars."}
+            {" "}This is general information only and does not constitute financial advice.
           </div>
         </div>
       )}
@@ -1566,7 +1623,7 @@ function AnalysisScreen({ data, set }) {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div style={{ fontSize: 12, color: "#6B6655" }}>
-          Model different market conditions — conservative stress-tests a poor return sequence, aggressive models strong growth.
+          Model different market conditions. The ASIC scenario uses prescribed defaults from ASIC Instrument 2022/603 and shows projections in today's dollars.
         </div>
         {can(FEATURES.CUSTOM_ASSUMPTIONS) ? (
           <button
@@ -1608,9 +1665,10 @@ function AnalysisScreen({ data, set }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
         {[
-          { key: "base", label: "Base: most likely case" },
+          { key: "base",         label: "Base: most likely case" },
           { key: "conservative", label: "Conservative: stress test" },
-          { key: "aggressive", label: "Aggressive: upside case" },
+          { key: "aggressive",   label: "Aggressive: upside case" },
+          { key: "asic",         label: "ASIC 2025: regulatory defaults" },
         ].map(s => (
           <ScenarioPanel
             key={s.key}
@@ -1796,21 +1854,24 @@ function AnalysisScreen({ data, set }) {
       <AnalysisSummary data={derivedData} engine={engine} />
       <AssumptionsRegister engine={engine} data={derivedData} />
       <div style={{ marginTop: 24, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <PremiumGate featureId={FEATURES.PDF_EXPORT} label="Download PDF report">
-          <button onClick={() => window.print()} style={{
+        <button
+          onClick={() => can(FEATURES.PDF_EXPORT) ? window.print() : openPricing()}
+          style={{
             padding: "10px 20px", border: "none", borderRadius: 10,
             background: "#C2A06B", color: "#2A2113", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-          }}>Download PDF Report</button>
-        </PremiumGate>
-        <PremiumGate featureId={FEATURES.CSV_EXPORT} label="Download projection CSV">
-          <button
-            onClick={() => exportProjectionCsv(derivedData, engine, can(FEATURES.SCENARIO_COMPARE))}
-            style={{
-              padding: "10px 20px", border: "1.5px solid #D8D2C4", borderRadius: 10,
-              background: "#FBFAF6", color: "#2E4A3D", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-            }}
-          >Download Projection CSV</button>
-        </PremiumGate>
+          }}
+        >
+          {can(FEATURES.PDF_EXPORT) ? "Download PDF Report" : "🔒 Download PDF Report"}
+        </button>
+        <button
+          onClick={() => can(FEATURES.CSV_EXPORT) ? exportProjectionCsv(derivedData, engine, can(FEATURES.SCENARIO_COMPARE)) : openPricing()}
+          style={{
+            padding: "10px 20px", border: "1.5px solid #D8D2C4", borderRadius: 10,
+            background: "#FBFAF6", color: "#2E4A3D", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          {can(FEATURES.CSV_EXPORT) ? "Download Projection CSV" : "🔒 Download Projection CSV"}
+        </button>
       </div>
     </div>
   );

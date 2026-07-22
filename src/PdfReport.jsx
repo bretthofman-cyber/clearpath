@@ -367,7 +367,7 @@ function FinancialPositionPage({ data, engine }) {
 
   const cards = [
     m?.fireNumber         && { label: "FIRE Number",        value: fmtFull(m.fireNumber),       sub: "Target net worth at retirement" },
-    m?.projectedSuper     && { label: "Projected Super",    value: fmtFull(m.projectedSuper),   sub: `At age ${data.retirementAge}` },
+    m?.projectedSuper     && { label: "Projected Super",    value: fmtFull(m.displayInTodaysDollars ? m.projectedSuperReal : m.projectedSuper),   sub: `At age ${data.retirementAge}${m.displayInTodaysDollars ? " · today's $" : ""}` },
     engine?.mortgage?.debtFreeYear && { label: "Debt-Free Year", value: String(engine.mortgage.debtFreeYear), sub: "PPOR mortgage cleared" },
     last?.netWorth != null && { label: "Net Worth at " + last?.age, value: fmtFull(last?.netWorth), sub: "End of projection" },
   ].filter(Boolean);
@@ -419,7 +419,7 @@ function RetirementPage({ data, engine }) {
 
   const outcomes = [
     spending > 0      && { label: "Annual retirement spending",   value: fmtFull(spending) },
-    m?.projectedSuper && { label: "Projected super at retirement", value: fmtFull(m.projectedSuper) },
+    m?.projectedSuper && { label: `Projected super at retirement${m.displayInTodaysDollars ? " (today's dollars)" : ""}`, value: fmtFull(m.displayInTodaysDollars ? m.projectedSuperReal : m.projectedSuper) },
     m?.fireNumber     && { label: "Required FIRE number",         value: fmtFull(m.fireNumber) },
     m?.depletionAge   && m.depletionAge < lifeExp
       ? { label: "Estimated balance depletion", value: `Age ${m.depletionAge}`, warn: true }
@@ -503,8 +503,12 @@ function RetirementPage({ data, engine }) {
       }}>
         Projections assume consistent market returns, inflation, and contribution rates over the
         modelling period. Actual outcomes depend on market volatility, legislative changes,
-        personal circumstances, and decisions not captured in this model. All figures are nominal
-        (not inflation-adjusted). Review your projections annually with a licensed financial adviser.
+        personal circumstances, and decisions not captured in this model.{" "}
+        {m?.displayInTodaysDollars
+          ? "Super projections are in today's dollars, deflated at 3.7% p.a. (accumulation) and 2.5% p.a. (retirement) per ASIC Instrument 2022/603. Net worth and property figures are in nominal dollars."
+          : "Super, net worth, and property figures are in nominal (future) dollars."
+        }{" "}
+        Review your projections annually with a licensed financial adviser.
       </div>
     </div>
   );

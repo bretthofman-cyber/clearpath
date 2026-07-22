@@ -20,12 +20,54 @@ import {
 } from "./ausConfig.js";
 import { indexEventsByYear, getYearEventAdjustments } from "./lifeEvents.js";
 
+// ── REGULATORY PRESETS ────────────────────────────────────────────────────────
+// Versioned so that a 2027 ASIC review can add a new entry without altering saved plans.
+
+export const REGULATORY_PRESETS = {
+  "ASIC_2022_603_v1": {
+    label:               "ASIC 2025 Defaults",
+    instrument:          "ASIC Corporations (Superannuation Calculators and Retirement Estimates) Instrument 2022/603",
+    nextReview:          "2027",
+    inflationAccumulation: 3.7,  // % p.a. — wage inflation (RG 276.191, Treasury IGR 2023)
+    inflationRetirement:   2.5,  // % p.a. — CPI, RBA midpoint target (RG 276.192)
+  },
+};
+
+export const CURRENT_ASIC_PRESET = "ASIC_2022_603_v1";
+
+// Convert a nominal future value to today's dollars.
+// inflationAccumulation / inflationRetirement are annual % (not decimals).
+export function toTodaysDollars(
+  nominal,
+  yearsAccumulation,
+  yearsRetirement    = 0,
+  inflationAccumulation = REGULATORY_PRESETS[CURRENT_ASIC_PRESET].inflationAccumulation,
+  inflationRetirement   = REGULATORY_PRESETS[CURRENT_ASIC_PRESET].inflationRetirement,
+) {
+  const deflator = Math.pow(1 + inflationAccumulation / 100, yearsAccumulation) *
+                   Math.pow(1 + inflationRetirement   / 100, yearsRetirement);
+  return deflator > 0 ? Math.round(nominal / deflator) : nominal;
+}
+
 // ── PLANNING SCENARIOS ────────────────────────────────────────────────────────
 
 export const DEFAULT_SCENARIOS = {
   base:         { returnRate: 6.5, inflation: 2.5, propertyGrowth: 4.5, rentalGrowth: 3.0, safeWithdrawal: 4.0 },
   conservative: { returnRate: 5.5, inflation: 3.0, propertyGrowth: 3.5, rentalGrowth: 2.5, safeWithdrawal: 4.0 },
   aggressive:   { returnRate: 7.5, inflation: 2.0, propertyGrowth: 5.5, rentalGrowth: 3.5, safeWithdrawal: 4.0 },
+  // ASIC Instrument 2022/603 prescribed defaults — projection shown in today's dollars.
+  // returnRate is provider-set (RG 276.124); inflation rates are prescribed (RG 276.188).
+  asic: {
+    returnRate:            6.5,
+    inflation:             2.5,   // CPI — used for retirement drawdown growth rate
+    inflationAccumulation: 3.7,   // wage inflation — prescribed by ASIC Instrument 2022/603
+    inflationRetirement:   2.5,   // CPI — prescribed by ASIC Instrument 2022/603
+    propertyGrowth:        4.5,
+    rentalGrowth:          3.0,
+    safeWithdrawal:        4.0,
+    regulatoryPreset:      CURRENT_ASIC_PRESET,
+    displayInTodaysDollars: true,
+  },
 };
 
 export function getActiveAssumptions(data) {
@@ -1132,7 +1174,12 @@ export function runEngine(data, { skipMonteCarlo = false, skipAdvancedTax = fals
       lastsToLifeExpectancy: drawdown.lastsToLifeExpectancy,
       debtFreeYear:          mortgage?.debtFreeYear   ?? null,
       projectedSuper:        superResult.projectedBalance,
+      projectedSuperReal:    toTodaysDollars(superResult.projectedBalance, yearsToRet, 0, assumptions.inflationAccumulation, assumptions.inflationRetirement),
       requiredSuper:         drawdown.requiredBalance,
+      requiredSuperReal:     toTodaysDollars(drawdown.requiredBalance, yearsToRet, 0, assumptions.inflationAccumulation, assumptions.inflationRetirement),
+      superSurplusReal:      toTodaysDollars(drawdown.surplus, yearsToRet, 0, assumptions.inflationAccumulation, assumptions.inflationRetirement),
+      displayInTodaysDollars: !!assumptions.displayInTodaysDollars,
+      regulatoryPreset:      assumptions.regulatoryPreset ?? null,
       annualHouseholdTax:    householdTax.totalHouseholdTax,
       annualAfterTax:        householdTax.totalAfterTax,
       negativeGearingBenefit: householdTax.negativeGearingBenefit,
