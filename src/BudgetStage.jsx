@@ -384,9 +384,6 @@ export function CashflowCalendar({ items, netMonthly, startingCash = 0, compact 
 // ─── BUDGET ITEM ROW ─────────────────────────────────────────────────────────
 
 // Frequency cycle order for BudgetItem toggle
-const FREQ_CYCLE = { monthly: "quarterly", quarterly: "annual", annual: "monthly" };
-const FREQ_LABEL = { monthly: "Mo", quarterly: "Qtr", annual: "Yr" };
-
 function MonthInput({ label, value, onChange }) {
   const [focused, setFocused] = useState(false);
   const num = parseFloat(String(value || "").replace(/,/g, "")) || 0;
@@ -416,23 +413,32 @@ function MonthInput({ label, value, onChange }) {
   );
 }
 
+const ITEM_MODES = [
+  { key: "monthly",   label: "Mo"  },
+  { key: "seasonal",  label: "≈"   },
+  { key: "quarterly", label: "Qtr" },
+  { key: "annual",    label: "Yr"  },
+];
+
 function BudgetItem({ item, onUpdate, onRemove }) {
   const monthly      = itemMonthly(item);
   const freq         = item.frequency || "monthly";
-  const isNonMonthly = freq !== "monthly";
-  const nextFreq     = FREQ_CYCLE[freq] || "monthly";
+  const isNonMonthly = !item.seasonal && freq !== "monthly";
 
-  function toggleSeasonal() {
-    if (item.seasonal) {
-      const avg = String(Math.round(monthly) || "");
-      onUpdate(item.id, { seasonal: false, monthlyAmounts: null, amount: avg, frequency: "monthly" });
-    } else {
+  function handleModeChange(key) {
+    if (key === "seasonal") {
+      if (item.seasonal) return;
       const cur = String(Math.round(monthly) || "");
       onUpdate(item.id, { seasonal: true, monthlyAmounts: Array(12).fill(cur), frequency: "monthly" });
+    } else {
+      const updates = { seasonal: false, monthlyAmounts: null, frequency: key };
+      if (item.seasonal) updates.amount = String(Math.round(monthly) || "");
+      if (key === "monthly") updates.month = null;
+      onUpdate(item.id, updates);
     }
   }
 
-  function updateMonth(idx, value) {
+  function updateMonthAmount(idx, value) {
     const next = [...(item.monthlyAmounts || Array(12).fill(""))];
     next[idx] = value;
     onUpdate(item.id, { monthlyAmounts: next });
@@ -452,37 +458,31 @@ function BudgetItem({ item, onUpdate, onRemove }) {
     >×</button>
   );
 
-  const seasonalBtn = (
-    <button
-      onClick={toggleSeasonal}
-      title={item.seasonal ? "Back to single amount" : "Vary amount by month"}
-      style={{
-        flexShrink: 0, padding: "6px 9px", border: "1.5px solid",
-        borderColor: item.seasonal ? "#C2A06B" : "#D8D2C4", borderRadius: 7,
-        fontSize: 11, fontWeight: 600,
-        color: item.seasonal ? "#7A5C2A" : "#8A8270",
-        background: item.seasonal ? "#FDF4E7" : "#FBFAF6",
-        cursor: "pointer", fontFamily: "inherit",
-      }}
-    >≈</button>
+  const modeGroup = (
+    <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+      {ITEM_MODES.map(({ key, label }) => {
+        const active = key === "seasonal" ? !!item.seasonal : (!item.seasonal && freq === key);
+        const isSeasonal = key === "seasonal";
+        return (
+          <button
+            key={key}
+            onClick={() => handleModeChange(key)}
+            title={key === "seasonal" ? "Vary amount by month" : key === "quarterly" ? "Quarterly" : key === "annual" ? "Yearly" : "Monthly"}
+            style={{
+              padding: "6px 7px", border: "1.5px solid",
+              borderColor: active ? (isSeasonal ? "#C2A06B" : "#2E4A3D") : "#D8D2C4",
+              borderRadius: 7, fontSize: 11, fontWeight: 600,
+              color: active ? (isSeasonal ? "#7A5C2A" : "#2E4A3D") : "#8A8270",
+              background: active ? (isSeasonal ? "#FDF4E7" : "#EAF0EC") : "#FBFAF6",
+              cursor: "pointer", fontFamily: "inherit",
+            }}
+          >{label}</button>
+        );
+      })}
+    </div>
   );
 
-  const freqBtn = (
-    <button
-      onClick={() => onUpdate(item.id, { frequency: nextFreq, month: nextFreq === "monthly" ? null : item.month })}
-      title={`Frequency: ${freq}. Click to cycle Mo → Qtr → Yr`}
-      style={{
-        flexShrink: 0, padding: "6px 9px", border: "1.5px solid",
-        borderColor: isNonMonthly ? "#2E4A3D" : "#D8D2C4", borderRadius: 7,
-        fontSize: 11, fontWeight: 600,
-        color: isNonMonthly ? "#2E4A3D" : "#8A8270",
-        background: isNonMonthly ? "#EAF0EC" : "#FBFAF6",
-        cursor: "pointer", fontFamily: "inherit",
-      }}
-    >{FREQ_LABEL[freq]}</button>
-  );
-
-  // ── Seasonal: 12-month grid ──────────────────────────────────────────────────
+  // ── Seasonal: header + 12-month grid ────────────────────────────────────────
   if (item.seasonal) {
     const amounts = item.monthlyAmounts || Array(12).fill("");
     return (
@@ -496,19 +496,19 @@ function BudgetItem({ item, onUpdate, onRemove }) {
               avg {currency(monthly)}/mo
             </div>
           )}
-          {seasonalBtn}
+          {modeGroup}
           {removeBtn}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "4px 6px" }}>
           {MONTH_SHORT.map((m, idx) => (
-            <MonthInput key={m} label={m} value={amounts[idx] || ""} onChange={v => updateMonth(idx, v)} />
+            <MonthInput key={m} label={m} value={amounts[idx] || ""} onChange={v => updateMonthAmount(idx, v)} />
           ))}
         </div>
       </div>
     );
   }
 
-  // ── Non-monthly (Qtr / Yr): two-row layout so label always has full width ──
+  // ── Non-monthly (Qtr / Yr): two-row layout ───────────────────────────────────
   if (isNonMonthly) {
     return (
       <div style={{ padding: "8px 14px", borderBottom: "1px solid #F5F2EB", background: "white" }}>
@@ -527,8 +527,7 @@ function BudgetItem({ item, onUpdate, onRemove }) {
           <div style={{ flex: 1 }}>
             <Input value={item.amount} onChange={v => onUpdate(item.id, { amount: v })} placeholder="0" prefix="$" />
           </div>
-          {freqBtn}
-          {seasonalBtn}
+          {modeGroup}
           <select
             value={item.month || ""}
             onChange={e => onUpdate(item.id, { month: e.target.value ? parseInt(e.target.value) : null })}
@@ -551,7 +550,7 @@ function BudgetItem({ item, onUpdate, onRemove }) {
     );
   }
 
-  // ── Monthly: compact single-row layout ────────────────────────────────────
+  // ── Monthly: compact single-row layout ───────────────────────────────────────
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 8,
@@ -560,11 +559,10 @@ function BudgetItem({ item, onUpdate, onRemove }) {
       <div style={{ flex: 1, fontSize: 15, color: "#21241E", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {item.label}
       </div>
-      <div style={{ width: 100, flexShrink: 0 }}>
+      <div style={{ width: 75, flexShrink: 0 }}>
         <Input value={item.amount} onChange={v => onUpdate(item.id, { amount: v })} placeholder="0" prefix="$" />
       </div>
-      {freqBtn}
-      {seasonalBtn}
+      {modeGroup}
       {removeBtn}
     </div>
   );
