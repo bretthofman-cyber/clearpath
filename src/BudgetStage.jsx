@@ -169,10 +169,11 @@ export function buildCashflowCalendar(items, netMonthlyIncome, startingCash = 0)
   });
 }
 
-function newItem(categoryKey, label, amount = "", frequency = "monthly", month = null) {
+function newItem(categoryKey, label, amount = "", frequency = "monthly", month = null, seasonal = false, monthlyAmounts = null) {
   return {
     id: `item_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     categoryKey, label, amount, frequency, month,
+    ...(seasonal ? { seasonal: true, monthlyAmounts } : {}),
   };
 }
 
@@ -623,10 +624,40 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
     setQueue(q => q.filter(i => i.id !== id));
   }
 
+  function handleQueueModeChange(id, key) {
+    const item = queue.find(i => i.id === id);
+    if (!item) return;
+    if (key === "seasonal") {
+      if (item.seasonal) return;
+      const cur = String(parseFloat(item.amount) || "");
+      updateQueueItem(id, { seasonal: true, monthlyAmounts: Array(12).fill(cur), frequency: "monthly" });
+    } else {
+      const updates = { seasonal: false, monthlyAmounts: null, frequency: key };
+      if (item.seasonal) {
+        const avg = (item.monthlyAmounts || []).reduce((s, v) => s + (parseFloat(v) || 0), 0) / 12;
+        updates.amount = String(Math.round(avg) || "");
+      }
+      if (key === "monthly") updates.month = null;
+      updateQueueItem(id, updates);
+    }
+  }
+
+  function updateQueueMonthAmount(id, idx, value) {
+    const item = queue.find(i => i.id === id);
+    if (!item) return;
+    const next = [...(item.monthlyAmounts || Array(12).fill(""))];
+    next[idx] = value;
+    updateQueueItem(id, { monthlyAmounts: next });
+  }
+
   function commit() {
     if (queue.length === 0) return;
-    onAdd(queue.map(({ label, amount, frequency, month }) => ({
-      label, amount, frequency, month: frequency !== "monthly" ? month : null,
+    onAdd(queue.map(({ label, amount, frequency, month, seasonal, monthlyAmounts }) => ({
+      label, amount,
+      frequency: seasonal ? "monthly" : frequency,
+      month: (!seasonal && frequency !== "monthly") ? month : null,
+      seasonal: !!seasonal,
+      monthlyAmounts: seasonal ? monthlyAmounts : null,
     })));
   }
 
@@ -692,77 +723,115 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
         <div style={{ flex: 1, height: 1, background: "#ECE7DB" }} />
       </div>
 
-      {queue.map(item => (
-        <div key={item.id} style={{
-          background: "#F5F2EB", border: "1px solid #ECE7DB",
-          borderRadius: 10, padding: "10px 12px", marginBottom: 8,
-        }}>
-          {/* Label + remove */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <div style={{ fontSize: 15, fontWeight: 500, color: "#21241E", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {item.label}
-            </div>
-            <button
-              onClick={() => removeQueueItem(item.id)}
-              style={{ border: "none", background: "none", color: "#D8D2C4", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 0 0 8px", flexShrink: 0 }}
-              onMouseEnter={e => e.currentTarget.style.color = "#9a3922"}
-              onMouseLeave={e => e.currentTarget.style.color = "#D8D2C4"}
-            >×</button>
+      {queue.map(item => {
+        const qFreq    = item.frequency || "monthly";
+        const qAvg     = item.seasonal && Array.isArray(item.monthlyAmounts)
+          ? (item.monthlyAmounts.reduce((s, v) => s + (parseFloat(v) || 0), 0) / 12)
+          : (parseFloat(item.amount) || 0);
+
+        const qModeGroup = (
+          <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+            {ITEM_MODES.map(({ key, label }) => {
+              const active = key === "seasonal" ? !!item.seasonal : (!item.seasonal && qFreq === key);
+              const isSeasonal = key === "seasonal";
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleQueueModeChange(item.id, key)}
+                  title={key === "seasonal" ? "Vary amount by month" : key === "quarterly" ? "Quarterly" : key === "annual" ? "Yearly" : "Monthly"}
+                  style={{
+                    padding: "8px 7px", border: "1.5px solid",
+                    borderColor: active ? (isSeasonal ? "#C2A06B" : "#2E4A3D") : "#D8D2C4",
+                    borderRadius: 8, fontSize: 12, fontWeight: active ? 600 : 400,
+                    color: active ? (isSeasonal ? "#7A5C2A" : "#2E4A3D") : "#8A8270",
+                    background: active ? (isSeasonal ? "#FDF4E7" : "#EAF0EC") : "white",
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >{label}</button>
+              );
+            })}
           </div>
-          {/* Amount + Mo/Yr + month select */}
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            {/* Amount input */}
-            <div style={{ position: "relative", flex: 1 }}>
-              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "#6B6655", pointerEvents: "none" }}>$</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={item.amount}
-                onChange={e => updateQueueItem(item.id, { amount: e.target.value })}
-                placeholder="0"
-                style={{
-                  width: "100%", padding: "9px 10px 9px 24px",
-                  border: "1.5px solid #D8D2C4", borderRadius: 8,
-                  fontSize: 16, color: "#21241E", background: "white",
-                  outline: "none", fontFamily: "inherit", boxSizing: "border-box",
-                }}
-                onFocus={e => e.target.style.borderColor = "#2E4A3D"}
-                onBlur={e => e.target.style.borderColor = "#D8D2C4"}
-              />
+        );
+
+        return (
+          <div key={item.id} style={{
+            background: "#F5F2EB", border: "1px solid #ECE7DB",
+            borderRadius: 10, padding: "10px 12px", marginBottom: 8,
+          }}>
+            {/* Label + avg/mo (seasonal) + remove */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: "#21241E", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {item.label}
+              </div>
+              {item.seasonal && qAvg > 0 && (
+                <div style={{ fontSize: 10, color: "#9DB0A1", whiteSpace: "nowrap", marginLeft: 6, flexShrink: 0 }}>
+                  avg {currency(qAvg)}/mo
+                </div>
+              )}
+              <button
+                onClick={() => removeQueueItem(item.id)}
+                style={{ border: "none", background: "none", color: "#D8D2C4", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 0 0 8px", flexShrink: 0 }}
+                onMouseEnter={e => e.currentTarget.style.color = "#9a3922"}
+                onMouseLeave={e => e.currentTarget.style.color = "#D8D2C4"}
+              >×</button>
             </div>
-            {/* Mo / Qtr / Yr */}
-            {[{ val: "monthly", short: "Mo" }, { val: "quarterly", short: "Qtr" }, { val: "annual", short: "Yr" }].map(({ val, short }) => (
-              <button key={val} onClick={() => updateQueueItem(item.id, { frequency: val, month: val === "monthly" ? null : item.month })} style={{
-                padding: "9px 8px", border: "1.5px solid",
-                borderColor: item.frequency === val ? "#2E4A3D" : "#D8D2C4",
-                borderRadius: 8, fontSize: 12, fontWeight: item.frequency === val ? 600 : 400,
-                color: item.frequency === val ? "#2E4A3D" : "#8A8270",
-                background: item.frequency === val ? "#EAF0EC" : "white",
-                cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
-              }}>{short}</button>
-            ))}
-            {/* Month select — for annual (exact month) or quarterly (start month, repeats ×4) */}
-            {item.frequency !== "monthly" && (
-              <select
-                value={item.month || ""}
-                onChange={e => updateQueueItem(item.id, { month: e.target.value ? parseInt(e.target.value) : null })}
-                style={{
-                  flexShrink: 0, padding: "9px 6px", width: 58,
-                  border: `1.5px solid ${item.month ? "#2E4A3D" : "#D8D2C4"}`,
-                  borderRadius: 8, fontSize: 12,
-                  color: item.month ? "#2E4A3D" : "#8A8270",
-                  background: item.month ? "#EAF0EC" : "white",
-                  outline: "none", fontFamily: "inherit", cursor: "pointer",
-                  appearance: "none", textAlign: "center",
-                }}
-              >
-                <option value="">Mo?</option>
-                {MONTH_SHORT.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-              </select>
+
+            {item.seasonal ? (
+              /* Seasonal: mode group + 12-month grid */
+              <div>
+                <div style={{ marginBottom: 8 }}>{qModeGroup}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "4px 6px" }}>
+                  {MONTH_SHORT.map((m, idx) => (
+                    <MonthInput key={m} label={m} value={(item.monthlyAmounts || [])[idx] || ""} onChange={v => updateQueueMonthAmount(item.id, idx, v)} />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Non-seasonal: amount input + mode group + month picker */
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div style={{ position: "relative", flex: 1 }}>
+                  <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "#6B6655", pointerEvents: "none" }}>$</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={item.amount}
+                    onChange={e => updateQueueItem(item.id, { amount: e.target.value })}
+                    placeholder="0"
+                    style={{
+                      width: "100%", padding: "9px 10px 9px 24px",
+                      border: "1.5px solid #D8D2C4", borderRadius: 8,
+                      fontSize: 16, color: "#21241E", background: "white",
+                      outline: "none", fontFamily: "inherit", boxSizing: "border-box",
+                    }}
+                    onFocus={e => e.target.style.borderColor = "#2E4A3D"}
+                    onBlur={e => e.target.style.borderColor = "#D8D2C4"}
+                  />
+                </div>
+                {qModeGroup}
+                {qFreq !== "monthly" && (
+                  <select
+                    value={item.month || ""}
+                    onChange={e => updateQueueItem(item.id, { month: e.target.value ? parseInt(e.target.value) : null })}
+                    title={qFreq === "quarterly" ? "First payment month (repeats every 3 months)" : "Month this falls due"}
+                    style={{
+                      flexShrink: 0, padding: "9px 6px", width: 58,
+                      border: `1.5px solid ${item.month ? "#2E4A3D" : "#D8D2C4"}`,
+                      borderRadius: 8, fontSize: 12,
+                      color: item.month ? "#2E4A3D" : "#8A8270",
+                      background: item.month ? "#EAF0EC" : "white",
+                      outline: "none", fontFamily: "inherit", cursor: "pointer",
+                      appearance: "none", textAlign: "center",
+                    }}
+                  >
+                    <option value="">Mo?</option>
+                    {MONTH_SHORT.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                  </select>
+                )}
+              </div>
             )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 
@@ -916,9 +985,8 @@ export default function Stage2({ data, setMany }) {
   const fyInfo = getFYInfo(startMonth);
 
   function addItems(categoryKey, newItemsList) {
-    // newItemsList: [{label, amount, frequency, month}]
-    const toAdd = newItemsList.map(({ label, amount, frequency, month }) =>
-      newItem(categoryKey, label, amount, frequency, month)
+    const toAdd = newItemsList.map(({ label, amount, frequency, month, seasonal, monthlyAmounts }) =>
+      newItem(categoryKey, label, amount, frequency, month, seasonal, monthlyAmounts)
     );
     const updated = [...items, ...toAdd];
     setMany({ budgetItems: updated, monthlyExpenses: String(Math.round(budgetTotal(updated))) });
