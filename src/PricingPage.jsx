@@ -29,7 +29,7 @@ const PREMIUM_FEATURES = [
   "Debt recycling strategy",
   "Strategy Centre",
   "PDF export",
-  "CSV export (coming soon)",
+  "CSV export",
 ];
 
 export default function PricingPage({ onClose, user }) {
