@@ -1215,7 +1215,7 @@ export default function IndependentMeans() {
       {(data.grossIncome || data.superBalance || (data.assetItems || []).length > 0) && (
         <div className="no-print metrics-bar" style={{ background: "#2E4A3D", padding: "10px 28px", display: "flex", gap: 24, overflowX: "auto" }}>
           {[
-            { label: "Net Worth", value: currency(netWorth) },
+            { label: data.hasPartner === "yes" ? "Couple Net Worth" : "Net Worth", value: currency(netWorth) },
             { label: "Super", value: currency(combinedSuper) },
             { label: "Monthly Savings", value: currency(data.savingsPerMonth) },
             { label: "Emergency Runway", value: runway === "—" ? "—" : (runway + " mo") },
