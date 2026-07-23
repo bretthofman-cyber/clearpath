@@ -53,6 +53,7 @@ const EMPTY_DATA = {
   budgetItems: [],
   // Stage 3
   assetItems: [],
+  assetContributions: [],
   emergencyFund: "",
   // Stage 4
   ppOrValue: "", ppOrOwnershipPct: "100",
@@ -162,6 +163,7 @@ function parseData(parsed) {
       investmentProperties,
       budgetItems,
       assetItems,
+      assetContributions: parsed.assetContributions || [],
       goals,
       customAssumptions: {
         base:         { ...DEFAULT_SCENARIOS.base,         ...(parsed.customAssumptions?.base         || {}) },

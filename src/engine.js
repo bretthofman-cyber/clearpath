@@ -19,6 +19,7 @@ import {
   HELP_THRESHOLDS, DIV_293, SUPER, ABP_DRAWDOWN, AGE_PENSION,
 } from "./ausConfig.js";
 import { indexEventsByYear, getYearEventAdjustments } from "./lifeEvents.js";
+import { annualContribsForYear } from "./assetUtils.js";
 
 // ── REGULATORY PRESETS ────────────────────────────────────────────────────────
 // Versioned so that a 2027 ASIC review can add a new entry without altering saved plans.
@@ -836,6 +837,7 @@ export function netWorthTrajectory(data, assumptions, householdTax) {
   const annualSuperIn = (concess1 + concess2) * (1 - SUPER.contribTaxRate);
 
   const targetSpending = p(data.targetRetirementSpending);
+  const retirYear = currentYear + Math.max(0, retirementAge - currentAge);
 
   const mortgageMonthlyRate   = p(data.mortgageRate) / 100 / 12;
   const mortStartYear         = p(data.mortgageStartYear) || currentYear;
@@ -894,7 +896,8 @@ export function netWorthTrajectory(data, assumptions, householdTax) {
 
       // IP net cashflow + negative gearing benefit + franking refund + debt recycling saving
       // Outside-super insurance premiums reduce liquid savings; inside-super premiums reduce super balance
-      liquid   = liquid * (1 + r) + effectiveSavings + ipNetAnnualCF + negGearBenefit + frankingRefund + drTaxSaving - liquidInsurance;
+      const annualContribs = annualContribsForYear(data.assetContributions, nextCalYear, retirYear);
+      liquid   = liquid * (1 + r) + effectiveSavings + ipNetAnnualCF + negGearBenefit + frankingRefund + drTaxSaving - liquidInsurance + annualContribs;
       superBal = superBal * (1 + r) + effectiveSuperIn - superInsurance;
     } else {
       const withdrawal = targetSpending * Math.pow(1 + inf, y);

@@ -2,6 +2,7 @@
 // Fonts: Georgia (≈ Spectral) for headings/totals · Calibri for body (Excel default)
 import { BUDGET_CATS } from "./budgetCats.js";
 import { itemMonthly } from "./BudgetStage.jsx";
+import { contribMonthly, contribAmountForMonth } from "./assetUtils.js";
 
 const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -254,6 +255,66 @@ export async function exportBudgetXlsx(data, startMonth = 7) {
       r++;
     });
   });
+
+  // ── Asset Contributions ──────────────────────────────────────────────────
+  const ASSET_CAT_LABELS = {
+    cash: "Cash & bank accounts", shares: "Shares & ETFs",
+    funds: "Managed funds", crypto: "Cryptocurrency", other: "Other investments",
+  };
+  const contribs = data.assetContributions || [];
+  if (contribs.length > 0) {
+    r++;
+    cell(r, 0, "Asset Contributions", {
+      font: { name: "Georgia", sz: 11, color: { rgb: C.pine }, bold: false, italic: true },
+      fill: { fgColor: { rgb: "EAF0EC" } },
+      alignment: { horizontal: "left", vertical: "center" },
+    });
+    merge(r, 0, 14);
+    for (let c = 1; c < NCOLS; c++) cell(r, c, "", {
+      fill: { fgColor: { rgb: "EAF0EC" } },
+    });
+    r++;
+
+    const byCat = {};
+    contribs.forEach(item => {
+      const k = item.categoryKey || "other";
+      (byCat[k] = byCat[k] || []).push(item);
+    });
+
+    Object.entries(byCat).forEach(([cat, catItems]) => {
+      cell(r, 0, ASSET_CAT_LABELS[cat] || cat, S.catRow);
+      merge(r, 0, 14);
+      for (let c = 1; c < NCOLS; c++) cell(r, c, "", S.catRow);
+      r++;
+
+      catItems.forEach((item, idx) => {
+        const isLast   = idx === catItems.length - 1;
+        const lblStyle = isLast ? S.itemLabelLast : S.itemLabel;
+        const amtStyle = isLast ? S.amountLast    : S.amount;
+        const empStyle = isLast ? S.emptyLast      : S.empty;
+        const annStyle = isLast ? S.annualAmtLast  : S.annualAmt;
+        const suffix   = item.ceaseYear ? ` (until ${item.ceaseYear})` : "";
+
+        cell(r, 0, "", lblStyle);
+        cell(r, 1, item.label + suffix, lblStyle);
+
+        fyInfo.months.forEach((mo, i) => {
+          const amt = contribAmountForMonth(item, mo.month);
+          if (amt > 0) {
+            cell(r, 2 + i, amt, amtStyle, "n");
+            monthTotals[i] += amt;
+          } else {
+            cell(r, 2 + i, "", empStyle);
+          }
+        });
+
+        const itemAnnual = contribMonthly(item) * 12;
+        annualTotal += itemAnnual;
+        cell(r, 14, itemAnnual, annStyle, "n");
+        r++;
+      });
+    });
+  }
 
   // ── Spacer before totals ──────────────────────────────────────────────────
   r++;
