@@ -50,7 +50,7 @@ const EMPTY_DATA = {
   partnerBonusIncome: "", partnerOtherIncome: "",
   insuranceAnnualPremium: "",  // legacy — migrated to insurancePremium on load
   monthlyExpenses: "", annualIrregular: "", savingsPerMonth: "",
-  budgetItems: [],
+  budgetItems: [], otherIncomeItems: [],
   // Stage 3
   assetItems: [],
   assetContributions: [],
@@ -164,6 +164,7 @@ function parseData(parsed) {
       budgetItems,
       assetItems,
       assetContributions: parsed.assetContributions || [],
+      otherIncomeItems: parsed.otherIncomeItems || [],
       goals,
       customAssumptions: {
         base:         { ...DEFAULT_SCENARIOS.base,         ...(parsed.customAssumptions?.base         || {}) },

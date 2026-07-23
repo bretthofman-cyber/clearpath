@@ -20,6 +20,7 @@ import {
 } from "./ausConfig.js";
 import { indexEventsByYear, getYearEventAdjustments } from "./lifeEvents.js";
 import { annualContribsForYear } from "./assetUtils.js";
+import { otherIncomeAnnual } from "./BudgetStage.jsx";
 
 // ── REGULATORY PRESETS ────────────────────────────────────────────────────────
 // Versioned so that a 2027 ASIC review can add a new entry without altering saved plans.
@@ -245,8 +246,9 @@ export function calculateHouseholdTax(data, ipCashflows, { skipAdvancedTax = fal
 
   const ss1    = p(data.salarySacrifice);
   const ss2    = isCouple ? p(data.partnerSalarySacrifice) : 0;
-  const gross1 = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome);
-  const gross2 = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0;
+  const _oi1   = otherIncomeAnnual(data);
+  const gross1 = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome) + _oi1.yours;
+  const gross2 = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) + _oi1.partner : 0;
 
   // Carry-forward concessional cap (ATO: available when prior-year super balance < $500k)
   // Suppressed for free-tier users.
@@ -406,8 +408,9 @@ export function projectSuper(data, assumptions) {
 
   const sgRate1   = pOr(data.employerSgRate, 12) / 100;
   const sgRate2   = isCouple ? pOr(data.partnerEmployerSgRate, 12) / 100 : 0;
-  const gross1    = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome);
-  const gross2    = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0;
+  const _oi2      = otherIncomeAnnual(data);
+  const gross1    = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome) + _oi2.yours;
+  const gross2    = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) + _oi2.partner : 0;
   const ss1       = p(data.salarySacrifice);
   const ss2       = isCouple ? p(data.partnerSalarySacrifice) : 0;
   const partnerRetirementAge = isCouple ? (p(data.partnerRetirementAge) || retirementAge) : retirementAge;
@@ -711,8 +714,9 @@ export function fireCalc(data, assumptions) {
   const isCoastFIRE  = currentSuper >= coastFireNumber;
 
   // Annual investment into super (post contributions tax)
-  const gross1    = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome);
-  const gross2    = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0;
+  const _oi3      = otherIncomeAnnual(data);
+  const gross1    = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome) + _oi3.yours;
+  const gross2    = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) + _oi3.partner : 0;
   const sgRate1   = pOr(data.employerSgRate, 12) / 100;
   const sgRate2   = isCouple ? pOr(data.partnerEmployerSgRate, 12) / 100 : 0;
   const ss1       = p(data.salarySacrifice);
@@ -780,8 +784,9 @@ export function netWorthTrajectory(data, assumptions, householdTax) {
   const eventMap = indexEventsByYear(data.lifeEvents || []);
 
   // Income ratio for partner-specific events (primary person's share of gross income)
-  const gross1 = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome);
-  const gross2 = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0;
+  const _oi4   = otherIncomeAnnual(data);
+  const gross1 = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome) + _oi4.yours;
+  const gross2 = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) + _oi4.partner : 0;
   const incRatio = (gross1 + gross2) > 0 ? gross1 / (gross1 + gross2) : 0.5;
 
   // Callers spread deriveAssetTotals() flat onto data — read fields directly
@@ -957,8 +962,9 @@ export function runMonteCarlo(data, assumptions, iterations = 1000) {
 
   const isCouple   = data.hasPartner === "yes";
   const superBal   = p(data.superBalance) + (isCouple ? p(data.partnerSuperBalance) : 0);
-  const gross1     = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome);
-  const gross2     = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) : 0;
+  const _oi5       = otherIncomeAnnual(data);
+  const gross1     = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome) + _oi5.yours;
+  const gross2     = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) + _oi5.partner : 0;
   const sgRate1    = (p(data.employerSgRate) || 12) / 100;
   const sgRate2    = isCouple ? (p(data.partnerEmployerSgRate) || 12) / 100 : 0;
   const ss1        = p(data.salarySacrifice);
@@ -1041,7 +1047,8 @@ function calculateTTR(data, assumptions) {
   const currentAge    = p(data.age);
   const retirementAge = p(data.retirementAge) || 65;
   const superBalance  = p(data.superBalance);
-  const grossIncome   = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome);
+  const _oiTTR        = otherIncomeAnnual(data);
+  const grossIncome   = p(data.grossIncome) + p(data.bonusIncome) + p(data.otherIncome) + _oiTTR.yours;
 
   if (!currentAge || !grossIncome || superBalance <= 0) {
     return { eligible: false };

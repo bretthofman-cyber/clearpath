@@ -110,11 +110,25 @@ export function estimateNetMonthly(data) {
   const g2 = data.hasPartner === "yes" ? Math.max(0, n(data.partnerIncome) - n(data.partnerSalarySacrifice)) : 0;
   const net1 = g1 - annualTax(g1);
   const net2 = g2 - annualTax(g2);
-  const bonus1 = (n(data.bonusIncome) + n(data.otherIncome)) * 0.75;
+  const oi = otherIncomeAnnual(data);
+  const bonus1 = (n(data.bonusIncome) + n(data.otherIncome)) * 0.75 + oi.yours * 0.75;
   const bonus2 = data.hasPartner === "yes"
-    ? (n(data.partnerBonusIncome) + n(data.partnerOtherIncome)) * 0.75
+    ? (n(data.partnerBonusIncome) + n(data.partnerOtherIncome)) * 0.75 + oi.partner * 0.75
     : 0;
   return Math.max(0, Math.round((net1 + net2 + bonus1 + bonus2) / 12));
+}
+
+export function otherIncomeAnnual(data) {
+  return (data.otherIncomeItems || []).reduce(
+    (acc, item) => {
+      const annual  = itemMonthly(item) * 12;
+      const yourPct = (item.yourPct ?? 100) / 100;
+      acc.yours   += annual * yourPct;
+      acc.partner += annual * (1 - yourPct);
+      return acc;
+    },
+    { yours: 0, partner: 0 }
+  );
 }
 
 export function itemMonthly(item) {
@@ -908,6 +922,333 @@ function AddItemPicker({ categoryKey, catLabel, onAdd, onCancel }) {
   );
 }
 
+// ─── OTHER INCOME ─────────────────────────────────────────────────────────────
+
+const OTHER_INCOME_SUGGESTIONS = [
+  "Rental income",
+  "Airbnb / short-stay rental",
+  "Dividends & distributions",
+  "Trust distributions",
+  "Side hustle / freelance",
+  "Business income",
+  "Commission",
+  "Royalties",
+  "Family Tax Benefit",
+  "Government payments",
+  "Interest income",
+  "Foreign income",
+];
+
+function newOtherIncomeItem(label, isCouple) {
+  return {
+    id: `oi_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    label, amount: "", frequency: "annual", month: null,
+    seasonal: false, monthlyAmounts: null,
+    yourPct: isCouple ? 50 : 100,
+  };
+}
+
+function SplitSelector({ yourPct, onChange, partnerName }) {
+  const [showCustom, setShowCustom] = useState(false);
+  const presets = [[100, "You"], [50, "50/50"], [0, partnerName || "Partner"]];
+  const isPreset = [0, 50, 100].includes(yourPct);
+
+  if (showCustom || !isPreset) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <input
+          type="number" min="0" max="100" value={yourPct}
+          onChange={e => onChange(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+          style={{
+            width: 36, padding: "4px 5px", border: "1.5px solid #D8D2C4",
+            borderRadius: 6, fontSize: 11, textAlign: "center", fontFamily: "inherit",
+            outline: "none",
+          }}
+          onFocus={e => e.target.style.borderColor = "#2E4A3D"}
+          onBlur={e => e.target.style.borderColor = "#D8D2C4"}
+        />
+        <span style={{ fontSize: 10, color: "#8A8270", whiteSpace: "nowrap" }}>
+          % you · {100 - yourPct}% {partnerName || "Partner"}
+        </span>
+        <button
+          onClick={() => { setShowCustom(false); if (!isPreset) onChange(50); }}
+          style={{ fontSize: 10, color: "#C2A06B", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+        >✕</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+      {presets.map(([pct, lbl]) => (
+        <button key={pct} onClick={() => onChange(pct)}
+          style={{
+            padding: "4px 7px", border: "1.5px solid",
+            borderColor: yourPct === pct ? "#2E4A3D" : "#D8D2C4",
+            borderRadius: 6, fontSize: 10, fontWeight: yourPct === pct ? 600 : 400,
+            color: yourPct === pct ? "#2E4A3D" : "#8A8270",
+            background: yourPct === pct ? "#EAF0EC" : "#FBFAF6",
+            cursor: "pointer", fontFamily: "inherit",
+          }}
+        >{lbl}</button>
+      ))}
+      <button
+        onClick={() => setShowCustom(true)}
+        title="Custom split %"
+        style={{ fontSize: 10, color: "#C2A06B", background: "none", border: "none", cursor: "pointer", padding: "0 3px" }}
+      >%</button>
+    </div>
+  );
+}
+
+function OtherIncomeItem({ item, onUpdate, onRemove, isCouple, partnerName }) {
+  const monthly      = itemMonthly(item);
+  const freq         = item.frequency || "annual";
+  const isNonMonthly = !item.seasonal && freq !== "monthly";
+
+  function handleModeChange(key) {
+    if (key === "seasonal") {
+      if (item.seasonal) return;
+      const cur = String(Math.round(monthly) || "");
+      onUpdate(item.id, { seasonal: true, monthlyAmounts: Array(12).fill(cur), frequency: "monthly" });
+    } else {
+      const updates = { seasonal: false, monthlyAmounts: null, frequency: key };
+      if (item.seasonal) updates.amount = String(Math.round(monthly) || "");
+      if (key === "monthly") updates.month = null;
+      onUpdate(item.id, updates);
+    }
+  }
+
+  function updateMonthAmt(idx, value) {
+    const next = [...(item.monthlyAmounts || Array(12).fill(""))];
+    next[idx] = value;
+    onUpdate(item.id, { monthlyAmounts: next });
+  }
+
+  const removeBtn = (
+    <button onClick={() => onRemove(item.id)}
+      style={{
+        flexShrink: 0, width: 22, height: 22, border: "none",
+        background: "none", color: "#D8D2C4", cursor: "pointer",
+        fontSize: 17, lineHeight: "22px", textAlign: "center", borderRadius: 4, padding: 0,
+      }}
+      onMouseEnter={e => e.currentTarget.style.color = "#9a3922"}
+      onMouseLeave={e => e.currentTarget.style.color = "#D8D2C4"}
+    >×</button>
+  );
+
+  const modeGroup = (
+    <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+      {ITEM_MODES.map(({ key, label }) => {
+        const active = key === "seasonal" ? !!item.seasonal : (!item.seasonal && freq === key);
+        const isSeasonal = key === "seasonal";
+        return (
+          <button key={key} onClick={() => handleModeChange(key)}
+            title={key === "seasonal" ? "Vary by month" : key === "quarterly" ? "Quarterly" : key === "annual" ? "Yearly" : "Monthly"}
+            style={{
+              padding: "6px 7px", border: "1.5px solid",
+              borderColor: active ? (isSeasonal ? "#C2A06B" : "#2E4A3D") : "#D8D2C4",
+              borderRadius: 7, fontSize: 11, fontWeight: 600,
+              color: active ? (isSeasonal ? "#7A5C2A" : "#2E4A3D") : "#8A8270",
+              background: active ? (isSeasonal ? "#FDF4E7" : "#EAF0EC") : "#FBFAF6",
+              cursor: "pointer", fontFamily: "inherit",
+            }}
+          >{label}</button>
+        );
+      })}
+    </div>
+  );
+
+  const splitRow = isCouple && (
+    <SplitSelector
+      yourPct={item.yourPct ?? 100}
+      onChange={v => onUpdate(item.id, { yourPct: v })}
+      partnerName={partnerName}
+    />
+  );
+
+  if (item.seasonal) {
+    const amounts = item.monthlyAmounts || Array(12).fill("");
+    return (
+      <div style={{ padding: "8px 14px 10px", borderBottom: "1px solid #F5F2EB", background: "white" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <div style={{ flex: 1, fontSize: 13, color: "#21241E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
+          {monthly > 0 && <div style={{ fontSize: 10, color: "#9DB0A1", flexShrink: 0 }}>avg {currency(monthly)}/mo</div>}
+          {modeGroup}
+          {removeBtn}
+        </div>
+        {splitRow && <div style={{ marginBottom: 6 }}>{splitRow}</div>}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "4px 6px" }}>
+          {MONTH_SHORT.map((m, idx) => (
+            <MonthInput key={m} label={m} value={amounts[idx] || ""} onChange={v => updateMonthAmt(idx, v)} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isNonMonthly) {
+    return (
+      <div style={{ padding: "8px 14px", borderBottom: "1px solid #F5F2EB", background: "white" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <div style={{ flex: 1, fontSize: 13, color: "#21241E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
+          {monthly > 0 && <div style={{ fontSize: 10, color: "#9DB0A1", flexShrink: 0 }}>{currency(monthly)}/mo</div>}
+          {removeBtn}
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ flex: "0 0 90px" }}>
+            <Input value={item.amount} onChange={v => onUpdate(item.id, { amount: v })} placeholder="0" prefix="$" />
+          </div>
+          {modeGroup}
+          <select value={item.month || ""}
+            onChange={e => onUpdate(item.id, { month: e.target.value ? parseInt(e.target.value) : null })}
+            title={freq === "quarterly" ? "First payment month" : "Month received"}
+            style={{
+              flexShrink: 0, padding: "6px 5px", width: 54,
+              border: `1.5px solid ${item.month ? "#2E4A3D" : "#D8D2C4"}`,
+              borderRadius: 7, fontSize: 12,
+              color: item.month ? "#2E4A3D" : "#8A8270",
+              background: item.month ? "#EAF0EC" : "#FBFAF6",
+              outline: "none", fontFamily: "inherit", cursor: "pointer", appearance: "none", textAlign: "center",
+            }}>
+            <option value="">{freq === "quarterly" ? "Start" : "Mo?"}</option>
+            {MONTH_SHORT.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+          </select>
+          {splitRow}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 14px", borderBottom: "1px solid #F5F2EB", background: "white", flexWrap: "wrap" }}>
+      <div style={{ flex: 1, fontSize: 13, color: "#21241E", minWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
+      <div style={{ width: 75, flexShrink: 0 }}>
+        <Input value={item.amount} onChange={v => onUpdate(item.id, { amount: v })} placeholder="0" prefix="$" />
+      </div>
+      {modeGroup}
+      {splitRow}
+      {removeBtn}
+    </div>
+  );
+}
+
+function OtherIncomePicker({ onAdd, onCancel }) {
+  const [custom, setCustom] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 60);
+    return () => clearTimeout(t);
+  }, []);
+
+  function add(label) {
+    if (label.trim()) onAdd(label.trim());
+  }
+
+  const chipStyle = (hover) => ({
+    padding: "8px 13px", border: "1.5px solid #D8D2C4", borderRadius: 20,
+    background: "white", fontSize: 12, color: "#2E4A3D", cursor: "pointer",
+    fontFamily: "inherit", transition: "background 0.1s, border-color 0.1s",
+  });
+
+  return (
+    <div style={{ padding: "12px 14px", background: "#edf2f0", borderTop: "2px solid #D8D2C4" }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: "#6B6655", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
+        Select or type an income source
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+        {OTHER_INCOME_SUGGESTIONS.map(s => (
+          <button key={s} onClick={() => add(s)} style={chipStyle()}
+            onMouseEnter={e => { e.currentTarget.style.background = "#EAF0EC"; e.currentTarget.style.borderColor = "#2E4A3D"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "white"; e.currentTarget.style.borderColor = "#D8D2C4"; }}
+          >{s}</button>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input
+          ref={inputRef} value={custom}
+          onChange={e => setCustom(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && custom.trim()) { add(custom); setCustom(""); } }}
+          placeholder="Custom income source…"
+          style={{
+            flex: 1, padding: "10px 12px", border: "1.5px solid #D8D2C4",
+            borderRadius: 10, fontSize: 14, color: "#21241E", background: "white",
+            outline: "none", fontFamily: "inherit",
+          }}
+          onFocus={e => e.target.style.borderColor = "#2E4A3D"}
+          onBlur={e => e.target.style.borderColor = "#D8D2C4"}
+        />
+        {custom.trim() && (
+          <button onClick={() => { add(custom); setCustom(""); }}
+            style={{ padding: "10px 14px", border: "none", borderRadius: 10, background: "#2E4A3D", color: "white", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+          >Add</button>
+        )}
+        <button onClick={onCancel}
+          style={{ padding: "10px 14px", border: "1.5px solid #D8D2C4", borderRadius: 10, background: "white", color: "#8A8270", fontSize: 13, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+        >Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function OtherIncomeSection({ items, isCouple, partnerName, setMany }) {
+  const [showPicker, setShowPicker] = useState(false);
+  const totalMonthly = (items || []).reduce((s, i) => s + itemMonthly(i), 0);
+
+  function addItem(label) {
+    setMany({ otherIncomeItems: [...(items || []), newOtherIncomeItem(label, isCouple)] });
+    setShowPicker(false);
+  }
+
+  function updateItem(id, changes) {
+    setMany({ otherIncomeItems: (items || []).map(i => i.id === id ? { ...i, ...changes } : i) });
+  }
+
+  function removeItem(id) {
+    setMany({ otherIncomeItems: (items || []).filter(i => i.id !== id) });
+  }
+
+  return (
+    <div style={{ background: "#FBFAF6", border: "1.5px solid #ECE7DB", borderRadius: 12, overflow: "hidden", marginBottom: 14 }}>
+      {(items || []).map(item => (
+        <OtherIncomeItem
+          key={item.id} item={item}
+          onUpdate={updateItem} onRemove={removeItem}
+          isCouple={isCouple} partnerName={partnerName}
+        />
+      ))}
+
+      {showPicker ? (
+        <OtherIncomePicker onAdd={addItem} onCancel={() => setShowPicker(false)} />
+      ) : (
+        <div style={{ padding: "8px 14px", background: (items || []).length > 0 ? "#FBFAF6" : "transparent" }}>
+          <button
+            onClick={() => setShowPicker(true)}
+            style={{
+              padding: "5px 12px", border: "1.5px dashed #D8D2C4", borderRadius: 8,
+              background: "none", color: "#2E4A3D", fontSize: 12,
+              cursor: "pointer", fontFamily: "inherit",
+            }}
+          >+ Add income source</button>
+        </div>
+      )}
+
+      {totalMonthly > 0 && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "#EAF0EC", borderTop: "1.5px solid #D8D2C4" }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "#2E4A3D", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            Total · {(items || []).length} source{(items || []).length !== 1 ? "s" : ""}
+          </span>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontFamily: "Spectral, serif", fontSize: 20, color: "#21241E" }}>{currency(totalMonthly)}/mo</div>
+            <div style={{ fontSize: 10, color: "#8A8270" }}>{currency(totalMonthly * 12)}/year</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── BUDGET CATEGORY ─────────────────────────────────────────────────────────
 
 function BudgetCategory({ cat, items, onAddItems, onUpdateItem, onRemoveItem }) {
@@ -1032,20 +1373,20 @@ export default function Stage2({ data, setMany }) {
         <Field label="Your annual bonus / incentives" hint="Leave blank if none">
           <Input value={data.bonusIncome} onChange={v => setMany({ bonusIncome: v })} placeholder="0" prefix="$" />
         </Field>
-        <Field label="Your other income" hint="Rental, side income, dividends">
-          <Input value={data.otherIncome} onChange={v => setMany({ otherIncome: v })} placeholder="0" prefix="$" />
-        </Field>
-      </TwoCol>
-      {isCouple && (
-        <TwoCol>
+        {isCouple ? (
           <Field label={`${partner}'s annual bonus / incentives`} hint="Leave blank if none">
             <Input value={data.partnerBonusIncome} onChange={v => setMany({ partnerBonusIncome: v })} placeholder="0" prefix="$" />
           </Field>
-          <Field label={`${partner}'s other income`} hint="Rental, side income, dividends">
-            <Input value={data.partnerOtherIncome} onChange={v => setMany({ partnerOtherIncome: v })} placeholder="0" prefix="$" />
-          </Field>
-        </TwoCol>
-      )}
+        ) : <div />}
+      </TwoCol>
+
+      <SectionDivider label="Other income" />
+      <OtherIncomeSection
+        items={data.otherIncomeItems || []}
+        isCouple={isCouple}
+        partnerName={partner}
+        setMany={setMany}
+      />
 
       <SectionDivider label="Monthly Budget" />
 
