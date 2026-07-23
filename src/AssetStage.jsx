@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { currency, Field, Input, SectionDivider } from "./ui.jsx";
+import { deriveAssetTotals } from "./assetUtils.js";
 
 // ─── CATEGORIES ──────────────────────────────────────────────────────────────
 
