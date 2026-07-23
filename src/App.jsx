@@ -1060,7 +1060,7 @@ export default function IndependentMeans() {
   const allIPs = data.investmentProperties || [];
   const _at = deriveAssetTotals(data.assetItems);
   const totalAssets = [_at.cashSavings, _at.sharesEtfs, _at.managedFunds,
-    _at.crypto, _at.otherInvestments, data.superBalance, data.ppOrValue,
+    _at.crypto, _at.otherInvestments, data.superBalance, data.partnerSuperBalance, data.ppOrValue,
     ...allIPs.map(ip => ip.value)]
     .reduce((sum, v) => sum + (parseFloat(String(v).replace(/,/g, "")) || 0), 0);
   const totalDebt = [data.mortgageBalance, data.creditCardDebt, data.personalLoanDebt, data.hecsDebt,
@@ -1070,6 +1070,8 @@ export default function IndependentMeans() {
   const monthlyLiquid = _at.cashSavings;
   const monthlyExp = parseFloat(String(data.monthlyExpenses).replace(/,/g, "")) || 1;
   const runway = monthlyLiquid > 0 && monthlyExp > 0 ? (monthlyLiquid / monthlyExp).toFixed(1) : "—";
+  const p = v => parseFloat(String(v || "").replace(/,/g, "")) || 0;
+  const combinedSuper = p(data.superBalance) + p(data.partnerSuperBalance);
 
   return (
     <EntitlementContext.Provider value={{ ...entitlement, openPricing: () => setShowPricing(true) }}>
@@ -1214,7 +1216,7 @@ export default function IndependentMeans() {
         <div className="no-print metrics-bar" style={{ background: "#2E4A3D", padding: "10px 28px", display: "flex", gap: 24, overflowX: "auto" }}>
           {[
             { label: "Net Worth", value: currency(netWorth) },
-            { label: "Super", value: currency(data.superBalance) },
+            { label: "Super", value: currency(combinedSuper) },
             { label: "Monthly Savings", value: currency(data.savingsPerMonth) },
             { label: "Emergency Runway", value: runway === "—" ? "—" : (runway + " mo") },
             { label: "Scenario", value: { base: "Base", conservative: "Conservative", aggressive: "Aggressive", asic: "ASIC 2025" }[data.activeScenario] || "Base" },
