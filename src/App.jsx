@@ -12,6 +12,7 @@ import { FEATURES } from "./features.js";
 import { trackSubscriptionActivated, setAnalyticsTokenGetter } from "./analytics.js";
 import { SiteFooter } from "./LegalModals.jsx";
 import AssetStage3 from "./AssetStage.jsx";
+import { calcStampDuty, getLandTaxInfo } from "./propertyUtils.js";
 
 const Stage2           = lazy(() => import("./BudgetStage.jsx"));
 const AnalysisScreen   = lazy(() => import("./AnalysisStage.jsx"));
@@ -42,8 +43,8 @@ const EMPTY_DATA = {
   // Stage 1
   firstName: "", age: "", partnerAge: "", partnerRetirementAge: "", hasPartner: "no",
   partnerName: "",
-  dependants: "0", location: "", employmentStatus: "full-time",
-  retirementAge: "65", lifeExpectancy: "90", homeOwnership: "owner",
+  dependants: "0", location: "",
+  retirementAge: "65", lifeExpectancy: "90", homeOwnership: "mortgage",
   privateHealthInsurance: "yes", partnerPrivateHealthInsurance: "yes",
   // Stage 2
   grossIncome: "", partnerIncome: "", bonusIncome: "", otherIncome: "",
@@ -65,6 +66,8 @@ const EMPTY_DATA = {
   creditCardDebt: "", personalLoanDebt: "", hecsDebt: "",
   partnerCreditCardDebt: "", partnerPersonalLoanDebt: "", partnerHecsDebt: "",
   // Stage 5
+  employmentStatus: "full-time", partnerEmploymentStatus: "full-time",
+  personalSuperContribs: "", partnerPersonalSuperContribs: "",
   superBalance: "", partnerSuperBalance: "", employerSgRate: "12",
   partnerEmployerSgRate: "12", salarySacrifice: "", partnerSalarySacrifice: "0",
   salarySacrificeMaxed: false, partnerSalarySacrificeMaxed: false,
@@ -165,6 +168,10 @@ function parseData(parsed) {
       assetItems,
       assetContributions: parsed.assetContributions || [],
       otherIncomeItems: parsed.otherIncomeItems || [],
+      employmentStatus: parsed.employmentStatus || "full-time",
+      partnerEmploymentStatus: parsed.partnerEmploymentStatus || "full-time",
+      personalSuperContribs: parsed.personalSuperContribs || "",
+      partnerPersonalSuperContribs: parsed.partnerPersonalSuperContribs || "",
       goals,
       customAssumptions: {
         base:         { ...DEFAULT_SCENARIOS.base,         ...(parsed.customAssumptions?.base         || {}) },
@@ -237,20 +244,6 @@ function Stage1({ data, set }) {
             options={[{ value: "", label: "Select state…" }, ...["NSW","VIC","QLD","WA","SA","TAS","ACT","NT"].map(s => ({ value: s, label: s }))]} />
         </Field>
       </TwoCol>
-      <TwoCol>
-        <Field label="Employment status">
-          <Select value={data.employmentStatus} onChange={v => set("employmentStatus", v)}
-            options={[
-              { value: "full-time", label: "Full-time" }, { value: "part-time", label: "Part-time" },
-              { value: "self-employed", label: "Self-employed" }, { value: "contractor", label: "Contractor" },
-              { value: "not-employed", label: "Not employed" },
-            ]} />
-        </Field>
-        <Field label="Home ownership">
-          <Select value={data.homeOwnership} onChange={v => set("homeOwnership", v)}
-            options={[{ value: "owner", label: "Own home" }, { value: "mortgage", label: "Mortgage" }, { value: "renting", label: "Renting" }]} />
-        </Field>
-      </TwoCol>
       <SectionDivider label="Retirement horizon" />
       <TwoCol>
         <Field label={data.hasPartner === "yes" ? "Your target retirement age" : "Target retirement age"}>
@@ -274,7 +267,7 @@ function Stage1({ data, set }) {
 
 // ─── PROPERTY PORTFOLIO COMPONENTS ──────────────────────────────────────────
 
-function PropertyCard({ ip, onChange, onClone, onRemove, isCouple }) {
+function PropertyCard({ ip, onChange, onClone, onRemove, isCouple, location }) {
   const [expanded, setExpanded] = useState(false);
   const ipVal  = parseFloat(String(ip.value).replace(/,/g, "")) || 0;
   const ipMort = parseFloat(String(ip.mortgageBalance).replace(/,/g, "")) || 0;
@@ -341,6 +334,28 @@ function PropertyCard({ ip, onChange, onClone, onRemove, isCouple }) {
           {isCouple && (
             <Field label="Mortgage balance"><Input value={ip.mortgageBalance} onChange={v => upd("mortgageBalance", v)} placeholder="450,000" prefix="$" /></Field>
           )}
+          {(() => {
+            const val = parseFloat(String(ip.value || "").replace(/,/g, "")) || 0;
+            const duty = val > 0 && location ? calcStampDuty(location, val) : null;
+            const ltInfo = getLandTaxInfo(location);
+            return (
+              <>
+                {duty && (
+                  <div style={{ fontSize: 13, color: "#5a6e5e", background: "#EAF0EC", border: "1px solid #C8D8CC", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
+                    Estimated stamp duty ({location}): <strong>{currency(duty)}</strong> — indicative, non-first-home-buyer rate.
+                  </div>
+                )}
+                {ltInfo && ltInfo.hasLandTax && (
+                  <div style={{ fontSize: 12, color: "#8A8270", background: "#FBFAF6", border: "1px solid #D8D2C4", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
+                    Land tax ({location}): threshold {currency(ltInfo.threshold)}, then {(ltInfo.rate * 100).toFixed(1)}% on combined portfolio land value above threshold.{ltInfo.note ? ` ${ltInfo.note}` : ""}
+                  </div>
+                )}
+                {ltInfo && !ltInfo.hasLandTax && ltInfo.note && (
+                  <div style={{ fontSize: 12, color: "#8A8270", marginBottom: 12 }}>{ltInfo.note}</div>
+                )}
+              </>
+            );
+          })()}
           <TwoCol>
             <Field label="Interest rate"><Input value={ip.mortgageRate} onChange={v => upd("mortgageRate", v)} placeholder="6.5" suffix="%" /></Field>
             <Field label="Loan type">
@@ -401,7 +416,7 @@ function PropertyCard({ ip, onChange, onClone, onRemove, isCouple }) {
   );
 }
 
-function PropertyPortfolio({ ips, onChange, isCouple }) {
+function PropertyPortfolio({ ips, onChange, isCouple, location }) {
   function addProperty() {
     onChange([...ips, newProperty(`Investment Property ${ips.length + 1}`)]);
   }
@@ -429,6 +444,7 @@ function PropertyPortfolio({ ips, onChange, isCouple }) {
               onClone={() => cloneAt(i)}
               onRemove={() => removeAt(i)}
               isCouple={isCouple}
+              location={location}
             />
           ))}
           <button onClick={addProperty} style={{ width: "100%", padding: "10px", border: "1.5px dashed #D8D2C4", borderRadius: 10, background: "#FBFAF6", fontSize: 15, color: "#2E4A3D", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -445,6 +461,14 @@ function Stage4({ data, set }) {
   const isCouple = data.hasPartner === "yes";
   return (
     <div>
+      <Field label="Home ownership">
+        <Select value={data.homeOwnership} onChange={v => set("homeOwnership", v)}
+          options={[
+            { value: "owner",    label: "Own home (no mortgage)" },
+            { value: "mortgage", label: "Own home (with mortgage)" },
+            { value: "renting",  label: "Renting" },
+          ]} />
+      </Field>
       {(data.homeOwnership === "mortgage" || data.homeOwnership === "owner") && (
         <>
           <TwoCol>
@@ -455,6 +479,16 @@ function Stage4({ data, set }) {
               </Field>
             ) : <div />}
           </TwoCol>
+          {(() => {
+            const val = parseFloat(String(data.ppOrValue || "").replace(/,/g, "")) || 0;
+            const duty = val > 0 && data.location ? calcStampDuty(data.location, val) : null;
+            if (!duty) return null;
+            return (
+              <div style={{ fontSize: 13, color: "#5a6e5e", background: "#EAF0EC", border: "1px solid #C8D8CC", borderRadius: 8, padding: "8px 12px", marginBottom: 16 }}>
+                Estimated stamp duty ({data.location}): <strong>{currency(duty)}</strong> — indicative non-first-home-buyer rate. First home buyer concessions and foreign purchaser surcharges not modelled.
+              </div>
+            );
+          })()}
           <TwoCol>
             <Field label="Mortgage balance"><Input value={data.mortgageBalance} onChange={v => set("mortgageBalance", v)} placeholder="450,000" prefix="$" /></Field>
             <Field label="Interest rate"><Input value={data.mortgageRate} onChange={v => set("mortgageRate", v)} placeholder="6.2" suffix="%" /></Field>
@@ -526,6 +560,7 @@ function Stage4({ data, set }) {
         ips={data.investmentProperties || []}
         onChange={newIPs => set("investmentProperties", newIPs)}
         isCouple={isCouple}
+        location={data.location}
       />
       <SectionDivider label="Other debts" />
       {isCouple ? (
@@ -622,28 +657,102 @@ function SalarySacrificeRow({ label, grossIncome, sgRate, ssValue, ssMaxed, onSs
   );
 }
 
-function Stage5({ data, set }) {
+const EMPLOYMENT_OPTIONS = [
+  { value: "full-time",      label: "Full-time employee" },
+  { value: "part-time",      label: "Part-time employee" },
+  { value: "self-employed",  label: "Self-employed / Sole trader" },
+  { value: "contractor",     label: "Contractor (ABN)" },
+  { value: "not-employed",   label: "Not employed" },
+];
+const EMPLOYEE_STATUSES = new Set(["full-time", "part-time"]);
+
+function Stage5({ data, set, setMany }) {
+  const partner   = data.partnerName || "Partner";
+  const isCouple  = data.hasPartner === "yes";
+  const empStatus  = data.employmentStatus  || "full-time";
+  const pEmpStatus = data.partnerEmploymentStatus || "full-time";
+  const isEmployee  = EMPLOYEE_STATUSES.has(empStatus);
+  const pIsEmployee = EMPLOYEE_STATUSES.has(pEmpStatus);
+  const isSelfEmp   = empStatus  === "self-employed" || empStatus  === "contractor";
+  const pIsSelfEmp  = pEmpStatus === "self-employed" || pEmpStatus === "contractor";
+
+  function changeEmpStatus(v) {
+    const sgRate = EMPLOYEE_STATUSES.has(v) ? "12" : "0";
+    setMany({ employmentStatus: v, employerSgRate: sgRate });
+  }
+  function changePEmpStatus(v) {
+    const sgRate = EMPLOYEE_STATUSES.has(v) ? "12" : "0";
+    setMany({ partnerEmploymentStatus: v, partnerEmployerSgRate: sgRate });
+  }
+
   return (
     <div>
+      <SectionDivider label="Employment" />
+      <TwoCol>
+        <Field label="Your employment status">
+          <Select value={empStatus} onChange={changeEmpStatus} options={EMPLOYMENT_OPTIONS} />
+        </Field>
+        {isCouple ? (
+          <Field label={`${partner}'s employment status`}>
+            <Select value={pEmpStatus} onChange={changePEmpStatus} options={EMPLOYMENT_OPTIONS} />
+          </Field>
+        ) : <div />}
+      </TwoCol>
+      {empStatus === "not-employed" && (
+        <div style={{ fontSize: 13, color: "#7a5c2e", background: "#FEF3CD", border: "1px solid #f0d070", borderRadius: 8, padding: "8px 12px", marginBottom: 16 }}>
+          Employment status is set to Not employed. Make sure your income in Stage 2 reflects this.
+        </div>
+      )}
+      {isCouple && pEmpStatus === "not-employed" && (
+        <div style={{ fontSize: 13, color: "#7a5c2e", background: "#FEF3CD", border: "1px solid #f0d070", borderRadius: 8, padding: "8px 12px", marginBottom: 16 }}>
+          {partner}'s employment status is set to Not employed. Make sure their income in Stage 2 reflects this.
+        </div>
+      )}
+
+      <SectionDivider label="Super balances" />
       <TwoCol>
         <Field label="Your super balance"><Input value={data.superBalance} onChange={v => set("superBalance", v)} placeholder="68,000" prefix="$" /></Field>
-        {data.hasPartner === "yes" && (
-          <Field label={`${data.partnerName || "Partner"}'s super balance`}><Input value={data.partnerSuperBalance} onChange={v => set("partnerSuperBalance", v)} placeholder="55,000" prefix="$" /></Field>
+        {isCouple && (
+          <Field label={`${partner}'s super balance`}><Input value={data.partnerSuperBalance} onChange={v => set("partnerSuperBalance", v)} placeholder="55,000" prefix="$" /></Field>
         )}
+      </TwoCol>
+
+      {(isSelfEmp || (isCouple && pIsSelfEmp)) && (
+        <>
+          <SectionDivider label="Personal super contributions" />
+          <div style={{ fontSize: 13, color: "#8A8270", marginBottom: 12, lineHeight: 1.5 }}>
+            Self-employed and contractor ABN workers have no mandatory employer SG. You can make voluntary concessional contributions and claim a tax deduction under s290-180 ITAA 1997. These count toward the $30,000 annual concessional cap.
+          </div>
+          <TwoCol>
+            {isSelfEmp ? (
+              <Field label="Your personal super contributions (annual)" hint="Voluntary concessional; claim tax deduction via your tax return">
+                <Input value={data.personalSuperContribs} onChange={v => set("personalSuperContribs", v)} placeholder="0" prefix="$" />
+              </Field>
+            ) : <div />}
+            {isCouple && pIsSelfEmp ? (
+              <Field label={`${partner}'s personal super contributions (annual)`} hint="Voluntary concessional; claim tax deduction via their tax return">
+                <Input value={data.partnerPersonalSuperContribs} onChange={v => set("partnerPersonalSuperContribs", v)} placeholder="0" prefix="$" />
+              </Field>
+            ) : <div />}
+          </TwoCol>
+        </>
+      )}
+
+      <SectionDivider label="Employer super contributions" />
+      <TwoCol>
+        {isEmployee ? (
+          <Field label="Your employer SG rate" hint="Currently 12% for most employees">
+            <Input value={data.employerSgRate} onChange={v => set("employerSgRate", v)} placeholder="12" suffix="%" />
+          </Field>
+        ) : <div />}
+        {isCouple && pIsEmployee ? (
+          <Field label={`${partner}'s SG rate`} hint="Currently 12% for most employees">
+            <Input value={data.partnerEmployerSgRate} onChange={v => set("partnerEmployerSgRate", v)} placeholder="12" suffix="%" />
+          </Field>
+        ) : <div />}
       </TwoCol>
 
       <SectionDivider label="Salary sacrifice" />
-      <TwoCol>
-        <Field label="Your employer SG rate" hint="Currently 12% for most employees">
-          <Input value={data.employerSgRate} onChange={v => set("employerSgRate", v)} placeholder="12" suffix="%" />
-        </Field>
-        {data.hasPartner === "yes" && (
-          <Field label={`${data.partnerName || "Partner"}'s SG rate`} hint="Currently 12% for most employees">
-            <Input value={data.partnerEmployerSgRate} onChange={v => set("partnerEmployerSgRate", v)} placeholder="12" suffix="%" />
-          </Field>
-        )}
-      </TwoCol>
-
       <SalarySacrificeRow
         label="Your salary sacrifice (annual)"
         hint="Pre-tax contributions above SG"
@@ -1244,7 +1353,7 @@ export default function IndependentMeans() {
               {stage === 2 && <Stage2 data={data} setMany={setMany} />}
               {stage === 3 && <AssetStage3 data={data} setMany={setMany} />}
               {stage === 4 && <Stage4 data={data} set={set} />}
-              {stage === 5 && <Stage5 data={data} set={set} />}
+              {stage === 5 && <Stage5 data={data} set={set} setMany={setMany} />}
               {stage === 6 && <AnalysisScreen data={data} set={set} entitlement={entitlement} />}
               {stage === 7 && <ActionPlanScreen data={data} entitlement={entitlement} />}
             </Suspense>

@@ -42,13 +42,20 @@ export const MEDICARE = {
 
 // ── Medicare Levy Surcharge ───────────────────────────────────────────────────
 // Applies when individual has no hospital-level private health cover.
-// Thresholds are for singles; couple/family thresholds are higher — model individually.
 export const MLS_BRACKETS = [
   { above: 0,       rate: 0.000 },
   { above: 93000,   rate: 0.010 },
   { above: 108000,  rate: 0.0125 },
   { above: 144000,  rate: 0.015 },
 ];
+
+// MLS family income threshold — if combined family income is below this, the lower-income
+// partner is exempt from MLS even if individually above the $93k single threshold.
+// Source: ATO — FY2026-27.
+export const MLS_FAMILY = {
+  baseThreshold: 186000,
+  perDependant:  1500,
+};
 
 // ── HELP / HECS Compulsory Repayment Thresholds (FY2025-26) ──────────────────
 // Rates apply to repayment income (approx equals taxable income for most employees).
@@ -128,4 +135,109 @@ export const AGE_PENSION = {
   incomeFree: { single: 5512, couple: 9672 },
   // 50c per $1 of income over the free area (both single and couple combined rate)
   incomeTaperRate: 0.50,
+};
+
+// ── Family Tax Benefit ────────────────────────────────────────────────────────
+// Simplified estimates for planning purposes only.
+// Actual entitlement assessed by Services Australia — depends on children's ages,
+// shared-care arrangements, activity test, and many other factors.
+// Rates are approximate maximums for FY2025-26, indexed twice yearly.
+export const FTB = {
+  partAMaxPerChild:    2156,    // per child aged 0–12 (annual)
+  partAIncomeTest:     62634,   // full rate below this combined family income
+  partAReduceRate:     0.20,    // 20c per $1 above income test
+  partABaseRate:       878,     // base rate below second income threshold
+  partABaseIncomeTest: 116000,
+  partBMaxUnder5:      2304,    // youngest child 0–4 (annual per family)
+  partBMax5to12:       1609,    // youngest child 5–12
+  partBPrimaryMax:     100900,  // primary earner income ceiling for Part B
+  partBSecondaryFree:  6958,    // secondary earner income below which full Part B paid
+  partBReduceRate:     0.20,
+};
+
+// ── Stamp Duty ────────────────────────────────────────────────────────────────
+// Residential property purchase duty — non-first-home-buyer, established dwelling.
+// INDICATIVE ONLY. First home buyer concessions, off-the-plan discounts, and
+// foreign purchaser surcharges are NOT modelled.
+// Each bracket: { to, base, rate, over } → duty = base + (value − over) × rate
+// Source: State Revenue Office websites — approximate FY2025-26 schedules.
+export const STAMP_DUTY_BRACKETS = {
+  NSW: [
+    { to: 17000,    base: 0,       rate: 0.0125, over: 0 },
+    { to: 36000,    base: 212,     rate: 0.015,  over: 17000 },
+    { to: 97000,    base: 497,     rate: 0.0175, over: 36000 },
+    { to: 364000,   base: 1565,    rate: 0.035,  over: 97000 },
+    { to: 1094000,  base: 10905,   rate: 0.045,  over: 364000 },
+    { to: 3281000,  base: 43755,   rate: 0.055,  over: 1094000 },
+    { to: Infinity, base: 164130,  rate: 0.07,   over: 3281000 },
+  ],
+  VIC: [
+    { to: 25000,    base: 0,       rate: 0.014,  over: 0 },
+    { to: 130000,   base: 350,     rate: 0.024,  over: 25000 },
+    { to: 440000,   base: 2870,    rate: 0.05,   over: 130000 },
+    { to: 960000,   base: 18370,   rate: 0.06,   over: 440000 },
+    { to: Infinity, base: 49570,   rate: 0.055,  over: 960000 },
+  ],
+  QLD: [
+    { to: 5000,     base: 0,       rate: 0,      over: 0 },
+    { to: 75000,    base: 0,       rate: 0.015,  over: 5000 },
+    { to: 540000,   base: 1050,    rate: 0.035,  over: 75000 },
+    { to: 1000000,  base: 17325,   rate: 0.045,  over: 540000 },
+    { to: Infinity, base: 38025,   rate: 0.0575, over: 1000000 },
+  ],
+  SA: [
+    { to: 12000,    base: 0,       rate: 0.01,   over: 0 },
+    { to: 30000,    base: 120,     rate: 0.02,   over: 12000 },
+    { to: 50000,    base: 480,     rate: 0.03,   over: 30000 },
+    { to: 100000,   base: 1080,    rate: 0.035,  over: 50000 },
+    { to: 200000,   base: 2830,    rate: 0.04,   over: 100000 },
+    { to: 250000,   base: 6830,    rate: 0.0425, over: 200000 },
+    { to: 300000,   base: 8955,    rate: 0.0475, over: 250000 },
+    { to: 500000,   base: 11330,   rate: 0.05,   over: 300000 },
+    { to: Infinity, base: 21330,   rate: 0.055,  over: 500000 },
+  ],
+  WA: [
+    { to: 80000,    base: 0,       rate: 0.019,  over: 0 },
+    { to: 100000,   base: 1520,    rate: 0.0285, over: 80000 },
+    { to: 250000,   base: 2090,    rate: 0.03,   over: 100000 },
+    { to: 500000,   base: 6590,    rate: 0.0415, over: 250000 },
+    { to: Infinity, base: 16965,   rate: 0.05,   over: 500000 },
+  ],
+  TAS: [
+    { to: 25000,    base: 50,      rate: 0.0175, over: 3000 },
+    { to: 75000,    base: 435,     rate: 0.025,  over: 25000 },
+    { to: 200000,   base: 1685,    rate: 0.03,   over: 75000 },
+    { to: 375000,   base: 5435,    rate: 0.035,  over: 200000 },
+    { to: 725000,   base: 11560,   rate: 0.04,   over: 375000 },
+    { to: Infinity, base: 25560,   rate: 0.045,  over: 725000 },
+  ],
+  ACT: [
+    { to: 200000,   base: 0,       rate: 0.020,  over: 0 },
+    { to: 300000,   base: 4000,    rate: 0.028,  over: 200000 },
+    { to: 500000,   base: 6800,    rate: 0.038,  over: 300000 },
+    { to: 750000,   base: 14400,   rate: 0.047,  over: 500000 },
+    { to: 1000000,  base: 26150,   rate: 0.055,  over: 750000 },
+    { to: 1455000,  base: 39900,   rate: 0.059,  over: 1000000 },
+    { to: Infinity, base: 66745,   rate: 0.067,  over: 1455000 },
+  ],
+  NT: [
+    { to: 525000,   base: 0,       rate: 0.0499, over: 0 },
+    { to: Infinity, base: 26198,   rate: 0.0499, over: 525000 },
+  ],
+};
+
+// ── Land Tax ──────────────────────────────────────────────────────────────────
+// Annual charge on unimproved land value. Principal place of residence is exempt
+// in most states. NT has no land tax. Thresholds apply to combined portfolio value.
+// INDICATIVE ONLY. Trust/company surcharges and foreign owner surcharges not modelled.
+// Source: State Revenue Office websites — approximate FY2024-25 thresholds.
+export const LAND_TAX = {
+  NSW: { threshold: 1075000, rate: 0.016, premiumThreshold: 6571000, premiumRate: 0.02,   note: "Threshold applies to combined unimproved value of all taxable NSW properties." },
+  VIC: { threshold: 300000,  rate: 0.010, premiumThreshold: 1800000, premiumRate: 0.015,  note: "Temporary state budget surcharge (0.1%) applies 2024-2026; not modelled." },
+  QLD: { threshold: 600000,  rate: 0.010, premiumThreshold: 1000000, premiumRate: 0.0165, note: "Individual threshold. Company/trust thresholds are lower." },
+  SA:  { threshold: 534000,  rate: 0.005, premiumThreshold: 1068000, premiumRate: 0.010,  note: null },
+  WA:  { threshold: 300000,  rate: 0.009, premiumThreshold: 420000,  premiumRate: 0.011,  note: null },
+  TAS: { threshold: 75000,   rate: 0.010, premiumThreshold: 350000,  premiumRate: 0.015,  note: null },
+  ACT: { threshold: null,    rate: null,  premiumThreshold: null,    premiumRate: null,   note: "ACT is replacing stamp duty with annual rates — no separate land tax applies." },
+  NT:  null,
 };

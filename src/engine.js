@@ -15,8 +15,8 @@
  */
 
 import {
-  INCOME_TAX_BRACKETS, LITO, MEDICARE, MLS_BRACKETS,
-  HELP_THRESHOLDS, DIV_293, SUPER, ABP_DRAWDOWN, AGE_PENSION,
+  INCOME_TAX_BRACKETS, LITO, MEDICARE, MLS_BRACKETS, MLS_FAMILY,
+  HELP_THRESHOLDS, DIV_293, SUPER, ABP_DRAWDOWN, AGE_PENSION, FTB,
 } from "./ausConfig.js";
 import { indexEventsByYear, getYearEventAdjustments } from "./lifeEvents.js";
 import { annualContribsForYear } from "./assetUtils.js";
@@ -135,6 +135,8 @@ export function calculatePersonTax(taxableIncome, {
   excessConcessional   = 0,
   frankingCredits      = 0,
   skipAdvancedTax      = false,
+  familyIncome         = null,   // combined household income — used for MLS family threshold
+  dependants           = 0,
 } = {}) {
   const g = Math.max(0, taxableIncome);
   const zero = { taxableIncome: 0, incomeTax: 0, medicareLevy: 0, mls: 0, hecsRepayment: 0, division293: 0, totalTax: 0, afterTax: 0, effectiveRate: 0 };
@@ -178,6 +180,12 @@ export function calculatePersonTax(taxableIncome, {
   if (!hasPrivateHealth) {
     for (let i = MLS_BRACKETS.length - 1; i >= 0; i--) {
       if (g > MLS_BRACKETS[i].above) { mls = g * MLS_BRACKETS[i].rate; break; }
+    }
+    // Family threshold: if combined family income is below the family MLS threshold,
+    // the lower-income earner is exempt even if individually above the $93k single threshold.
+    if (mls > 0 && familyIncome != null) {
+      const familyThreshold = MLS_FAMILY.baseThreshold + MLS_FAMILY.perDependant * (dependants || 0);
+      if (familyIncome < familyThreshold) mls = 0;
     }
   }
 
@@ -283,8 +291,10 @@ export function calculateHouseholdTax(data, ipCashflows, { skipAdvancedTax = fal
   const hecs1   = p(data.hecsDebt);
   const hecs2   = isCouple ? p(data.partnerHecsDebt) : 0;
 
-  const p1Tax = calculatePersonTax(taxable1, { superConcessional: concess1, hasPrivateHealth: health1, hecsDebt: hecs1, excessConcessional: excessConc1, frankingCredits: fc1, skipAdvancedTax });
-  const p2Tax = isCouple ? calculatePersonTax(taxable2, { superConcessional: concess2, hasPrivateHealth: health2, hecsDebt: hecs2, excessConcessional: excessConc2, frankingCredits: fc2, skipAdvancedTax }) : null;
+  const deps         = parseInt(data.dependants || "0") || 0;
+  const familyIncome = isCouple ? gross1 + gross2 : null;
+  const p1Tax = calculatePersonTax(taxable1, { superConcessional: concess1, hasPrivateHealth: health1, hecsDebt: hecs1, excessConcessional: excessConc1, frankingCredits: fc1, skipAdvancedTax, familyIncome, dependants: deps });
+  const p2Tax = isCouple ? calculatePersonTax(taxable2, { superConcessional: concess2, hasPrivateHealth: health2, hecsDebt: hecs2, excessConcessional: excessConc2, frankingCredits: fc2, skipAdvancedTax, familyIncome, dependants: deps }) : null;
 
   // Negative gearing tax benefit: how much less tax because of rental losses
   const negGearBenefit1 = rentalPerson1 < 0
@@ -503,6 +513,47 @@ export function estimateAgePension(isCouple, isHomeowner, assessableAssets, asse
       ? (estimatedAnnual >= fullRate * 0.99 ? "Full pension" : "Part pension")
       : "Exceeds both assets and income test limits",
   };
+}
+
+// ── FAMILY TAX BENEFIT ────────────────────────────────────────────────────────
+
+/**
+ * Estimate annual Family Tax Benefit (Part A + Part B).
+ * General information only — actual entitlement assessed by Services Australia.
+ * Does not model children's individual ages; uses maximum age bracket rates.
+ * Does not model shared care, blended families, or activity test requirements.
+ */
+export function estimateFTB(dependants, primaryIncome, secondaryIncome, isCouple) {
+  if (!dependants || dependants <= 0) return { partA: 0, partB: 0, total: 0 };
+
+  const familyIncome = primaryIncome + secondaryIncome;
+
+  // Part A — per eligible child, combined family income tested
+  let partAPerChild = 0;
+  if (familyIncome <= FTB.partAIncomeTest) {
+    partAPerChild = FTB.partAMaxPerChild;
+  } else if (familyIncome <= FTB.partABaseIncomeTest) {
+    partAPerChild = Math.max(
+      FTB.partABaseRate,
+      FTB.partAMaxPerChild - (familyIncome - FTB.partAIncomeTest) * FTB.partAReduceRate,
+    );
+  }
+  const partA = Math.round(partAPerChild * dependants);
+
+  // Part B — per family; primary earner income tested; assumes youngest child under 5 for maximum
+  let partB = 0;
+  if (primaryIncome < FTB.partBPrimaryMax) {
+    const maxPartB = FTB.partBMaxUnder5;
+    if (!isCouple) {
+      partB = maxPartB;
+    } else {
+      const excess = Math.max(0, secondaryIncome - FTB.partBSecondaryFree);
+      partB = Math.max(0, maxPartB - excess * FTB.partBReduceRate);
+    }
+    partB = Math.round(partB);
+  }
+
+  return { partA, partB, total: partA + partB };
 }
 
 // ── DEBT-FREE DATE ────────────────────────────────────────────────────────────
@@ -789,6 +840,11 @@ export function netWorthTrajectory(data, assumptions, householdTax) {
   const gross2 = isCouple ? p(data.partnerIncome) + p(data.partnerBonusIncome) + p(data.partnerOtherIncome) + _oi4.partner : 0;
   const incRatio = (gross1 + gross2) > 0 ? gross1 / (gross1 + gross2) : 0.5;
 
+  const deps        = parseInt(data.dependants || "0") || 0;
+  const primaryG    = Math.max(gross1, gross2);
+  const secondaryG  = Math.min(gross1, gross2);
+  const ftbAnnual   = deps > 0 ? estimateFTB(deps, primaryG, secondaryG, isCouple).total : 0;
+
   // Callers spread deriveAssetTotals() flat onto data — read fields directly
   let liquid   = p(data.cashSavings) + p(data.sharesEtfs) + p(data.managedFunds) +
                  p(data.crypto) + p(data.otherInvestments);
@@ -837,8 +893,10 @@ export function netWorthTrajectory(data, assumptions, householdTax) {
   // Net super contributions after 15% contributions tax
   const sg1           = gross1 * sgRate1;
   const sg2           = isCouple ? gross2 * sgRate2 : 0;
-  const concess1      = Math.min(sg1 + ss1, SUPER.concessionalCap);
-  const concess2      = isCouple ? Math.min(sg2 + ss2, SUPER.concessionalCap) : 0;
+  const personal1     = p(data.personalSuperContribs);
+  const personal2     = isCouple ? p(data.partnerPersonalSuperContribs) : 0;
+  const concess1      = Math.min(sg1 + ss1 + personal1, SUPER.concessionalCap);
+  const concess2      = isCouple ? Math.min(sg2 + ss2 + personal2, SUPER.concessionalCap) : 0;
   const annualSuperIn = (concess1 + concess2) * (1 - SUPER.contribTaxRate);
 
   const targetSpending = p(data.targetRetirementSpending);
@@ -906,7 +964,7 @@ export function netWorthTrajectory(data, assumptions, householdTax) {
       // IP net cashflow + negative gearing benefit + franking refund + debt recycling saving
       // Outside-super insurance premiums reduce liquid savings; inside-super premiums reduce super balance
       const annualContribs = annualContribsForYear(data.assetContributions, nextCalYear, retirYear);
-      liquid   = liquid * (1 + r) + effectiveSavings + ipNetAnnualCF + negGearBenefit + frankingRefund + drTaxSaving - liquidInsurance + annualContribs;
+      liquid   = liquid * (1 + r) + effectiveSavings + ipNetAnnualCF + negGearBenefit + frankingRefund + drTaxSaving - liquidInsurance + annualContribs + ftbAnnual;
       superBal = superBal * (1 + r) + effectiveSuperIn - superInsurance;
     } else if (age < superAccessAge) {
       // Bridge phase: super locked in accumulation (no SG, no drawdown), liquid covers spending.

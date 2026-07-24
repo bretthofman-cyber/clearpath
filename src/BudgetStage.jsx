@@ -911,6 +911,8 @@ const OTHER_INCOME_SUGGESTIONS = [
   "Business income",
   "Commission",
   "Royalties",
+  "Long-service leave",
+  "Annual leave payout",
   "Family Tax Benefit",
   "Government payments",
   "Interest income",
@@ -1367,6 +1369,13 @@ export default function Stage2({ data, setMany }) {
       />
 
       <SectionDivider label="Monthly Budget" />
+
+      {parseInt(data.dependants || "0") > 0 && !items.some(i => /child.?care/i.test(i.label)) && (
+        <div style={{ fontSize: 13, color: "#5a6e5e", background: "#EAF0EC", border: "1px solid #C8D8CC", borderRadius: 8, padding: "10px 14px", marginBottom: 14, display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <span style={{ flexShrink: 0, marginTop: 1 }}>✦</span>
+          <span>You have dependants — consider adding <strong>Childcare</strong> and <strong>School fees</strong> to your monthly budget below.</span>
+        </div>
+      )}
 
       <div style={{ background: "#FBFAF6", border: "1.5px solid #ECE7DB", borderRadius: 12, overflow: "hidden", marginBottom: 14 }}>
         {BUDGET_CATS.map(cat => (
