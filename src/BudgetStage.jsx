@@ -17,10 +17,10 @@ export { BUDGET_CATS };
 const BUDGET_SUGGESTIONS = {
   housing: [
     "Mortgage repayment", "Rent", "Council rates", "Body corp / strata fees",
-    "Water & sewerage", "Home maintenance", "Cleaning service", "Pest control", "Lawn & garden",
+    "Home maintenance", "Cleaning service", "Pest control", "Lawn & garden",
   ],
   utilities: [
-    "Electricity", "Gas", "Internet / broadband", "Mobile phone",
+    "Electricity", "Gas", "Water & sewerage", "Internet / broadband", "Mobile phone",
     "Home phone", "Device plan / wearable (Apple Watch etc.)", "Other utilities",
   ],
   groceries: [
