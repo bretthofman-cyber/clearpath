@@ -180,7 +180,7 @@ function LoginScreen() {
             <div style={{ fontFamily: "Spectral, serif", fontSize: 30, fontWeight: 400, color: "#21241E", lineHeight: 1.25, marginBottom: 12 }}>Simple, transparent pricing</div>
             <div style={{ fontSize: 15, color: "#6B6655", lineHeight: 1.6 }}>Start free. Upgrade when you want the full picture.</div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, maxWidth: 680, margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, maxWidth: 680, margin: "0 auto" }}>
             {/* Free */}
             <div style={{ background: "#FBFAF6", borderRadius: 20, padding: "32px 28px", border: "1px solid #E8E3D9" }}>
               <div style={{ fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", color: "#9DB0A1", fontWeight: 600, marginBottom: 12 }}>Free</div>
