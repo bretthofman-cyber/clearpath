@@ -1264,14 +1264,15 @@ export default function IndependentMeans() {
   .fire-card-grid { grid-template-columns: 1fr !important; }
   .app-header { padding: 10px 16px !important; }
   .mobile-hide { display: none !important; }
-  .stage-nav { padding: 0 8px 10px !important; }
+  .stage-nav { padding: 10px 8px 10px !important; }
   .stage-nav-label { display: none !important; }
   .app-stage-content { padding: 16px 12px 80px !important; }
   .stage-content-card { padding: 16px !important; border-radius: 12px !important; }
   .stage-step-header { margin-bottom: 16px !important; }
 }`}</style>
 
-      <header className="no-print app-header" style={{ background: "#FBFAF6", borderBottom: "1px solid #ECE7DB", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
+      <div className="no-print" style={{ position: "sticky", top: 0, zIndex: 100 }}>
+      <header className="app-header" style={{ background: "#FBFAF6", borderBottom: "1px solid #ECE7DB", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontFamily: "Spectral, serif", fontSize: 20, color: "#21241E" }}>
             Independent<span style={{ color: "#2E4A3D" }}> Means</span>
@@ -1325,10 +1326,10 @@ export default function IndependentMeans() {
           >Sign out</button>
         </div>
       </header>
-
       <TrialBanner isTrial={entitlement.isTrial} trialDaysLeft={entitlement.trialDaysLeft} onOpenPricing={() => setShowPricing(true)} />
+      </div>
 
-      <div className="no-print stage-nav" style={{ background: "white", borderBottom: "1px solid #ECE7DB", padding: "0 28px 14px" }}>
+      <div className="no-print stage-nav" style={{ background: "white", borderBottom: "1px solid #ECE7DB", padding: "10px 28px 14px" }}>
         <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
           {STAGES.map(s => {
             const isActive = s.id === stage;
